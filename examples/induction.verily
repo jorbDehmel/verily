@@ -1,0 +1,28 @@
+// A toy demonstration of the inductive system
+
+// Typed instantiation (much more efficient)
+rule typed_instantiation:
+  over Domain, consequent, x, y
+  given
+    forall x. x in Domain implies consequent,
+    y in Domain
+  deduce consequent[x = y]
+;
+
+// Modus ponens / uninterpreted implication
+rule modus_ponens:
+  over p, q
+  given p, p implies q
+  deduce q
+;
+
+axiom: 0 in Nat;
+axiom: forall n. n in Nat implies S(n) in Nat;
+
+theorem: S(S(S(S(0)))) in Nat;
+
+axiom: e(0);
+axiom: forall n. n in Nat implies (e(n) implies not e(S(n)));
+axiom: forall n. n in Nat implies (not e(n) implies e(S(n)));
+
+theorem: e(S(S(0)));

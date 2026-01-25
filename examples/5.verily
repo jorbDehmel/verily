@@ -1,0 +1,13 @@
+# The natural numbers and the definition of even-ness
+symbol S in Nat to Nat;  # Type annotation for S
+symbol e in Nat to Bool; # Type annotation for e
+
+symbol 0 in Nat. e(0);  # Root of hierarchy
+forall n in Nat. e(n) iff not e(S(n));
+
+# A parity-maintaining function
+function f(n in Nat)
+  ensures e(f(n)) == e(n)
+{
+  S(S(n))
+}

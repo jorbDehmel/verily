@@ -1,0 +1,8 @@
+.vscode
+.mypy_cache
+__pycache__
+latex/
+*.pdf
+*.o
+*.out
+*.vsix

@@ -1,0 +1,11 @@
+// Instantiation
+rule:
+  over M, x, y
+  given forall x. M, y
+  deduce M[x = y]
+;
+
+axiom: foo;
+axiom: forall item. fizz(item);
+
+prove_backward: fizz(foo);

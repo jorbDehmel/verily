@@ -1,0 +1,73 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "verily",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#doubleStrings"
+		},
+		{
+			"include": "#storage"
+		},
+		{
+			"include": "#comments"
+		}
+	],
+	"repository": {
+		"comments": {
+			"patterns": [
+				{
+					"match": "#.*",
+					"name": "comment.line.number-sign.verily"
+				},
+				{
+					"match": "//.*",
+					"name": "comment.line.double-slash.verily"
+				},
+				{
+					"name": "comment.block.verily",
+					"begin": "/\\*",
+					"end": "\\*/"
+				}
+			]
+		},
+		"doubleStrings": {
+			"begin": "\"",
+			"end": "\"",
+			"name": "string.quoted.double.verily",
+			"patterns": [
+				{
+					"match": "\\\\.",
+					"name": "constant.character.escape.verily"
+				}
+			]
+		},
+		"keywords": {
+			"patterns": [
+				{
+					"match": "\\b(axiom|function|include|method|annotation|exists|forall|implies|iff|st|requires|ensures|bind|symbol|rule|over|given|deduce|theorem|prove[_a-zA-Z]*)\\b",
+					"name": "keyword.control.verily"
+				},
+				{
+					"match": "\\b(true|false|in|and|or|not|to)\\b",
+					"name": "keyword.other.verily"
+				}
+			]
+		},
+		"storage": {
+			"patterns": [
+				{
+					"match": "\\b[a-zA-Z0-9_]+\\b",
+					"name": "variable.name.verily"
+				},
+				{
+					"match": "\\b(\\.|:|;|,|==)\\b",
+					"name":"keyword.operator.verily"
+				}
+			]
+		}
+	},
+	"scopeName": "source.verily"
+}

@@ -1,0 +1,7 @@
+// Tests parentheses in expressions
+// And multi-line axioms, I guess
+forall n in Nat.
+  not (a and b or c)
+  implies
+  (not a iff (not c and b))
+;

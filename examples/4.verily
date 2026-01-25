@@ -1,0 +1,22 @@
+# Tests nested schemas
+// Also this type of comment
+
+symbol 0    in Nat;
+symbol S    in Nat to Nat;
+symbol plus in Nat to Nat to Nat;
+
+forall n in Nat. plus(n)(0) == n;
+
+forall a in Nat.
+  forall b in Nat.
+    S(a) == b iff a == P(b);
+
+forall a in Nat.
+  forall b in Nat.
+    plus(a)(b) == plus(b)(a);
+
+forall a in Nat.
+  forall b in Nat.
+    plus(a)(S(b)) == S(plus(a)(b));
+
+annotation: plus(0)(S(0)) == S(0);

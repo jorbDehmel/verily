@@ -1,0 +1,4 @@
+bind 0 in Nat;
+bind S in Nat to Nat;
+
+annotation: S(S(0));

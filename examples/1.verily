@@ -1,0 +1,5 @@
+# Some testing for verily
+symbol x in SomeSet. phi(x) iff not phi(phi(x));
+forall y in SomeSet. psi(y) iff phi(y);
+
+annotation: phi(phi(x)) implies not psi(x);
