@@ -11,6 +11,12 @@ from Python to C++ and continued expanding it. The deductive
 proof system (mostly separate from the SMT stuff) came in Spring
 '26 when I was taking a logic course.
 
+**This is not necessarily decidable!** If you choose your rules
+wisely, it might be, but it almost certainly will not be if you
+aren't smart about it. A poor choice of rules can make proving
+"2 is a natural number" take seconds. This is NP-complete for
+obvious reasons, so tread with care!
+
 ## This Repo
 
 This repo contains some examples, a verily CLI, some tests, and
@@ -28,6 +34,73 @@ build the extension. This will produce a local file ending in
 would then run `code --install-extension NAME_GOES_HERE.vsix`.
 You must then reload your `vscode` window for the syntax
 highlighter to start working.
+
+## Example
+
+Given the file:
+
+```verily
+rule typed_instantiation:
+  over Domain, consequent, x, y
+  given
+    forall x. x in Domain implies consequent,
+    y in Domain
+  deduce consequent[x = y]
+;
+
+rule modus_ponens:
+  over p, q
+  given p, p implies q
+  deduce q
+;
+
+axiom: 0 in Nat;
+axiom: forall n. n in Nat implies S(n) in Nat;
+
+// We could use untyped instantiation, but it would be much less
+// efficient
+axiom: even(0);
+axiom: forall n. n in Nat implies
+  (even(n) implies not even(S(n)));
+axiom: forall n. n in Nat implies
+  (not even(n) implies even(S(n)));
+
+theorem: even(S(S(0)));
+```
+
+We could run the theorem prover:
+
+```sh
+./verily.out FILENAME_GOES_HERE.verily
+```
+
+And receive a proof:
+
+```
+(theorem (e (S (S 0))) (rule_application (rule (over p q) (given
+p (implies p q)) q) (premises (theorem (not (e (S 0)))
+(rule_application (rule (over p q) (given p (implies p q)) q)
+(premises (axiom (e 0)) (theorem (implies (e 0) (not (e (S 0))))
+(rule_application (rule (over Domain consequent x y) (given
+(forall x (implies (in x Domain) consequent)) (in y Domain))
+(REPLACE consequent x y)) (premises (axiom (forall n (implies
+(in n Nat) (implies (e n) (not (e (S n))))))) (axiom (in 0 Nat))
+)))))) (theorem (implies (not (e (S 0))) (e (S (S 0))))
+(rule_application (rule (over Domain consequent x y) (given
+(forall x (implies (in x Domain) consequent)) (in y Domain))
+(REPLACE consequent x y)) (premises (axiom (forall n (implies
+(in n Nat) (implies (not (e n)) (e (S n)))))) (theorem (in (S 0)
+Nat) (rule_application (rule (over Domain consequent x y) (given
+(forall x (implies (in x Domain) consequent)) (in y Domain))
+(REPLACE consequent x y)) (premises (axiom (forall n (implies
+(in n Nat) (in (S n) Nat)))) (axiom (in 0 Nat)))))))))))
+```
+
+This proof shows the series of rule applications by which you
+can derive the theorem from axioms. If no proof can be found,
+it will report an error (this does *not* mean that the
+to-be-theorem is false, nor does it mean that it is unprovable
+within the system).
 
 ## Operators and Quantifiers
 
@@ -201,8 +274,14 @@ logic.
 
 ## Backward Deduction
 
+A rule is defined as follows. Given free variables
+$f_1, \ldots, f_n$, antecedents $A = \{a_1, \ldots, a_m\}$, and
+consequence $C$:
+
 $$
-  \forall f_1. \ldots. \forall f_n. \left(\bigwedge_{a \in A} a\right) \implies C
+  \forall f_1. \ldots. \forall f_n.
+  \left(\bigwedge_{a \in A} a(f_1, \ldots, f_n)\right)
+  \implies C(f_1, \ldots, f_n)
 $$
 
 We want to work backwards: Given some theorem to prove, find the

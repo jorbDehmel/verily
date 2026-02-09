@@ -1,0 +1,24 @@
+rule:
+  over a
+  given a in Nat
+  deduce in_set(a, Set(a))
+;
+
+rule:
+  over a, b
+  given a in Nat
+  deduce in_set(a, Set(a, b))
+;
+
+rule:
+  over a, b, c
+  given in_set(a, b), c in Nat
+  deduce in_set(a, Set(c, b))
+;
+
+axiom: 1 in Nat;
+axiom: 2 in Nat;
+axiom: 3 in Nat;
+axiom: 4 in Nat;
+
+theorem: in_set(3, Set(1, Set(2, Set(3, Set(4)))));

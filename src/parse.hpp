@@ -2,6 +2,8 @@
 
 #pragma once
 
+static_assert(__cplusplus >= 2020'00ULL);
+
 #include <compare>
 #include <cstdint>
 #include <filesystem>

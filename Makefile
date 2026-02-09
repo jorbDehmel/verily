@@ -13,7 +13,11 @@ verily.out:	verily.o src/parse.o src/inference.o
 %.o:	%.cpp $(HEADERS)
 	$(CPP) -c -o $@ $<
 
-.PHONY:	clean docs
+.PHONY:	clean docs format
+
+format:
+	find . -type f \( -iname "*.cpp" -or -iname "*.hpp" \) \
+		-exec clang-format -i "{}" \;
 
 clean:
 	find . \( -type f -iname "*.o" -or -iname "*.out" \) \

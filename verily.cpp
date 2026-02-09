@@ -38,7 +38,8 @@ void process_statement(Settings &_settings, InferenceMaker &im,
     // fum fli foo flib))
     const auto over = stmt.children.at(0);
     const auto given = stmt.children.at(1);
-    const auto consequence = stmt.children.at(2).children.front();
+    const auto consequence =
+        stmt.children.at(2).children.front();
 
     std::set<ASTNode> free_variables;
     std::list<ASTNode> requirements;
@@ -48,20 +49,22 @@ void process_statement(Settings &_settings, InferenceMaker &im,
     for (const auto &child : given.children) {
       requirements.push_back(child);
     }
-    InferenceMaker::InferenceRule ir(free_variables, requirements, consequence);
+    InferenceMaker::InferenceRule ir(free_variables,
+                                     requirements, consequence);
     im.add_rule(ir);
   }
 
   // Thing to prove
   else if (stmt.text == Token("PROVE_FORWARD")) {
     // (THEOREM to_prove)
-    const auto res =
-        im.forward_prove(stmt.children.front(), _settings.pass_limit);
+    const auto res = im.forward_prove(stmt.children.front(),
+                                      _settings.pass_limit);
     if (res.has_value()) {
       _settings.proven_theorems.insert(res.value().index);
     } else {
       _settings.saw_error = true;
-      std::cerr << "ERROR: Failed to prove " << stmt.children.front() << "\n\n";
+      std::cerr << "ERROR: Failed to prove "
+                << stmt.children.front() << "\n\n";
     }
   }
 
@@ -72,13 +75,14 @@ void process_statement(Settings &_settings, InferenceMaker &im,
   else if (stmt.text == Token("PROVE_BACKWARD") ||
            stmt.text == Token("THEOREM")) {
     // (THEOREM to_prove)
-    const auto res =
-        im.backward_prove(stmt.children.front(), _settings.pass_limit);
+    const auto res = im.backward_prove(stmt.children.front(),
+                                       _settings.pass_limit);
     if (res.has_value()) {
       _settings.proven_theorems.insert(res.value().index);
     } else {
       _settings.saw_error = true;
-      std::cerr << "ERROR: Failed to prove " << stmt.children.front() << "\n\n";
+      std::cerr << "ERROR: Failed to prove "
+                << stmt.children.front() << "\n\n";
     }
   }
 
@@ -92,13 +96,14 @@ void process_statement(Settings &_settings, InferenceMaker &im,
   else if (stmt.text == Token("INCLUDE")) {
     // (INCLUDE path)
     const auto written = stmt.children.front().text.text;
-    const auto path =
-        std::filesystem::absolute(_settings.fp.parent_path() / written);
+    const auto path = std::filesystem::absolute(
+        _settings.fp.parent_path() / written);
     do_file(_settings, im);
   }
 
   else {
-    std::cout << "WARNING: Skipping statement " << stmt << "\n\n";
+    std::cout << "WARNING: Skipping statement " << stmt
+              << "\n\n";
   }
 }
 
@@ -116,13 +121,15 @@ void do_file(Settings &settings, InferenceMaker &im) {
   }
 }
 
-void print_proof(const InferenceMaker &im, const size_t &_index) {
+void print_proof(const InferenceMaker &im,
+                 const size_t &_index) {
   const auto thm = im.get_theorem(_index);
   if (thm.rule_index < 0) {
     std::cout << "(axiom " << thm.thm << ")";
   } else {
     // (theorem (a) (rule_application (b) (premises c d e)))
-    std::cout << "(theorem " << thm.thm << " (rule_application ";
+    std::cout << "(theorem " << thm.thm
+              << " (rule_application ";
 
     const auto rule = im.get_rule(thm.rule_index);
 
@@ -182,6 +189,11 @@ int main(int argc, char *argv[]) {
         " --debug        | false   | Toggles debug mode      \n"
         " --alternate    | true    | Toggles alternation     \n"
         " --pass_limit N | 64      | Sets the depth limit    \n"
+        "                                                    \n"
+        "You can give it a filepath as an argument, in which \n"
+        "case that file will be analyzed. If no filepath is  \n"
+        "provided, it will read from stdin in a REPL         \n"
+        "interface.                                          \n"
       ;
       // clang-format on
       return 2;
@@ -230,11 +242,13 @@ int main(int argc, char *argv[]) {
       if (cur_statement.ends_with(';')) {
         // Execute statement
         if (settings.debug) {
-          std::cout << "Processing CLI statement " << cur_statement << "\n";
+          std::cout << "Processing CLI statement "
+                    << cur_statement << "\n";
         }
 
         const ASTNode global =
-            Parser(lex_text(cur_statement, settings.fp)).parse();
+            Parser(lex_text(cur_statement, settings.fp))
+                .parse();
 
         for (const auto &stmt : global.children) {
           if (stmt.text != "NULL") {
@@ -247,7 +261,8 @@ int main(int argc, char *argv[]) {
       }
     }
     if (!cur_statement.empty()) {
-      std::cerr << "WARNING: Discarding partial statement " << cur_statement;
+      std::cerr << "WARNING: Discarding partial statement "
+                << cur_statement;
     }
   }
 
@@ -269,12 +284,14 @@ int main(int argc, char *argv[]) {
 
   if (settings.time) {
     const auto elapsed_us =
-        std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            stop - start)
             .count();
     std::cout << "Took " << (elapsed_us / 1'000.0) << "ms\n"
               << "Total theorems: " << im.known.size() << "\n"
               << "Mean theorems per second: "
-              << (1'000'000.0 * im.known.size() / elapsed_us) << "\n";
+              << (1'000'000.0 * im.known.size() / elapsed_us)
+              << "\n";
   }
 
   if (settings.saw_error) {

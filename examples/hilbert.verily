@@ -1,0 +1,38 @@
+// Hilbert-style proof test
+
+// Modus ponens
+rule MP:
+  over a, b
+  given a, a implies b
+  deduce b
+;
+
+// Axiom schema 1
+rule as1:
+  over a, b
+  given a, b
+  deduce a implies (b implies a)
+;
+
+// Axiom schema 2
+rule as2:
+  over a, b, c
+  given a, b, c
+  deduce
+    (a implies (b implies c))
+    implies
+    ((a implies b) implies (a implies c))
+;
+
+// Axiom schema 3
+rule as3:
+  over a, b
+  given a, b
+  deduce
+    (not b implies not a)
+    implies
+    ((not b implies a) implies b)
+;
+
+axiom: a;
+theorem: a implies a;

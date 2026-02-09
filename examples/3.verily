@@ -1,15 +1,11 @@
-# The natural numbers and the definition of even-ness
-bind S in Nat to Nat; # Type annotation for S
-bind e in Nat to Bool; # Type annotation for e
+// Instantiation
+rule:
+  over M, x, y
+  given forall x. M, y
+  deduce M[x = y]
+;
 
-bind 0 in Nat. e(0);  # Root of hierarchy
-forall n in Nat. e(n) iff not e(S(n));
+axiom: foo;
+axiom: forall item. fizz(item);
 
-# A few cases which should be provable
-annotation: not e(S(0));
-annotation: e(S(S(0)));
-annotation: not e(S(S(S(0))));
-annotation: e(S(S(S(S(0)))));
-
-# This one should fail in finite time!
-annotation: not e(S(S(S(S(0)))));
+prove_backward: fizz(foo);
