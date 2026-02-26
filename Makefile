@@ -1,20 +1,19 @@
+.PHONY:	clean docs format all
+
 CPP = g++ -pedantic -Wall -std=c++20 -O3 -g
-HEADERS = src/parse.hpp src/inference.hpp
+HEADERS = src/parse.hpp src/inference.hpp src/core.hpp
 TESTS = tests/expr_parse_test.out tests/parse_verily.out \
 	tests/pattern_matching.out
 
 OBJECTS = $(HEADERS:.hpp=.o)
 
-verily.out:	verily.o src/parse.o src/inference.o
-	$(CPP) -o $@ $^
+all:	verily.out
 
 %.out:	%.o $(OBJECTS)
 	$(CPP) -o $@ $^
 
 %.o:	%.cpp $(HEADERS)
 	$(CPP) -c -o $@ $<
-
-.PHONY:	clean docs format
 
 format:
 	find . -type f \( -iname "*.cpp" -or -iname "*.hpp" \) \

@@ -103,33 +103,15 @@ int main() {
       "==",
       {
         ASTNode(
-          "CALL",
+          "e",
           {
-            Token("e"),
             ASTNode(
-              "ARGS",
+              "S",
               {
                 ASTNode(
-                  "CALL",
+                  "S",
                   {
-                    Token("S"),
-                    ASTNode(
-                      "ARGS",
-                      {
-                        ASTNode(
-                          "CALL",
-                          {
-                            Token("S"),
-                            ASTNode(
-                              "ARGS",
-                              {
-                                Token("x")
-                              }
-                            )
-                          }
-                        )
-                      }
-                    )
+                    Token("x")
                   }
                 )
               }
@@ -137,15 +119,9 @@ int main() {
           }
         ),
         ASTNode(
-          "CALL",
+          "e",
           {
-            Token("e"),
-            ASTNode(
-              "ARGS",
-              {
-                Token("x")
-              }
-            )
+            Token("x")
           }
         )
       }
@@ -166,15 +142,9 @@ int main() {
               "and",
               {
                 ASTNode(
-                  "CALL",
+                  "a",
                   {
-                    Token("a"),
-                    ASTNode(
-                      "ARGS",
-                      {
-                        Token("b")
-                      }
-                    )
+                    Token("b")
                   }
                 ),
                 ASTNode(
@@ -245,15 +215,9 @@ int main() {
           }
         ),
         ASTNode(
-          "CALL",
+          "phi",
           {
-            Token("phi"),
-            ASTNode(
-              "ARGS",
-              {
-                Token("x")
-              }
-            )
+            Token("x")
           }
         )
       }

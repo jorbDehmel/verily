@@ -141,6 +141,10 @@ Since `a and b or c` is ambiguous in most languages, it is
 considered bad form to write it: Instead, write either
 `(a and b) or c` or `a and (b or c)`.
 
+## Importing other files
+
+You can use the `include "local_filepath";` command.
+
 ## Rules
 
 ASTs are well-formed formulae over the language. They can be

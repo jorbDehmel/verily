@@ -6,3 +6,5 @@ latex/
 *.o
 *.out
 *.vsix
+*.verily.*
+*.log

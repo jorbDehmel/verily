@@ -30,3 +30,4 @@ theorem: not (a implies b);
 theorem: a implies b or c;
 theorem: a iff not b;
 theorem: a implies (d or not d);
+theorem: d implies a or b;
