@@ -1,6 +1,7 @@
 CPP = g++ -pedantic -Wall -std=c++20 -O3 -g
 HEADERS = src/parse.hpp src/inference.hpp
-TESTS = tests/expr_parse_test.out tests/parse_verily.out
+TESTS = tests/expr_parse_test.out tests/parse_verily.out \
+	tests/pattern_matching.out
 
 OBJECTS = $(HEADERS:.hpp=.o)
 

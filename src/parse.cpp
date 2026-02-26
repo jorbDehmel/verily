@@ -92,7 +92,7 @@ TokenStream lex_text(const std::string &text,
     }
 
     else if (std::set<char>({':', ';', '(', ')', '{', '}', '.',
-                             ',', '[', ']'})
+                             ',', '[', ']', '\''})
                  .contains(c)) {
       add_tok();
       cur = c;
@@ -180,6 +180,9 @@ ASTNode::operator<=>(const ASTNode &_other) const noexcept {
 
 bool ASTNode::contains(const ASTNode &_what) const noexcept {
   if (operator==(_what)) {
+    return true;
+  } else if (_what.children.empty() && _what.text == text) {
+    // Special case: Fn literals
     return true;
   }
   for (const auto &child : children) {
@@ -353,7 +356,9 @@ ASTNode Parser::parse_statement() {
     ts.expect({":"});
     return ASTNode(Token("AXIOM"), {parse_expr()});
   } else if (t == "rule") {
+    std::string name = "NULL";
     if (ts.cur().text != ":") {
+      name = ts.cur().text;
       ts.next();
     }
     ts.expect({":"});
@@ -382,8 +387,9 @@ ASTNode Parser::parse_statement() {
 
     ts.expect({"deduce"});
     ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
-    return ASTNode(Token("RULE"),
-                   {over_block, given_block, deduce_block});
+    return ASTNode(
+        Token("RULE"),
+        {over_block, given_block, deduce_block, ASTNode(name)});
   } else {
     throw std::runtime_error(
         "Unexpected statement start token '" + t + "'");
@@ -414,14 +420,20 @@ ASTNode Parser::parse() {
   return out;
 }
 
-// Parses a set
-// This could be like 'Nat'
-// Or it could be like 'Nat to Bool to Int to Nat'
-ASTNode Parser::parse_set() {
-  const auto cur = ASTNode(ts.cur_next());
+// Parses a set / type composed of sets
+ASTNode Parser::parse_type() {
+  ASTNode cur = ASTNode(ts.cur_next());
+  if (cur.text == "(") {
+    cur = parse_type();
+    ts.expect({")"});
+  }
+
   if (ts.cur().text == "to") {
     ts.next();
-    return ASTNode(Token("TO"), {cur, parse_set()});
+    cur = ASTNode(Token("TO"), {cur, parse_type()});
+  } else if (ts.cur().text == "cross") {
+    ts.next();
+    cur = ASTNode(Token("CROSS"), {cur, parse_type()});
   }
   return cur;
 }
@@ -615,9 +627,18 @@ ASTNode Parser::parse_expr() {
         return ASTNode("REPLACE", {A, x, B});
       }
 
+      // Non-parentheses case
       else {
-        // Non-parentheses case
-        items.push_back(cur);
+        // Replacements
+        if (cur == ":") {
+          // Within an expression, ':' is shorthand for 'in'.
+          items.push_back(ASTNode("in"));
+        }
+
+        // Normal non-replaced case
+        else {
+          items.push_back(cur);
+        }
       }
     }
     if (ts.done()) {
@@ -645,7 +666,7 @@ ASTNode Parser::parse_expr() {
 ASTNode Parser::parse_expr_from_list(
     const std::list<ASTNode> &input_items) {
   const static std::list<std::string> order_of_operations = {
-      "in", "==", "not", "or", "and", "iff", "implies"};
+      "'", "in", "==", "not", "or", "and", "iff", "implies"};
 
   std::list<ASTNode> items = input_items;
 
@@ -680,6 +701,24 @@ ASTNode Parser::parse_expr_from_list(
               ASTNode("not", {next_items.front()});
         } else {
           next_items.push_front(*rit);
+        }
+      }
+    }
+
+    // Unary suffix: Just prime, for now
+    else if (op == "'") {
+      for (const auto &item : items) {
+        if (item == "'") {
+          if (next_items.empty()) {
+            throw std::runtime_error(
+                "Malformed expression: 'prime' does not act on "
+                "anything");
+          }
+          const auto upon = next_items.back();
+          next_items.pop_back();
+          next_items.push_back(ASTNode("prime", {upon}));
+        } else {
+          next_items.push_back(item);
         }
       }
     }

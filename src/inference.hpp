@@ -23,6 +23,9 @@ public:
   /// If all the requirements are met, the consequences are
   /// implied
   struct InferenceRule {
+    /// If given, the name of the rule.
+    std::optional<std::string> name;
+
     /// Construct an inference rule
     InferenceRule(const std::set<ASTNode> &_fv,
                   const std::list<ASTNode> &_req,
@@ -105,8 +108,8 @@ public:
   std::optional<Theorem> forward_prove(const ASTNode &_what,
                                        const int &_passes);
 
-  /// Adds an axiom
-  void add_axiom(const ASTNode &_what) noexcept;
+  /// Adds an axiom and returns its index
+  size_t add_axiom(const ASTNode &_what) noexcept;
 
   /// Gets a rule
   const InferenceRule get_rule(const uint &_index) const;

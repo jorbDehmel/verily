@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -17,12 +18,205 @@ const std::filesystem::path null_fp = "NO_FP_GIVEN";
 struct Settings {
   bool saw_error = false;
   bool debug = false;
-  bool alternate = true;
+  bool alternate = false;
   bool time = false;
+  bool print_latex = false;
   uintmax_t pass_limit = 64;
   std::filesystem::path fp = null_fp;
+  std::set<size_t> axioms;
   std::set<size_t> proven_theorems;
 };
+
+/// Turns all underscores to spaces
+std::string sanitize_name(const std::string &_s) {
+  std::string out;
+  for (const auto &c : _s) {
+    if (c == '_') {
+      out.push_back(' ');
+    } else {
+      out.push_back(c);
+    }
+  }
+  return out;
+}
+
+ASTNode proof_to_ast(const InferenceMaker &im,
+                     const size_t &_thm_index) {
+  const auto thm = im.get_theorem(_thm_index);
+  if (thm.rule_index < 0) {
+    return ASTNode("axiom", {thm.thm});
+  } else {
+    ASTNode premises_block("premises");
+    for (const auto &premise : thm.premises) {
+      premises_block.children.push_back(
+          proof_to_ast(im, premise));
+    }
+
+    const auto rule = im.get_rule(thm.rule_index);
+    const std::string rule_name =
+        rule.name.value_or(std::to_string(thm.rule_index));
+
+    return ASTNode(
+        "theorem",
+        {thm.thm,
+         ASTNode("rule_application",
+                 {ASTNode("rule", {ASTNode(rule_name)}),
+                  premises_block})});
+  }
+}
+
+/// Prints the rules, axioms, and selected theorems in latex
+/// 'inferrule' notation
+void print_latex(const InferenceMaker &_im,
+                 const std::set<size_t> &_axioms,
+                 const std::set<size_t> &_thms_to_print,
+                 std::ostream &_strm) {
+  // Print an AST in latex notation (EG 'and' -> '\land')
+  const std::function<void(const ASTNode &)> print_ast_latex =
+      [&](const ASTNode &_what) -> void {
+    const auto t = _what.text;
+
+    // Normal PL stuff
+    if (t == "and") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\land ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
+    } else if (t == "or") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\lor ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
+    } else if (t == "not") {
+      _strm << " \\lnot ";
+      print_ast_latex(_what.children.at(0));
+    } else if (t == "implies") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\implies ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
+    } else if (t == "iff") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\iff ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
+    } else if (t == "in") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\in ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
+    } else if (t == "==") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " = ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
+    } else if (t == "prime") {
+      print_ast_latex(_what.children.at(0));
+      _strm << "' ";
+    }
+
+    // Proof stuff
+    else if (t == "axiom") {
+      const auto axiom = _what.children.at(0);
+      _strm << "\\inferrule*{\\,}{\n";
+      print_ast_latex(axiom);
+      _strm << "\n}";
+    } else if (t == "theorem") {
+      const auto thm = _what.children.at(0);
+      const auto rule_app = _what.children.at(1);
+      const std::string rule_name =
+          rule_app.children.at(0).children.at(0).text.text;
+      const auto premises = rule_app.children.at(1);
+
+      _strm << "\\inferrule*[right=" << sanitize_name(rule_name)
+            << "]{\n";
+      bool first = true;
+      for (const auto &premise : premises.children) {
+        if (first) {
+          first = false;
+        } else {
+          _strm << "\n    \\\\\n    ";
+        }
+        print_ast_latex(premise);
+      }
+      _strm << "\n}{\n";
+      print_ast_latex(thm);
+      _strm << "\n}";
+    }
+
+    // Default case: Just print the s-expr itself.
+    else {
+      _strm << "\\texttt{" << _what << "}";
+    }
+  };
+
+  _strm << "\\textbf{Rules:}\n\n";
+
+  size_t rule_index = 0;
+  for (const auto &rule : _im.rules) {
+    if (!rule.free_variables.empty()) {
+      _strm << "For generic";
+      bool first = true;
+      for (const auto &fv : rule.free_variables) {
+        if (first) {
+          first = false;
+        } else {
+          _strm << ",";
+        }
+        _strm << " \\texttt{" << fv << "}";
+      }
+      _strm << ":\n\n";
+    }
+
+    const std::string rule_name =
+        rule.name.value_or(std::to_string(rule_index));
+    ++rule_index;
+    _strm << "\\[\n"
+             "  \\inferrule*[right="
+          << sanitize_name(rule_name) << "]{\n    ";
+
+    // Premises
+    bool first = true;
+    for (const auto &premise : rule.requirements) {
+      if (first) {
+        first = false;
+      } else {
+        _strm << "\n    \\\\\n    ";
+      }
+      print_ast_latex(premise);
+    }
+
+    _strm << "  }{\n    ";
+
+    // Consequence
+    print_ast_latex(rule.consequence);
+
+    _strm << "  }\n"
+             "\\]\n\n";
+  }
+
+  _strm << "\\textbf{Axioms:}\n\n";
+
+  for (const auto &axiom : _axioms) {
+    _strm << "\\[\n";
+    print_ast_latex(proof_to_ast(_im, axiom));
+    _strm << "\n\\]\n\n";
+  }
+
+  _strm << "\\textbf{Selected Theorems:}\n\n";
+
+  for (const auto &theorem : _thms_to_print) {
+    _strm << "\\[\n";
+    print_ast_latex(proof_to_ast(_im, theorem));
+    _strm << "\n\\]\n\n";
+  }
+}
 
 void do_file(Settings &settings, InferenceMaker &im);
 
@@ -40,6 +234,7 @@ void process_statement(Settings &_settings, InferenceMaker &im,
     const auto given = stmt.children.at(1);
     const auto consequence =
         stmt.children.at(2).children.front();
+    const std::string name = stmt.children.at(3).text.text;
 
     std::set<ASTNode> free_variables;
     std::list<ASTNode> requirements;
@@ -51,6 +246,11 @@ void process_statement(Settings &_settings, InferenceMaker &im,
     }
     InferenceMaker::InferenceRule ir(free_variables,
                                      requirements, consequence);
+
+    if (name != "NULL") {
+      ir.name = name;
+    }
+
     im.add_rule(ir);
   }
 
@@ -63,7 +263,7 @@ void process_statement(Settings &_settings, InferenceMaker &im,
       _settings.proven_theorems.insert(res.value().index);
     } else {
       _settings.saw_error = true;
-      std::cerr << "ERROR: Failed to prove "
+      std::cerr << "ERROR:   Failed to prove "
                 << stmt.children.front() << "\n\n";
     }
   }
@@ -81,7 +281,7 @@ void process_statement(Settings &_settings, InferenceMaker &im,
       _settings.proven_theorems.insert(res.value().index);
     } else {
       _settings.saw_error = true;
-      std::cerr << "ERROR: Failed to prove "
+      std::cerr << "ERROR:   Failed to prove "
                 << stmt.children.front() << "\n\n";
     }
   }
@@ -89,7 +289,8 @@ void process_statement(Settings &_settings, InferenceMaker &im,
   // Axiom
   else if (stmt.text == Token("AXIOM")) {
     // (AXIOM a)
-    im.add_axiom(stmt.children.front());
+    const size_t index = im.add_axiom(stmt.children.front());
+    _settings.axioms.insert(index);
   }
 
   // Inclusion
@@ -102,8 +303,7 @@ void process_statement(Settings &_settings, InferenceMaker &im,
   }
 
   else {
-    std::cout << "WARNING: Skipping statement " << stmt
-              << "\n\n";
+    std::cout << "WARNING: Skipping statement " << stmt << "\n";
   }
 }
 
@@ -121,46 +321,6 @@ void do_file(Settings &settings, InferenceMaker &im) {
   }
 }
 
-void print_proof(const InferenceMaker &im,
-                 const size_t &_index) {
-  const auto thm = im.get_theorem(_index);
-  if (thm.rule_index < 0) {
-    std::cout << "(axiom " << thm.thm << ")";
-  } else {
-    // (theorem (a) (rule_application (b) (premises c d e)))
-    std::cout << "(theorem " << thm.thm
-              << " (rule_application ";
-
-    const auto rule = im.get_rule(thm.rule_index);
-
-    // <fvs>(premises) -> consequence
-    // (rule (over a b c) (given d e f) consequence)
-    std::cout << "(rule (over";
-
-    for (const auto &fv : rule.free_variables) {
-      std::cout << ' ' << fv;
-    }
-
-    // End over
-    std::cout << ") (given";
-
-    for (const auto &req : rule.requirements) {
-      std::cout << ' ' << req;
-    }
-
-    // End given, then end rule
-    std::cout << ") " << rule.consequence << ")";
-
-    std::cout << " (premises";
-    for (const auto &premise : thm.premises) {
-      std::cout << ' ';
-      print_proof(im, premise);
-    }
-    // end premises, rule_application, theorem
-    std::cout << ")))";
-  }
-}
-
 int main(int argc, char *argv[]) {
   Settings settings;
   for (int i = 1; i < argc; ++i) {
@@ -175,6 +335,8 @@ int main(int argc, char *argv[]) {
       settings.pass_limit = std::stoi(argv[i]);
     } else if (arg == "--time") {
       settings.time = !settings.time;
+    } else if (arg == "--latex") {
+      settings.print_latex = !settings.print_latex;
     } else if (arg == "--help") {
       // clang-format off
       std::cout <<
@@ -187,8 +349,9 @@ int main(int argc, char *argv[]) {
         "----------------|---------|-------------------------\n"
         " --help         |         | Prints this text        \n"
         " --debug        | false   | Toggles debug mode      \n"
-        " --alternate    | true    | Toggles alternation     \n"
+        " --alternate    | false   | Toggles alternation     \n"
         " --pass_limit N | 64      | Sets the depth limit    \n"
+        " --latex        | false   | Prints latex at end     \n"
         "                                                    \n"
         "You can give it a filepath as an argument, in which \n"
         "case that file will be analyzed. If no filepath is  \n"
@@ -262,7 +425,7 @@ int main(int argc, char *argv[]) {
     }
     if (!cur_statement.empty()) {
       std::cerr << "WARNING: Discarding partial statement "
-                << cur_statement;
+                << cur_statement << "\n";
     }
   }
 
@@ -278,8 +441,7 @@ int main(int argc, char *argv[]) {
   }
 
   for (const auto &index : settings.proven_theorems) {
-    print_proof(im, index);
-    std::cout << "\n\n";
+    std::cout << proof_to_ast(im, index) << "\n\n";
   }
 
   if (settings.time) {
@@ -292,6 +454,11 @@ int main(int argc, char *argv[]) {
               << "Mean theorems per second: "
               << (1'000'000.0 * im.known.size() / elapsed_us)
               << "\n";
+  }
+
+  if (settings.print_latex) {
+    print_latex(im, settings.axioms, settings.proven_theorems,
+                std::cout);
   }
 
   if (settings.saw_error) {

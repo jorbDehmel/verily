@@ -25,11 +25,6 @@
 				{
 					"match": "//.*",
 					"name": "comment.line.double-slash.verily"
-				},
-				{
-					"name": "comment.block.verily",
-					"begin": "/\\*",
-					"end": "\\*/"
 				}
 			]
 		},
@@ -51,7 +46,7 @@
 					"name": "keyword.control.verily"
 				},
 				{
-					"match": "\\b(true|false|in|and|or|not|to)\\b",
+					"match": "\\b(true|false|in|and|or|not|to|cross)\\b",
 					"name": "keyword.other.verily"
 				}
 			]
@@ -59,11 +54,19 @@
 		"storage": {
 			"patterns": [
 				{
-					"match": "\\b[a-zA-Z0-9_]+\\b",
+					"match": "\\b[A-Z][A-Z0-9]+",
+					"name": "entity.name.class.verily"
+				},
+				{
+					"match": "\\b[a-z0-9_]+\\b",
 					"name": "variable.name.verily"
 				},
 				{
-					"match": "\\b(\\.|:|;|,|==)\\b",
+					"match": "\\b[a-zA-Z0-9_]+(?=(<.*>)?\\()\\b",
+					"name": "entity.name.function"
+				},
+				{
+					"match": "\\b(\\.|:|;|,|==|')\\b",
 					"name":"keyword.operator.verily"
 				}
 			]

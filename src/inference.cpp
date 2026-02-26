@@ -96,11 +96,13 @@ int InferenceMaker::has(const ASTNode &_what) const noexcept {
   return -1;
 }
 
-void InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
+size_t
+InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
   known.push_back({known.size(), _what, -1, {}});
   if (debug) {
     std::cout << "Added axiom: " << _what << "\n\n";
   }
+  return known.back().index;
 }
 
 void InferenceMaker::add_rule(const InferenceRule &_rule) {
@@ -149,6 +151,8 @@ InferenceMaker::InferenceRule::InferenceRule(
     type = BACKWARD_ONLY;
   } else if (has_fvs_in_reqs) {
     type = FORWARD_ONLY;
+    std::cerr << "WARNING: Rule is not backward-derivable! "
+              << *this << "\n";
   } else {
     std::cerr << "Rule which is neither forward- nor "
                  "backward-derivable: "

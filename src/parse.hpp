@@ -150,7 +150,7 @@ public:
   /// Parses a set
   /// This could be like 'Nat'
   /// Or it could be like 'Nat to Bool to Int to Nat'
-  ASTNode parse_set();
+  ASTNode parse_type();
 
   /// Parses a series of arguments
   ASTNode parse_args();

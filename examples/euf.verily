@@ -1,0 +1,27 @@
+# EUF stuff
+
+rule eq_associativity:
+  over a, b
+  given a == b
+  deduce b == a
+;
+
+rule eq_reflexivity:
+  over a
+  deduce a == a
+;
+
+rule eq_transitivity:
+  over a, b, c
+  given a == b, b == c
+  deduce a == c
+;
+
+rule eq_congruence:
+  over x, y, a
+  given x == y
+  deduce a(x) == a(y)
+;
+
+axiom: f(x) == x;
+theorem: f(f(f(x))) == x;

@@ -2,7 +2,7 @@
   "name": "verily-language",
   "displayName": "Verily Syntax Highlighting",
   "description": "VSCode language support for Verily",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -15,12 +15,17 @@
       "id": "verily",
       "aliases": ["verily"],
       "extensions": [".verily"],
-      "configuration": "./language-configuration.json"
+      "configuration": "./language-configuration.json",
+      "icon": {
+        "dark": "./logo.png",
+        "light": "./logo.png"
+      }
     }],
     "grammars": [{
       "language": "verily",
       "scopeName": "source.verily",
       "path": "./syntaxes/verily.tmLanguage.json"
     }]
-  }
+  },
+  "icon": "./logo.png"
 }

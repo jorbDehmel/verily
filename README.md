@@ -17,6 +17,14 @@ aren't smart about it. A poor choice of rules can make proving
 "2 is a natural number" take seconds. This is NP-complete for
 obvious reasons, so tread with care!
 
+You can do a few things.
+
+1. Add things known to be true via `axiom`s
+2. Introduce ways of deriving new truths from known truths via
+  `rule`s
+3. Query whether we can deduce something to be true via
+  `theorem`s
+
 ## This Repo
 
 This repo contains some examples, a verily CLI, some tests, and
