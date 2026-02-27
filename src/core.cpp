@@ -130,7 +130,7 @@ void Core::latex(std::ostream &_strm) const {
       const auto premises = rule_app.children.at(1);
 
       _strm << "\\inferrule*[right=" << sanitize_name(rule_name)
-            << "]{\n";
+            << "]{";
       bool first = true;
       for (const auto &premise : premises.children) {
         if (first) {
@@ -140,7 +140,10 @@ void Core::latex(std::ostream &_strm) const {
         }
         print_ast_latex(premise);
       }
-      _strm << "\n}{\n";
+      if (first) {
+        _strm << "\\,";
+      }
+      _strm << "}{\n";
       print_ast_latex(thm);
       _strm << "\n}";
     }
@@ -205,7 +208,7 @@ void Core::latex(std::ostream &_strm) const {
     ++rule_index;
     _strm << "\\[\n"
              "\\inferrule*[right="
-          << sanitize_name(rule_name) << "]{\n";
+          << sanitize_name(rule_name) << "]{";
 
     // Premises
     bool first = true;
@@ -216,6 +219,9 @@ void Core::latex(std::ostream &_strm) const {
         _strm << "\n";
       }
       print_ast_latex(premise);
+    }
+    if (first) {
+      _strm << "\\,";
     }
 
     _strm << "}{\n";

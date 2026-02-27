@@ -13,6 +13,8 @@
 #include <iostream>
 #include <string>
 
+const std::string version = "0.0.1";
+
 int main(int argc, char *argv[]) {
   std::filesystem::path fp = null_fp;
   Core verily;
@@ -51,6 +53,8 @@ int main(int argc, char *argv[]) {
         "case that file will be analyzed. If no filepath is  \n"
         "provided, it will read from stdin in a REPL         \n"
         "interface.                                          \n"
+        "                                                    \n"
+        "Version " << version << "\n"
       ;
       // clang-format on
       return 2;

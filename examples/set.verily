@@ -1,24 +1,22 @@
-rule:
-  over a
-  given a in Nat
-  deduce in_set(a, Set(a))
-;
+rule atomic_set: over a deduce a in Set(a);
+rule set_add_1: over a, b deduce a in Set(a, b);
+rule set_add_2: over a, b, c given a in b deduce a in Set(c, b);
+rule set_union: over a, b, c given a in b
+  deduce a in union(b, c);
+rule set_union_comm: over a, b, c given a in union(b, c)
+  deduce a in union(c, b);
+rule set_union_negation: over a, b, c
+  given not (a in b), not (a in c)
+  deduce not (a in union(b, c));
+rule set_intersection: over a, b, c
+  given a in b, a in c
+  deduce a in intersection(b, c);
+rule set_intersection_comm: over a, b, c
+  given a in intersection(b, c)
+  deduce a in intersection(c, b);
+rule set_intersection_negation: over a, b, c given not (a in b)
+  deduce not (a in intersection(b, c));
 
-rule:
-  over a, b
-  given a in Nat
-  deduce in_set(a, Set(a, b))
-;
-
-rule:
-  over a, b, c
-  given in_set(a, b), c in Nat
-  deduce in_set(a, Set(c, b))
-;
-
-axiom: 1 in Nat;
-axiom: 2 in Nat;
-axiom: 3 in Nat;
-axiom: 4 in Nat;
-
-theorem: in_set(3, Set(1, Set(2, Set(3, Set(4)))));
+theorem: 3 in Set(1, Set(2, Set(3, Set(4))));
+theorem: a in union(Set(b), Set(a));
+theorem: a in intersection(Set(a, Set(b)), Set(a));
