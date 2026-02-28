@@ -1,17 +1,5 @@
 # Propositional logic in Verily
-
-# Rules
-rule proposition_tf: over a given a in P deduce a or not a;
-rule and_def: over a, b given a, b deduce a and b;
-rule or_def: over a, b given a deduce a or b;
-rule and_comm: over a, b given a and b deduce b and a;
-rule or_comm: over a, b given a or b deduce b or a;
-rule double_negation: over a given a deduce not not a;
-rule de_morgans_and: over a, b given not a or not b deduce not (a and b);
-rule de_morgans_or: over a, b given not a and not b deduce not (a or b);
-rule implies_negation: over a, b given a and not b deduce not (a implies b);
-rule implies_def: over a, b given not a or b deduce a implies b;
-rule iff_def: over a, b given (a implies b) and (b implies a) deduce a iff b;
+include "pl_rules.verily";
 
 # Propositions
 axiom: a in P;

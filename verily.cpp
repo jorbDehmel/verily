@@ -22,6 +22,7 @@ int main(int argc, char *argv[]) {
     const std::string arg = argv[i];
     if (arg == "--debug") {
       verily.debug = !verily.debug;
+      verily.im.debug = verily.debug;
     } else if (arg == "--alternate") {
       verily.im.enable_alternation =
           !verily.im.enable_alternation;

@@ -151,8 +151,8 @@ InferenceMaker::InferenceRule::InferenceRule(
     type = BACKWARD_ONLY;
   } else if (has_fvs_in_reqs) {
     type = FORWARD_ONLY;
-    std::cerr << "WARNING: Rule is not backward-derivable! "
-              << *this << "\n";
+    std::cerr << "WARNING: Rule requires alternation! " << *this
+              << "\n";
   } else {
     std::cerr << "Rule which is neither forward- nor "
                  "backward-derivable: "
@@ -168,12 +168,17 @@ InferenceMaker::InferenceRule::InferenceRule(
 std::optional<InferenceMaker::Theorem>
 InferenceMaker::backward_prove(const ASTNode &_what,
                                const int &_passes) {
+  if (debug) {
+    std::cout << "WTS " << _what << "\n";
+  }
+
   // If we have already proven this, return that proof
   const int res = has(_what);
   if (res >= 0) {
     return get_theorem(res);
   }
 
+  // If we're out of passes
   if (_passes <= 0) {
     return {};
   }
@@ -191,8 +196,6 @@ InferenceMaker::backward_prove(const ASTNode &_what,
     std::list<std::pair<ASTNode, ASTNode>> substitutions;
     if (is_of_form(_what, rule.consequence, free_variables,
                    substitutions)) {
-      assert(free_variables.empty());
-
       // Now we have to prove that, given these substitutions,
       // ALL of the LHS of the implication are provable
       bool rule_works = true;

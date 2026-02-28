@@ -1,0 +1,10 @@
+include "pl_rules.verily";
+
+function f(x in Nat) {
+  x ^ 2
+}
+
+axiom: y in Nat;
+axiom: f(y) in Nat;
+theorem: f(y) == y ^ 2;
+theorem: f(f(y)) == f(y) ^ 2;

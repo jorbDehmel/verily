@@ -1,4 +1,5 @@
 #include "core.hpp"
+#include "inference.hpp"
 #include <functional>
 
 std::string Core::sanitize_name(const std::string &_s) {
@@ -86,6 +87,15 @@ void Core::latex(std::ostream &_strm) const {
     } else if (t == "prime") {
       print_ast_latex(_what.children.at(0));
       _strm << "' ";
+    }
+
+    // Math
+    else if (t == "^") {
+      _strm << "{";
+      print_ast_latex(_what.children.at(0));
+      _strm << "}^{";
+      print_ast_latex(_what.children.at(1));
+      _strm << "}";
     }
 
     // Quantification
@@ -216,7 +226,7 @@ void Core::latex(std::ostream &_strm) const {
       if (first) {
         first = false;
       } else {
-        _strm << "\n";
+        _strm << "\n\\\\\n";
       }
       print_ast_latex(premise);
     }
@@ -333,6 +343,56 @@ void Core::process_statement(
     const auto path = std::filesystem::absolute(
         _cur_path.parent_path() / written);
     do_file(path);
+  }
+
+  // Functions
+  else if (_stmt.text == Token("FUNCTION")) {
+    /*
+    const auto out = ASTNode(Token("FUNCTION"),
+                          {name, args, reqs_and_ens, body});
+    */
+    const std::string name = _stmt.children.at(0).text.text;
+    const ASTNode args = _stmt.children.at(1);
+    const ASTNode reqs_and_ens = _stmt.children.at(2);
+    const ASTNode body = _stmt.children.at(3);
+
+    // Write the definition as a rule
+
+    // f(x: A) { body }
+    // rule definition_of_f: over x given x in A deduce f(x) ==
+    // body;
+    std::set<ASTNode> fvs;
+    std::list<ASTNode> reqs;
+    std::list<ASTNode> ens;
+    std::vector<ASTNode> typeless_args;
+
+    for (const auto &arg : args.children) {
+      // {argname, domain}
+      const ASTNode argname = arg.children.at(0);
+      const ASTNode domain = arg.children.at(1);
+      fvs.insert(argname);
+      reqs.push_back(ASTNode("in", {argname, domain}));
+      typeless_args.push_back(argname);
+    }
+    for (const auto &req_or_ens : reqs_and_ens.children) {
+      if (req_or_ens.text == "requires") {
+        reqs.push_back(req_or_ens.children.at(0));
+      } else {
+        ens.push_back(req_or_ens.children.at(0));
+      }
+    }
+
+    InferenceMaker::InferenceRule r(
+        fvs, reqs,
+        ASTNode("==", {ASTNode(name, typeless_args), body}));
+    r.name = "definition_of_" + name;
+    im.add_rule(r);
+
+    // VC check
+    if (!ens.empty()) {
+      std::cerr
+          << "Function keyword 'ensures' is unimplemented!\n";
+    }
   }
 
   else {

@@ -666,9 +666,9 @@ ASTNode Parser::parse_expr() {
 ASTNode Parser::parse_expr_from_list(
     const std::list<ASTNode> &input_items) {
   const static std::list<std::string> order_of_operations = {
-      "'",   "*",  "/",   "%",   "+",       "-",
-      "in",  "<",  ">",   "<=",  ">=",      "==",
-      "not", "or", "and", "iff", "implies",
+      "'",  "^",   "*",  "/",   "%",   "+",
+      "-",  "in",  "<",  ">",   "<=",  ">=",
+      "==", "not", "or", "and", "iff", "implies",
   };
 
   std::list<ASTNode> items = input_items;
