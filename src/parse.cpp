@@ -92,7 +92,7 @@ TokenStream lex_text(const std::string &text,
     }
 
     else if (std::set<char>({':', ';', '(', ')', '{', '}', '.',
-                             ',', '[', ']', '\''})
+                             ',', '[', ']', '\'', '^'})
                  .contains(c)) {
       add_tok();
       cur = c;
@@ -443,11 +443,16 @@ ASTNode Parser::parse_args() {
   ASTNode args(Token("ARGS"));
   while (!ts.done() && ts.cur().text != ")") {
     const auto argname = ts.cur_next();
-    ts.expect({"in", ":"});
-    const auto domain = ts.cur_next();
 
-    args.children.push_back(
-        ASTNode(Token("ARG"), {argname, domain}));
+    if (ts.cur() == "in" || ts.cur() == ":") {
+      ts.next();
+      const auto domain = ts.cur_next();
+      args.children.push_back(
+          ASTNode(Token("ARG"), {argname, domain}));
+    } else {
+      args.children.push_back(
+          ASTNode(Token("ARG"), {argname, ASTNode("NULL")}));
+    }
 
     if (ts.cur().text == ",") {
       ts.next();

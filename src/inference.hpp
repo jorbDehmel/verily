@@ -6,6 +6,7 @@
 
 #include "../src/parse.hpp"
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <set>
 
@@ -62,18 +63,18 @@ public:
   /// A statement, along with proof that it is a theorem
   struct Theorem {
     /// The internal index of this theorem
-    const size_t index;
+    size_t index;
 
     /// The syntactic representation of this theorem
-    const ASTNode thm;
+    ASTNode thm;
 
     /// Either the index of the rule causing this theorem or
     /// a negative number (indicating an axiom).
-    const intmax_t rule_index;
+    intmax_t rule_index;
 
     /// The indices of the theorems which satisfied the rule to
     /// create this. This might be empty.
-    const std::list<size_t> premises;
+    std::list<size_t> premises;
   };
 
   /// Returns true iff _to_examine is of the form _form
@@ -135,6 +136,27 @@ public:
 
   /// Inference rules
   std::vector<InferenceRule> rules;
+
+  struct BackupFrame {
+    std::vector<Theorem> theorems;
+    std::vector<InferenceRule> rules;
+  };
+  std::list<BackupFrame> backup_frames;
+
+  /// Push a frame such that any theorems will not be saved
+  /// after popping
+  inline void push() noexcept {
+    backup_frames.push_back(BackupFrame(known, rules));
+  }
+
+  /// Pop the most recent frame (if there is one)
+  inline void pop() noexcept {
+    if (!backup_frames.empty()) {
+      known = backup_frames.back().theorems;
+      rules = backup_frames.back().rules;
+      backup_frames.pop_back();
+    }
+  }
 };
 
 std::ostream &operator<<(std::ostream &,

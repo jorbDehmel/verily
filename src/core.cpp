@@ -14,6 +14,10 @@ std::string Core::sanitize_name(const std::string &_s) {
 }
 
 ASTNode Core::proof_to_ast(const size_t &_thm_index) const {
+  if (special_proofs.contains(_thm_index)) {
+    return special_proofs.at(_thm_index);
+  }
+
   const auto thm = im.get_theorem(_thm_index);
   if (thm.rule_index < 0) {
     return ASTNode("axiom", {thm.thm});
@@ -131,6 +135,30 @@ void Core::latex(std::ostream &_strm) const {
       const auto axiom = _what.children.at(0);
       _strm << "\\inferrule*[right=axiom]{\\,}{\n";
       print_ast_latex(axiom);
+      _strm << "\n}";
+    } else if (t == "assumption") {
+      const auto axiom = _what.children.at(0);
+      _strm << "\\inferrule*[right=assumption]{\\,}{\n";
+      print_ast_latex(axiom);
+      _strm << "\n}";
+    } else if (t == "meta") {
+      _strm << "\\inferrule*[right=meta]{\\left[";
+
+      bool first = true;
+      for (uint index = 0; index + 1 < _what.children.size();
+           ++index) {
+        const ASTNode premise = _what.children.at(index);
+        if (first) {
+          first = false;
+        } else {
+          _strm << "\n";
+        }
+        print_ast_latex(premise);
+      }
+
+      _strm << "\\right]}{\n";
+      const auto consequent = _what.children.back();
+      print_ast_latex(consequent);
       _strm << "\n}";
     } else if (t == "theorem") {
       const auto thm = _what.children.at(0);
@@ -318,14 +346,14 @@ void Core::process_statement(
   else if (_stmt.text == Token("PROVE_BACKWARD") ||
            _stmt.text == Token("THEOREM")) {
     // (THEOREM to_prove)
-    const auto res =
-        im.backward_prove(_stmt.children.front(), pass_limit);
-    if (res.has_value()) {
-      proven_theorems.insert(res.value().index);
-    } else {
-      saw_error = true;
+    const auto theorem = _stmt.children.front();
+    const auto res = prove(theorem);
+    if (res < 0) {
       std::cerr << "ERROR:   Failed to prove "
                 << _stmt.children.front() << "\n";
+      saw_error = true;
+    } else {
+      proven_theorems.insert(res);
     }
   }
 
@@ -371,8 +399,11 @@ void Core::process_statement(
       const ASTNode argname = arg.children.at(0);
       const ASTNode domain = arg.children.at(1);
       fvs.insert(argname);
-      reqs.push_back(ASTNode("in", {argname, domain}));
       typeless_args.push_back(argname);
+
+      if (domain != "NULL") {
+        reqs.push_back(ASTNode("in", {argname, domain}));
+      }
     }
     for (const auto &req_or_ens : reqs_and_ens.children) {
       if (req_or_ens.text == "requires") {
@@ -413,4 +444,40 @@ void Core::do_file(const std::filesystem::path &_fp) {
   for (const auto &stmt : root.children) {
     process_statement(stmt, _fp);
   }
+}
+
+int Core::prove(const ASTNode &_theorem) {
+  // Meta special case(s)
+  if (meta_proving) {
+    if (_theorem.text == "implies") {
+      const ASTNode premise = _theorem.children.at(0);
+      const ASTNode consequence = _theorem.children.at(1);
+
+      im.push();
+      special_proofs[im.add_axiom(premise)] =
+          ASTNode("assumption", {premise});
+      const auto res = prove(consequence);
+
+      if (res >= 0) {
+        // Succuss
+        const auto proof_of_consequence = proof_to_ast(res);
+        im.pop();
+
+        const int out_ind = im.add_axiom(_theorem);
+        special_proofs[out_ind] =
+            ASTNode("meta", {proof_of_consequence, _theorem});
+        return out_ind;
+      }
+
+      // Failed to derive
+      im.pop();
+    }
+  }
+
+  // Normal case
+  const auto res = im.backward_prove(_theorem, pass_limit);
+  if (res.has_value()) {
+    return res.value().index;
+  }
+  return -1;
 }

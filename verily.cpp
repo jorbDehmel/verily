@@ -34,6 +34,8 @@ int main(int argc, char *argv[]) {
       verily.time = !verily.time;
     } else if (arg == "--latex") {
       verily.print_latex = !verily.print_latex;
+    } else if (arg == "--metaprove") {
+      verily.meta_proving = !verily.meta_proving;
     } else if (arg == "--help") {
       // clang-format off
       std::cout <<
@@ -49,6 +51,7 @@ int main(int argc, char *argv[]) {
         " --alternate    | false   | Toggles alternation     \n"
         " --pass_limit N | 64      | Sets the depth limit    \n"
         " --latex        | false   | Prints latex to file    \n"
+        " --metaprove    | true    | Toggles meta proving    \n"
         "                                                    \n"
         "You can give it a filepath as an argument, in which \n"
         "case that file will be analyzed. If no filepath is  \n"

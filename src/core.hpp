@@ -27,6 +27,11 @@ public:
   /// Do a file, executing each statement sequentially
   void do_file(const std::filesystem::path &_fp);
 
+  /// Proves a theorem (NOT a statement). This is called by
+  /// process_statement, and should not be called directly.
+  /// Returns nonnegative if no error.
+  int prove(const ASTNode &_theorem);
+
   InferenceMaker im;
   bool saw_error = false;
   bool debug = false;
@@ -35,4 +40,11 @@ public:
   uintmax_t pass_limit = 64;
   std::set<size_t> axioms;
   std::set<size_t> proven_theorems;
+
+  /// If true, uses the common metalogical definitions of and,
+  /// or, not, implies, and iff.
+  bool meta_proving = true;
+
+  /// Maps theorem IDs to custom proofs (EG metalogical ones)
+  std::map<int, ASTNode> special_proofs;
 };
