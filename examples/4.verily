@@ -11,4 +11,5 @@ function g(x: Nat) {
   x ^ 2
 }
 
-theorem: (y in Nat) implies (g(y) == y^2);
+theorem: (y in Nat) implies (g(y) == y ^ 2);
+theorem: (z in Nat) implies (g(z) == f(z));

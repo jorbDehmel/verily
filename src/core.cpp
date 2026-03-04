@@ -13,33 +13,6 @@ std::string Core::sanitize_name(const std::string &_s) {
   return out;
 }
 
-ASTNode Core::proof_to_ast(const size_t &_thm_index) const {
-  if (special_proofs.contains(_thm_index)) {
-    return special_proofs.at(_thm_index);
-  }
-
-  const auto thm = im.get_theorem(_thm_index);
-  if (thm.rule_index < 0) {
-    return ASTNode("axiom", {thm.thm});
-  } else {
-    ASTNode premises_block("premises");
-    for (const auto &premise : thm.premises) {
-      premises_block.children.push_back(proof_to_ast(premise));
-    }
-
-    const auto rule = im.get_rule(thm.rule_index);
-    const std::string rule_name =
-        rule.name.value_or(std::to_string(thm.rule_index));
-
-    return ASTNode(
-        "theorem",
-        {thm.thm,
-         ASTNode("rule_application",
-                 {ASTNode("rule", {ASTNode(rule_name)}),
-                  premises_block})});
-  }
-}
-
 /// Prints the rules, axioms, and selected theorems in latex
 /// 'inferrule' notation
 void Core::latex(std::ostream &_strm) const {
@@ -275,7 +248,7 @@ void Core::latex(std::ostream &_strm) const {
 
   for (const auto &axiom : axioms) {
     _strm << "\\[\n";
-    print_ast_latex(proof_to_ast(axiom));
+    print_ast_latex(im.proof_to_ast(axiom));
     _strm << "\n\\]\n\n";
   }
 
@@ -283,7 +256,7 @@ void Core::latex(std::ostream &_strm) const {
 
   for (const auto &theorem : proven_theorems) {
     _strm << "\\[\n";
-    print_ast_latex(proof_to_ast(theorem));
+    print_ast_latex(im.proof_to_ast(theorem));
     _strm << "\n\\]\n\n";
   }
 
@@ -347,13 +320,13 @@ void Core::process_statement(
            _stmt.text == Token("THEOREM")) {
     // (THEOREM to_prove)
     const auto theorem = _stmt.children.front();
-    const auto res = prove(theorem);
-    if (res < 0) {
+    const auto res = im.prove(theorem, pass_limit);
+    if (!res.has_value()) {
       std::cerr << "ERROR:   Failed to prove "
                 << _stmt.children.front() << "\n";
       saw_error = true;
     } else {
-      proven_theorems.insert(res);
+      proven_theorems.insert(res.value().index);
     }
   }
 
@@ -444,40 +417,4 @@ void Core::do_file(const std::filesystem::path &_fp) {
   for (const auto &stmt : root.children) {
     process_statement(stmt, _fp);
   }
-}
-
-int Core::prove(const ASTNode &_theorem) {
-  // Meta special case(s)
-  if (meta_proving) {
-    if (_theorem.text == "implies") {
-      const ASTNode premise = _theorem.children.at(0);
-      const ASTNode consequence = _theorem.children.at(1);
-
-      im.push();
-      special_proofs[im.add_axiom(premise)] =
-          ASTNode("assumption", {premise});
-      const auto res = prove(consequence);
-
-      if (res >= 0) {
-        // Succuss
-        const auto proof_of_consequence = proof_to_ast(res);
-        im.pop();
-
-        const int out_ind = im.add_axiom(_theorem);
-        special_proofs[out_ind] =
-            ASTNode("meta", {proof_of_consequence, _theorem});
-        return out_ind;
-      }
-
-      // Failed to derive
-      im.pop();
-    }
-  }
-
-  // Normal case
-  const auto res = im.backward_prove(_theorem, pass_limit);
-  if (res.has_value()) {
-    return res.value().index;
-  }
-  return -1;
 }

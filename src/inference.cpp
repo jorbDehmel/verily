@@ -8,6 +8,34 @@
 #include <stdexcept>
 #include <vector>
 
+ASTNode
+InferenceMaker::proof_to_ast(const size_t &_thm_index) const {
+  if (special_proofs.contains(_thm_index)) {
+    return special_proofs.at(_thm_index);
+  }
+
+  const auto thm = get_theorem(_thm_index);
+  if (thm.rule_index < 0) {
+    return ASTNode("axiom", {thm.thm});
+  } else {
+    ASTNode premises_block("premises");
+    for (const auto &premise : thm.premises) {
+      premises_block.children.push_back(proof_to_ast(premise));
+    }
+
+    const auto rule = get_rule(thm.rule_index);
+    const std::string rule_name =
+        rule.name.value_or(std::to_string(thm.rule_index));
+
+    return ASTNode(
+        "theorem",
+        {thm.thm,
+         ASTNode("rule_application",
+                 {ASTNode("rule", {ASTNode(rule_name)}),
+                  premises_block})});
+  }
+}
+
 std::optional<InferenceMaker::InferenceRule>
 InferenceMaker::InferenceRule::remove_first_req(
     const ASTNode &_sub) const noexcept {
@@ -99,6 +127,12 @@ int InferenceMaker::has(const ASTNode &_what) const noexcept {
 size_t
 InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
   known.push_back({known.size(), _what, -1, {}});
+
+  if (meta_proving && _what.text == "==") {
+    congruences.relate(_what.children.at(0),
+                       _what.children.at(1));
+  }
+
   if (debug) {
     std::cout << "Added axiom: " << _what << "\n\n";
   }
@@ -205,7 +239,7 @@ InferenceMaker::backward_prove(const ASTNode &_what,
             to_prove_schema.replace(substitutions);
 
         const std::optional<Theorem> res =
-            backward_prove(to_prove, _passes - 1);
+            prove(to_prove, _passes);
 
         if (!res.has_value()) {
           rule_works = false;
@@ -224,8 +258,9 @@ InferenceMaker::backward_prove(const ASTNode &_what,
 
   // No rule worked
   if (enable_alternation) {
-    // Alternate to forward_prove (with reduced pass bound)
-    return forward_prove(_what, _passes - 1);
+    // Alternate to forward_prove
+    cur_alternation_is_forward = true;
+    return prove(_what, _passes);
   }
 
   return {};
@@ -354,7 +389,8 @@ InferenceMaker::forward_prove(const ASTNode &_what,
   // No rule worked
   if (enable_alternation) {
     // Alternate to backward_prove (with reduced pass bound)
-    return backward_prove(_what, _passes - 1);
+    cur_alternation_is_forward = false;
+    return prove(_what, _passes);
   }
 
   return {};
@@ -371,6 +407,11 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
     return get_theorem(res);
   }
 
+  if (meta_proving && beta_reduced_thm.text == "==") {
+    congruences.relate(beta_reduced_thm.children.at(0),
+                       beta_reduced_thm.children.at(1));
+  }
+
   const Theorem out = {.index = known.size(),
                        .thm = beta_reduced_thm,
                        .rule_index = _rule_index,
@@ -382,6 +423,53 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
   }
 
   return out;
+}
+
+std::optional<InferenceMaker::Theorem>
+InferenceMaker::prove(const ASTNode &_theorem,
+                      const int &_passes) {
+  // Meta special case(s)
+  if (meta_proving) {
+    if (_theorem.text == "implies") {
+      const ASTNode premise = _theorem.children.at(0);
+      const ASTNode consequence = _theorem.children.at(1);
+
+      push();
+      special_proofs[add_axiom(premise)] =
+          ASTNode("assumption", {premise});
+      const auto res = prove(consequence, _passes - 1);
+
+      if (res.has_value()) {
+        // Success
+        const auto proof_of_consequence =
+            proof_to_ast(res.value().index);
+        pop();
+
+        const int out_ind = add_axiom(_theorem);
+        special_proofs[out_ind] =
+            ASTNode("meta", {proof_of_consequence, _theorem});
+        return get_theorem(out_ind);
+      }
+
+      // Failed to derive
+      pop();
+    } else if (_theorem.text == "==") {
+      if (congruences.are_related(_theorem.children.at(0),
+                                  _theorem.children.at(1))) {
+        const int out_ind = add_axiom(_theorem);
+        special_proofs[out_ind] =
+            ASTNode("meta", {ASTNode("congruence"), _theorem});
+        return get_theorem(out_ind);
+      }
+    }
+  }
+
+  // Normal case
+  if (enable_alternation && cur_alternation_is_forward) {
+    return forward_prove(_theorem, _passes - 1);
+  } else {
+    return backward_prove(_theorem, _passes - 1);
+  }
 }
 
 std::ostream &

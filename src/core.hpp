@@ -1,4 +1,5 @@
 #pragma once
+#include "congruence.hpp"
 #include "inference.hpp"
 #include "parse.hpp"
 #include <iostream>
@@ -12,9 +13,6 @@ public:
   /// Turns all underscores to spaces
   static std::string sanitize_name(const std::string &_s);
 
-  /// Turns a proof as internally represented into an AST node
-  ASTNode proof_to_ast(const size_t &_thm_index) const;
-
   /// Prints the rules, axioms, and selected theorems in latex
   /// 'inferrule' notation
   void latex(std::ostream &_strm) const;
@@ -27,12 +25,8 @@ public:
   /// Do a file, executing each statement sequentially
   void do_file(const std::filesystem::path &_fp);
 
-  /// Proves a theorem (NOT a statement). This is called by
-  /// process_statement, and should not be called directly.
-  /// Returns nonnegative if no error.
-  int prove(const ASTNode &_theorem);
-
   InferenceMaker im;
+
   bool saw_error = false;
   bool debug = false;
   bool time = false;
@@ -40,11 +34,4 @@ public:
   uintmax_t pass_limit = 64;
   std::set<size_t> axioms;
   std::set<size_t> proven_theorems;
-
-  /// If true, uses the common metalogical definitions of and,
-  /// or, not, implies, and iff.
-  bool meta_proving = true;
-
-  /// Maps theorem IDs to custom proofs (EG metalogical ones)
-  std::map<int, ASTNode> special_proofs;
 };

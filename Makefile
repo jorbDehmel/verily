@@ -1,7 +1,8 @@
 .PHONY:	clean docs format all
 
 CPP = g++ -pedantic -Wall -std=c++20 -O3 -g
-HEADERS = src/parse.hpp src/inference.hpp src/core.hpp
+HEADERS = src/parse.hpp src/inference.hpp src/core.hpp \
+	src/congruence.hpp
 TESTS = tests/expr_parse_test.out tests/parse_verily.out \
 	tests/pattern_matching.out
 

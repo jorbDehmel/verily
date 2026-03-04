@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../src/parse.hpp"
+#include "congruence.hpp"
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -20,6 +21,12 @@ public:
   /// If true, forward_prove and backward_prove can call each
   /// other.
   bool enable_alternation = false;
+
+  /// If true, attempts to use metalogical techniques.
+  bool meta_proving = true;
+
+  /// Don't mess with. Internally used during alternation.
+  bool cur_alternation_is_forward = false;
 
   /// If all the requirements are met, the consequences are
   /// implied
@@ -77,6 +84,8 @@ public:
     std::list<size_t> premises;
   };
 
+  ASTNode proof_to_ast(const size_t &_thm_index) const;
+
   /// Returns true iff _to_examine is of the form _form
   /// with
   /// free variables _free_variables (whose substitutions
@@ -108,6 +117,10 @@ public:
   /// no direction here!
   std::optional<Theorem> forward_prove(const ASTNode &_what,
                                        const int &_passes);
+
+  /// Prove using settings. This is teh one you should call.
+  std::optional<Theorem> prove(const ASTNode &_theorem,
+                               const int &_passes);
 
   /// Adds an axiom and returns its index
   size_t add_axiom(const ASTNode &_what) noexcept;
@@ -157,6 +170,13 @@ public:
       backup_frames.pop_back();
     }
   }
+
+  /// Maps theorem IDs to custom proofs (EG metalogical ones)
+  std::map<int, ASTNode> special_proofs;
+
+  /// Used to keep track of congruence classes if metalogical
+  /// proofs are enabled.
+  CongruenceKeeper congruences;
 };
 
 std::ostream &operator<<(std::ostream &,

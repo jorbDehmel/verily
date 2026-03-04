@@ -13,7 +13,7 @@
 #include <iostream>
 #include <string>
 
-const std::string version = "0.0.1";
+const std::string version = "0.0.2";
 
 int main(int argc, char *argv[]) {
   std::filesystem::path fp = null_fp;
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     } else if (arg == "--latex") {
       verily.print_latex = !verily.print_latex;
     } else if (arg == "--metaprove") {
-      verily.meta_proving = !verily.meta_proving;
+      verily.im.meta_proving = !verily.im.meta_proving;
     } else if (arg == "--help") {
       // clang-format off
       std::cout <<
@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
   }
 
   for (const auto &index : verily.proven_theorems) {
-    std::cout << verily.proof_to_ast(index) << "\n\n";
+    std::cout << verily.im.proof_to_ast(index) << "\n\n";
   }
 
   if (verily.time) {
