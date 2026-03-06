@@ -1,4 +1,4 @@
-.PHONY:	clean docs format all
+.PHONY:	clean docs format all test
 
 CPP = g++ -pedantic -Wall -std=c++20 -O3 -g
 HEADERS = src/parse.hpp src/inference.hpp src/core.hpp \
@@ -9,6 +9,10 @@ TESTS = tests/expr_parse_test.out tests/parse_verily.out \
 OBJECTS = $(HEADERS:.hpp=.o)
 
 all:	verily.out
+
+test:	tests/expr_parse_test.out tests/parse_verily.out \
+	tests/pattern_matching.out
+	./tests/pattern_matching.out
 
 %.out:	%.o $(OBJECTS)
 	$(CPP) -o $@ $^
@@ -21,8 +25,9 @@ format:
 		-exec clang-format -i "{}" \;
 
 clean:
-	find . \( -type f -iname "*.o" -or -iname "*.out" \) \
-		-exec rm -rf "{}" \;
+	find . \( -iname "*.o" -or -iname "*.out" -or -iname \
+		"*.verily.*" -or -iname "*.log" \) -exec rm -rf "{}" \;
+	rm -rf latex/
 
 docs:
 	doxygen -q

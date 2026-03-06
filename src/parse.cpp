@@ -230,6 +230,12 @@ ASTNode::replace(const ASTNode &_to_replace,
     return _replace_with;
   } else {
     ASTNode out(text);
+
+    if (text == _to_replace.text &&
+        _replace_with.children.empty()) {
+      out.text = _replace_with.text;
+    }
+
     for (const auto &child : children) {
       out.children.push_back(
           child.replace(_to_replace, _replace_with));
@@ -241,15 +247,9 @@ ASTNode::replace(const ASTNode &_to_replace,
 ASTNode ASTNode::replace(
     const std::list<std::pair<ASTNode, ASTNode>> &_replacements)
     const noexcept {
+  ASTNode out = *this;
   for (const auto &p : _replacements) {
-    if (operator==(p.first)) {
-      return p.second;
-    }
-  }
-
-  ASTNode out(text);
-  for (const auto &child : children) {
-    out.children.push_back(child.replace(_replacements));
+    out = out.replace(p.first, p.second);
   }
   return out;
 }
@@ -446,7 +446,7 @@ ASTNode Parser::parse_args() {
 
     if (ts.cur() == "in" || ts.cur() == ":") {
       ts.next();
-      const auto domain = ts.cur_next();
+      const auto domain = parse_type();
       args.children.push_back(
           ASTNode(Token("ARG"), {argname, domain}));
     } else {
@@ -634,10 +634,15 @@ ASTNode Parser::parse_expr() {
 
       // Non-parentheses case
       else {
-        // Replacements
-        if (cur == ":") {
-          // Within an expression, ':' is shorthand for 'in'.
-          items.push_back(ASTNode("in"));
+        if (cur == ":" || cur == "in") {
+          if (items.empty()) {
+            throw std::runtime_error(
+                "'in'/':' operator is infix binary");
+          }
+          const ASTNode var = items.back();
+          items.pop_back();
+          const ASTNode domain = parse_type();
+          items.push_back(ASTNode("in", {var, domain}));
         }
 
         // Normal non-replaced case
@@ -671,9 +676,9 @@ ASTNode Parser::parse_expr() {
 ASTNode Parser::parse_expr_from_list(
     const std::list<ASTNode> &input_items) {
   const static std::list<std::string> order_of_operations = {
-      "'",  "^",   "*",  "/",   "%",   "+",
-      "-",  "in",  "<",  ">",   "<=",  ">=",
-      "==", "not", "or", "and", "iff", "implies",
+      "'",   "^",  "*",   "/",   "%",       "+",
+      "-",   "<",  ">",   "<=",  ">=",      "==",
+      "not", "or", "and", "iff", "implies",
   };
 
   std::list<ASTNode> items = input_items;

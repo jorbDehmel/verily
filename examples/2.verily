@@ -16,5 +16,3 @@ axiom: is_raining implies not is_sunny;
 prove_forward: not is_sunny;
 
 prove_backward: not not not is_sunny;
-
-prove_backward: not is_sunny;

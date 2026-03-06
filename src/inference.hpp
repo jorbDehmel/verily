@@ -86,6 +86,10 @@ public:
 
   ASTNode proof_to_ast(const size_t &_thm_index) const;
 
+  /// Given a theorem which has already been proven, return its
+  /// proof as a new AST.
+  ASTNode theorem_to_proof(const ASTNode &_theorem) const;
+
   /// Returns true iff _to_examine is of the form _form
   /// with
   /// free variables _free_variables (whose substitutions
@@ -146,6 +150,9 @@ public:
 
   /// Statements which are known to be true
   std::vector<Theorem> known;
+
+  /// Statements currently being proven
+  std::set<ASTNode> pending;
 
   /// Inference rules
   std::vector<InferenceRule> rules;

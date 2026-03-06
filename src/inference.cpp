@@ -126,6 +126,7 @@ int InferenceMaker::has(const ASTNode &_what) const noexcept {
 
 size_t
 InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
+  pending.erase(_what);
   known.push_back({known.size(), _what, -1, {}});
 
   if (meta_proving && _what.text == "==") {
@@ -202,10 +203,6 @@ InferenceMaker::InferenceRule::InferenceRule(
 std::optional<InferenceMaker::Theorem>
 InferenceMaker::backward_prove(const ASTNode &_what,
                                const int &_passes) {
-  if (debug) {
-    std::cout << "WTS " << _what << "\n";
-  }
-
   // If we have already proven this, return that proof
   const int res = has(_what);
   if (res >= 0) {
@@ -214,6 +211,9 @@ InferenceMaker::backward_prove(const ASTNode &_what,
 
   // If we're out of passes
   if (_passes <= 0) {
+    if (debug) {
+      std::cerr << "Out of passes in backward mode!\n";
+    }
     return {};
   }
 
@@ -221,8 +221,8 @@ InferenceMaker::backward_prove(const ASTNode &_what,
   for (uint rule_index = 0; rule_index < rules.size();
        ++rule_index) {
     const auto rule = rules.at(rule_index);
-    if (rule.type == InferenceRule::FORWARD_ONLY) {
-      continue;
+    if (debug) {
+      std::cout << "Checking rule " << rule << "\n";
     }
 
     // If _what is of the form of the implication of the rule
@@ -230,6 +230,19 @@ InferenceMaker::backward_prove(const ASTNode &_what,
     std::list<std::pair<ASTNode, ASTNode>> substitutions;
     if (is_of_form(_what, rule.consequence, free_variables,
                    substitutions)) {
+      if (!free_variables.empty()) {
+        if (debug) {
+          std::cerr << "Remaining FVs:";
+          for (const auto &fv : free_variables) {
+            std::cerr << ' ' << fv;
+          }
+          std::cerr << ", skipping " << rule << " when WTS "
+                    << _what << "\n";
+        }
+
+        continue;
+      }
+
       // Now we have to prove that, given these substitutions,
       // ALL of the LHS of the implication are provable
       bool rule_works = true;
@@ -238,11 +251,18 @@ InferenceMaker::backward_prove(const ASTNode &_what,
         const auto to_prove =
             to_prove_schema.replace(substitutions);
 
+        if (debug) {
+          std::cout << "Checking premise " << to_prove << "\n";
+        }
+
         const std::optional<Theorem> res =
             prove(to_prove, _passes);
 
         if (!res.has_value()) {
           rule_works = false;
+          if (debug) {
+            std::cout << "Rule failed!\n";
+          }
           break;
         }
         premises.push_back(res.value().index);
@@ -251,6 +271,9 @@ InferenceMaker::backward_prove(const ASTNode &_what,
       if (rule_works) {
         // Add the proven thing and return
         bool trash = true;
+        if (debug) {
+          std::cout << "Rule worked!\n";
+        }
         return add_theorem(_what, rule_index, premises, trash);
       }
     }
@@ -258,7 +281,9 @@ InferenceMaker::backward_prove(const ASTNode &_what,
 
   // No rule worked
   if (enable_alternation) {
-    // Alternate to forward_prove
+    if (debug) {
+      std::cout << "All rules failed!\n";
+    }
     cur_alternation_is_forward = true;
     return prove(_what, _passes);
   }
@@ -400,7 +425,6 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
     const ASTNode &_thm, const uint &_rule_index,
     const std::list<size_t> &_premises, bool &_actually_added) {
   const auto beta_reduced_thm = _thm.beta_star();
-
   const auto res = has(beta_reduced_thm);
   if (res >= 0) {
     _actually_added = false;
@@ -417,6 +441,7 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
                        .rule_index = _rule_index,
                        .premises = _premises};
   known.push_back(out);
+  pending.erase(beta_reduced_thm);
 
   if (debug) {
     std::cout << "Derived theorem " << out << "\n\n";
@@ -425,11 +450,39 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
   return out;
 }
 
+ASTNode InferenceMaker::theorem_to_proof(
+    const ASTNode &_theorem) const {
+  for (auto rit = known.rbegin(); rit != known.rend(); ++rit) {
+    if (rit->thm == _theorem) {
+      return proof_to_ast(rit->index);
+    }
+  }
+  throw std::runtime_error("Cannot get proof of nontheorem!");
+}
+
 std::optional<InferenceMaker::Theorem>
 InferenceMaker::prove(const ASTNode &_theorem,
                       const int &_passes) {
+  if (debug) {
+    std::cout << "WTS " << _theorem << "\n";
+  }
+
+  if (pending.contains(_theorem)) {
+    if (has(_theorem)) {
+      pending.erase(_theorem);
+    } else {
+      std::cerr << "WARNING: Cycle on " << _theorem << "\n";
+      return {};
+    }
+  }
+  pending.insert(_theorem);
+
   // Meta special case(s)
   if (meta_proving) {
+    if (debug) {
+      std::cout << "Checking meta-proving techniques...\n";
+    }
+
     if (_theorem.text == "implies") {
       const ASTNode premise = _theorem.children.at(0);
       const ASTNode consequence = _theorem.children.at(1);
@@ -438,6 +491,7 @@ InferenceMaker::prove(const ASTNode &_theorem,
       special_proofs[add_axiom(premise)] =
           ASTNode("assumption", {premise});
       const auto res = prove(consequence, _passes - 1);
+      pending.erase(consequence);
 
       if (res.has_value()) {
         // Success
@@ -453,7 +507,42 @@ InferenceMaker::prove(const ASTNode &_theorem,
 
       // Failed to derive
       pop();
-    } else if (_theorem.text == "==") {
+    } else if (_theorem.text == "and") {
+      const ASTNode a = _theorem.children.at(0);
+      const ASTNode b = _theorem.children.at(1);
+      if (prove(a, _passes - 1) && prove(b, _passes - 1)) {
+        // Success
+        const int out_ind = add_axiom(_theorem);
+        special_proofs[out_ind] = ASTNode(
+            "meta", {ASTNode("and", {theorem_to_proof(a),
+                                     theorem_to_proof(b)}),
+                     _theorem});
+        return get_theorem(out_ind);
+      }
+      pending.erase(a);
+      pending.erase(b);
+    } else if (_theorem.text == "or") {
+      const ASTNode a = _theorem.children.at(0);
+      const ASTNode b = _theorem.children.at(1);
+      if (prove(a, _passes - 1)) {
+        // Success
+        const int out_ind = add_axiom(_theorem);
+        special_proofs[out_ind] =
+            ASTNode("meta", {theorem_to_proof(a), _theorem});
+        return get_theorem(out_ind);
+      } else if (prove(b, _passes - 1)) {
+        // Success
+        const int out_ind = add_axiom(_theorem);
+        special_proofs[out_ind] =
+            ASTNode("meta", {theorem_to_proof(b), _theorem});
+        return get_theorem(out_ind);
+      }
+      pending.erase(a);
+      pending.erase(b);
+    }
+
+    // Special case
+    else if (_theorem.text == "==") {
       if (congruences.are_related(_theorem.children.at(0),
                                   _theorem.children.at(1))) {
         const int out_ind = add_axiom(_theorem);
@@ -462,12 +551,22 @@ InferenceMaker::prove(const ASTNode &_theorem,
         return get_theorem(out_ind);
       }
     }
+
+    if (debug) {
+      std::cout << "No meta-proving techniques worked.\n";
+    }
   }
 
   // Normal case
   if (enable_alternation && cur_alternation_is_forward) {
+    if (debug) {
+      std::cout << "Forward solving\n";
+    }
     return forward_prove(_theorem, _passes - 1);
   } else {
+    if (debug) {
+      std::cout << "Backward solving\n";
+    }
     return backward_prove(_theorem, _passes - 1);
   }
 }

@@ -19,10 +19,10 @@ rule modus_ponens:
 axiom: 0 in Nat;
 axiom: forall n. n in Nat implies S(n) in Nat;
 
-theorem: S(S(S(S(0)))) in Nat;
+prove_forward: S(S(S(S(0)))) in Nat;
 
 axiom: e(0);
 axiom: forall n. n in Nat implies (e(n) implies not e(S(n)));
 axiom: forall n. n in Nat implies (not e(n) implies e(S(n)));
 
-theorem: e(S(S(0)));
+prove_forward: e(S(S(0)));

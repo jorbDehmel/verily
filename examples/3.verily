@@ -8,4 +8,4 @@ rule:
 axiom: foo;
 axiom: forall item. fizz(item);
 
-prove_backward: fizz(foo);
+prove_forward: fizz(foo);

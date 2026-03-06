@@ -1,0 +1,7 @@
+# Attempt to use the Curry-Howard Isomorphism in verily
+
+rule: over f, x, A, B given f: A to B, x: A deduce f(x): B;
+
+axiom: a in A;
+axiom: g: A to B;
+prove_forward: g(a): B;
