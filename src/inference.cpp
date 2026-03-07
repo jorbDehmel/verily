@@ -4,6 +4,7 @@
 
 #include "inference.hpp"
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -243,14 +244,66 @@ InferenceMaker::backward_prove(const ASTNode &_what,
         continue;
       }
 
+      const std::string fresh_uid =
+          std::to_string(known.size());
+      std::list<std::pair<ASTNode, ASTNode>>
+          freshening_replacements;
+
+      // Adds all FRESH(a) => FRESH_a_12345 to
+      // freshening_replacements, where the int suffix is unique
+      // to this rule application
+      std::function<void(
+          const ASTNode &, const std::string &,
+          std::list<std::pair<ASTNode, ASTNode>> &)>
+          handle_fresh_vars =
+              [&handle_fresh_vars](
+                  const ASTNode &_root, const std::string &_uid,
+                  std::list<std::pair<ASTNode, ASTNode>>
+                      &_freshening_replacements) -> void {
+        if (_root.text == "fresh") {
+          if (_root.children.size() != 1) {
+            throw std::runtime_error(
+                "'fresh' takes 1 argument");
+          }
+          if (!_root.children.front().children.empty()) {
+            throw std::runtime_error("Argument to 'fresh' must "
+                                     "be an atomic identifier");
+          }
+          _freshening_replacements.push_back(
+              {_root, ASTNode("FRESH_" +
+                              _root.children.front().text.text +
+                              "_" + _uid)});
+        } else {
+          for (const auto &child : _root.children) {
+            handle_fresh_vars(child, _uid,
+                              _freshening_replacements);
+          }
+        }
+      };
+
+      if (_what.contains("fresh")) {
+        throw std::runtime_error(
+            "Consequence of rule application in backwards mode "
+            "has 'fresh' calls: How did you even do that?");
+      }
+      std::list<ASTNode> replaced_requirements;
+      for (const auto &to_prove_schema : rule.requirements) {
+        const auto to_prove =
+            to_prove_schema.replace(substitutions);
+        replaced_requirements.push_back(to_prove);
+
+        handle_fresh_vars(to_prove, fresh_uid,
+                          freshening_replacements);
+      }
+
       // Now we have to prove that, given these substitutions,
       // ALL of the LHS of the implication are provable
       bool rule_works = true;
       std::list<size_t> premises;
-      for (const auto &to_prove_schema : rule.requirements) {
-        const auto to_prove =
-            to_prove_schema.replace(substitutions);
-
+      for (const auto &to_prove_minus_fresh :
+           replaced_requirements) {
+        const ASTNode to_prove = to_prove_minus_fresh.replace(
+            freshening_replacements);
         if (debug) {
           std::cout << "Checking premise " << to_prove << "\n";
         }
@@ -330,6 +383,13 @@ void InferenceMaker::inst_all(
         nontheorem_pairings.insert({_rule_index, _cur_indices});
         return;
       }
+
+      if (thm.contains("fresh")) {
+        throw std::runtime_error(
+            "Antecedent of rule application in forwards mode "
+            "has 'fresh' calls: How did you even do that?");
+      }
+
       ++req_ind;
     }
 
@@ -340,15 +400,38 @@ void InferenceMaker::inst_all(
       premises.push_back(item);
     }
 
-    const auto replaced_cons =
-        rule.consequence.replace(substitutions);
-    const auto res =
-        add_theorem(rule.consequence.replace(substitutions),
-                    _rule_index, premises, actually_added);
+    const std::string fresh_uid = std::to_string(known.size());
 
-    if (!actually_added) {
-      nontheorem_pairings.insert({_rule_index, _cur_indices});
-    }
+    std::function<ASTNode(const ASTNode &)> deal_with_fresh =
+        [&](const ASTNode &_root) -> ASTNode {
+      if (_root.text == "fresh") {
+        if (_root.children.size() != 1) {
+          throw std::runtime_error("'fresh' takes 1 argument");
+        }
+        if (!_root.children.front().children.empty()) {
+          throw std::runtime_error("Argument to 'fresh' must "
+                                   "be an atomic identifier");
+        }
+        return ASTNode("FRESH_" +
+                       _root.children.front().text.text + "_" +
+                       fresh_uid);
+      } else {
+        ASTNode out;
+        out.text = _root.text;
+        for (const auto &child : _root.children) {
+          out.children.push_back(deal_with_fresh(child));
+        }
+        return out;
+      }
+    };
+
+    const ASTNode replaced_cons = deal_with_fresh(
+        rule.consequence.replace(substitutions));
+
+    const auto res = add_theorem(replaced_cons, _rule_index,
+                                 premises, actually_added);
+
+    nontheorem_pairings.insert({_rule_index, _cur_indices});
   }
 }
 

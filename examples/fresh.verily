@@ -1,0 +1,5 @@
+// Tests the `fresh` keyword
+
+rule: over x, phi given exists x. phi deduce phi[x = fresh(x)];
+axiom: exists x. x == 0;
+prove_forward: false;
