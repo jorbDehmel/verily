@@ -291,70 +291,91 @@ void Core::json(std::ostream &_strm) const {
     }
   };
 
-  _strm << "{\n" << "  \"rules\": [\n    ";
+  _strm << "{\n"
+           "  \"rules\": [\n"
+           "    ";
   size_t rule_index = 0;
   bool first_rule = true;
   for (const auto &rule : im.rules) {
     if (first_rule) {
       first_rule = false;
     } else {
-      _strm << ",\n    ";
+      _strm << ",\n"
+               "    ";
     }
     const std::string rule_name =
         rule.name.value_or(std::to_string(rule_index));
     ++rule_index;
-    _strm << "{\n      \"name\": \"" << rule_name << "\",\n";
-    _strm << "      \"generics\": [\n        ";
+    _strm << "{\n"
+             "      \"name\": \""
+          << rule_name
+          << "\",\n"
+             "      \"generics\": [\n"
+             "        ";
     bool first = true;
     for (const auto &fv : rule.free_variables) {
       if (first) {
         first = false;
       } else {
-        _strm << ",\n        ";
+        _strm << ",\n"
+                 "        ";
       }
       print_ast_json(fv);
     }
-    _strm << "\n      ],\n";
-    _strm << "      \"premises\": [\n";
+    _strm << "\n"
+             "      ],\n"
+             "      \"premises\": [\n";
     first = true;
     for (const auto &premise : rule.requirements) {
       if (first) {
         first = false;
         _strm << "        ";
       } else {
-        _strm << ",\n        ";
+        _strm << ",\n"
+                 "        ";
       }
       print_ast_json(premise);
     }
-    _strm << "\n      ],\n";
-    _strm << "      \"consequence\": ";
+    _strm << "\n"
+             "      ],\n"
+             "      \"consequence\": ";
     print_ast_json(rule.consequence);
-    _strm << "\n    }";
+    _strm << "\n"
+             "    }";
   }
 
-  _strm << "\n  ],\n" << "  \"axioms\": [\n    ";
+  _strm << "\n"
+           "  ],\n"
+           "  \"axioms\": [\n"
+           "    ";
   bool first = true;
   for (const auto &axiom : axioms) {
     if (first) {
       first = false;
     } else {
-      _strm << ",\n    ";
+      _strm << ",\n"
+               "    ";
     }
     print_ast_json(im.proof_to_ast(axiom));
   }
 
-  _strm << "\n  ],\n"
-        << "  \"selected-theorems\": [\n    ";
+  _strm << "\n"
+           "  ],\n"
+           "  \"selected-theorems\": [\n"
+           "    ";
   first = true;
   for (const auto &theorem : proven_theorems) {
     if (first) {
       first = false;
     } else {
-      _strm << ",\n    ";
+      _strm << ",\n"
+               "    ";
     }
     print_ast_json(im.proof_to_ast(theorem));
   }
-  _strm << "\n  ]\n}\n";
+  _strm << "\n"
+           "  ]\n"
+           "}\n";
 }
 
 void Core::process_statement(
