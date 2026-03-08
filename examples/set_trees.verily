@@ -1,0 +1,11 @@
+# Introduces tree-like sets
+
+rule: over a deduce a in Set(a);
+rule: over a, b deduce a in Set(a, b);
+rule: over a, b deduce a in Set(b, a);
+rule: over a, b, c given a in b deduce a in Set(b, c);
+rule: over a, b, c given a in c deduce a in Set(b, c);
+
+theorem: a in Set(Set(a), Set(b));
+theorem: a in Set(Set(b), Set(a));
+theorem: a in Set(a);

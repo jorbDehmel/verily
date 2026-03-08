@@ -1,5 +1,4 @@
 #pragma once
-#include "congruence.hpp"
 #include "inference.hpp"
 #include "parse.hpp"
 #include <iostream>

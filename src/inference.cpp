@@ -551,8 +551,10 @@ InferenceMaker::prove(const ASTNode &_theorem,
   }
 
   if (pending.contains(_theorem)) {
-    if (has(_theorem)) {
+    const auto res = has(_theorem);
+    if (res >= 0) {
       pending.erase(_theorem);
+      return get_theorem(res);
     } else {
       std::cerr << "WARNING: Cycle on " << _theorem << "\n";
       return {};
