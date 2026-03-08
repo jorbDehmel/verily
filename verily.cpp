@@ -13,7 +13,7 @@
 #include <iostream>
 #include <string>
 
-const std::string version = "0.0.2";
+const std::string version = "0.0.3";
 
 int main(int argc, char *argv[]) {
   std::filesystem::path fp = null_fp;
@@ -34,6 +34,8 @@ int main(int argc, char *argv[]) {
       verily.time = !verily.time;
     } else if (arg == "--latex") {
       verily.print_latex = !verily.print_latex;
+    } else if (arg == "--json") {
+      verily.print_json = !verily.print_json;
     } else if (arg == "--metaprove") {
       verily.im.meta_proving = !verily.im.meta_proving;
     } else if (arg == "--help") {
@@ -51,6 +53,7 @@ int main(int argc, char *argv[]) {
         " --alternate    | false   | Toggles alternation     \n"
         " --pass_limit N | 64      | Sets the depth limit    \n"
         " --latex        | false   | Prints latex to file    \n"
+        " --json         | false   | Prints json to file     \n"
         " --metaprove    | true    | Toggles meta proving    \n"
         "                                                    \n"
         "You can give it a filepath as an argument, in which \n"
@@ -166,6 +169,14 @@ int main(int argc, char *argv[]) {
       return 2;
     }
     verily.latex(f);
+  }
+  if (verily.print_json) {
+    std::ofstream f(fp.string() + ".json");
+    if (!f.is_open()) {
+      std::cerr << "Failed to open json file\n";
+      return 2;
+    }
+    verily.json(f);
   }
 
   if (verily.saw_error) {

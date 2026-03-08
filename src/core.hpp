@@ -17,6 +17,10 @@ public:
   /// 'inferrule' notation
   void latex(std::ostream &_strm) const;
 
+  /// Prints the rules, axioms, and selected theorems in JSON
+  /// encoding
+  void json(std::ostream &_strm) const;
+
   /// Execute a statement
   void
   process_statement(const ASTNode &_stmt,
@@ -31,6 +35,7 @@ public:
   bool debug = false;
   bool time = false;
   bool print_latex = false;
+  bool print_json = false;
   uintmax_t pass_limit = 64;
   std::set<size_t> axioms;
   std::set<size_t> proven_theorems;
