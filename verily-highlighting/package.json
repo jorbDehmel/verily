@@ -27,5 +27,5 @@
       "path": "./syntaxes/verily.tmLanguage.json"
     }]
   },
-  "icon": "./logo.png"
+  "icon": "logo.png"
 }

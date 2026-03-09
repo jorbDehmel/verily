@@ -296,6 +296,8 @@ InferenceMaker::backward_prove(const ASTNode &_what,
                           freshening_replacements);
       }
 
+      assert(replaced_requirements.size() == rule.requirements.size());
+
       // Now we have to prove that, given these substitutions,
       // ALL of the LHS of the implication are provable
       bool rule_works = true;
@@ -328,7 +330,11 @@ InferenceMaker::backward_prove(const ASTNode &_what,
           std::cout << "Rule worked!\n";
         }
         return add_theorem(_what, rule_index, premises, trash);
+      } else if (debug) {
+        std::cout << "Rule failed.\n";
       }
+    } else if (debug) {
+      std::cout << "Theorem is not of rule's form.\n";
     }
   }
 
