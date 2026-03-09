@@ -514,6 +514,21 @@ void Core::process_statement(
     }
   }
 
+  else if (_stmt.text == Token("SETTING")) {
+    const std::string t = _stmt.children.front().text.text;
+    if (t == "debug") {
+      debug = !debug;
+    } else if (t == "latex") {
+      print_latex = !print_latex;
+    } else if (t == "json") {
+      print_json = !print_json;
+    }
+
+    else {
+      std::cout << "WARNING: Unknown setting " << t << "\n";
+    }
+  }
+
   else {
     std::cout << "WARNING: Skipping statement " << _stmt
               << "\n";

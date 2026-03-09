@@ -13,7 +13,7 @@
 #include <iostream>
 #include <string>
 
-const std::string version = "0.0.3";
+const std::string version = "0.0.4";
 
 int main(int argc, char *argv[]) {
   std::filesystem::path fp = null_fp;

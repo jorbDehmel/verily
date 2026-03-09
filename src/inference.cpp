@@ -296,7 +296,8 @@ InferenceMaker::backward_prove(const ASTNode &_what,
                           freshening_replacements);
       }
 
-      assert(replaced_requirements.size() == rule.requirements.size());
+      assert(replaced_requirements.size() ==
+             rule.requirements.size());
 
       // Now we have to prove that, given these substitutions,
       // ALL of the LHS of the implication are provable
@@ -330,19 +331,18 @@ InferenceMaker::backward_prove(const ASTNode &_what,
           std::cout << "Rule worked!\n";
         }
         return add_theorem(_what, rule_index, premises, trash);
-      } else if (debug) {
-        std::cout << "Rule failed.\n";
       }
     } else if (debug) {
       std::cout << "Theorem is not of rule's form.\n";
     }
   }
 
+  if (debug) {
+    std::cout << "backward_prove failed\n";
+  }
+
   // No rule worked
   if (enable_alternation) {
-    if (debug) {
-      std::cout << "All rules failed!\n";
-    }
     cur_alternation_is_forward = true;
     return prove(_what, _passes);
   }
@@ -500,6 +500,10 @@ InferenceMaker::forward_prove(const ASTNode &_what,
     }
   }
 
+  if (debug) {
+    std::cout << "forward_prove failed\n";
+  }
+
   // No rule worked
   if (enable_alternation) {
     // Alternate to backward_prove (with reduced pass bound)
@@ -553,16 +557,26 @@ std::optional<InferenceMaker::Theorem>
 InferenceMaker::prove(const ASTNode &_theorem,
                       const int &_passes) {
   if (debug) {
-    std::cout << "WTS " << _theorem << "\n";
+    std::cout << "WTS " << _theorem << "\nWith pending:\n";
+    for (const auto &p : pending) {
+      std::cout << " - " << p << "\n";
+    }
   }
 
-  if (pending.contains(_theorem)) {
+  bool is_pending = false;
+  for (const auto &p : pending) {
+    if (p == _theorem) {
+      is_pending = true;
+      break;
+    }
+  }
+
+  if (is_pending) {
     const auto res = has(_theorem);
     if (res >= 0) {
       pending.erase(_theorem);
       return get_theorem(res);
     } else {
-      std::cerr << "WARNING: Cycle on " << _theorem << "\n";
       return {};
     }
   }

@@ -321,6 +321,11 @@ ASTNode Parser::parse_statement() {
     return ASTNode(
         Token("INCLUDE"),
         {Token(written.substr(1, written.size() - 2))});
+  } else if (t == "setting") {
+    const auto written = ts.cur_next().text;
+    return ASTNode(
+        Token("SETTING"),
+        {Token(written.substr(1, written.size() - 2))});
   }
 
   else if (t == "prove_forward") {
@@ -420,24 +425,6 @@ ASTNode Parser::parse() {
   return out;
 }
 
-// Parses a set / type composed of sets
-ASTNode Parser::parse_type() {
-  ASTNode cur = ASTNode(ts.cur_next());
-  if (cur.text == "(") {
-    cur = parse_type();
-    ts.expect({")"});
-  }
-
-  if (ts.cur().text == "to") {
-    ts.next();
-    cur = ASTNode(Token("TO"), {cur, parse_type()});
-  } else if (ts.cur().text == "cross") {
-    ts.next();
-    cur = ASTNode(Token("CROSS"), {cur, parse_type()});
-  }
-  return cur;
-}
-
 ASTNode Parser::parse_args() {
   ts.expect({"("});
   ASTNode args(Token("ARGS"));
@@ -446,7 +433,7 @@ ASTNode Parser::parse_args() {
 
     if (ts.cur() == "in" || ts.cur() == ":") {
       ts.next();
-      const auto domain = parse_type();
+      const auto domain = parse_expr();
       args.children.push_back(
           ASTNode(Token("ARG"), {argname, domain}));
     } else {
@@ -634,19 +621,9 @@ ASTNode Parser::parse_expr() {
 
       // Non-parentheses case
       else {
-        if (cur == ":" || cur == "in") {
-          if (items.empty()) {
-            throw std::runtime_error(
-                "'in'/':' operator is infix binary");
-          }
-          const ASTNode var = items.back();
-          items.pop_back();
-          const ASTNode domain = parse_type();
-          items.push_back(ASTNode("in", {var, domain}));
-        }
-
-        // Normal non-replaced case
-        else {
+        if (cur == ":") {
+          items.push_back(ASTNode("in"));
+        } else {
           items.push_back(cur);
         }
       }
@@ -676,9 +653,9 @@ ASTNode Parser::parse_expr() {
 ASTNode Parser::parse_expr_from_list(
     const std::list<ASTNode> &input_items) {
   const static std::list<std::string> order_of_operations = {
-      "'",   "^",  "*",   "/",   "%",       "+",
-      "-",   "<",  ">",   "<=",  ">=",      "==",
-      "not", "or", "and", "iff", "implies",
+      "'",     "^",   "*",  "/",   "%",   "+",       "-",
+      "<",     ">",   "<=", ">=",  "==",  "in",      "to",
+      "cross", "not", "or", "and", "iff", "implies",
   };
 
   std::list<ASTNode> items = input_items;

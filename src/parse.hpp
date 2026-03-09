@@ -147,11 +147,6 @@ public:
   /// Parses a single statement
   ASTNode parse_statement();
 
-  /// Parses a set
-  /// This could be like 'Nat'
-  /// Or it could be like 'Nat to Bool to Int to Nat'
-  ASTNode parse_type();
-
   /// Parses a series of arguments
   ASTNode parse_args();
 
