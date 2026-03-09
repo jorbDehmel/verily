@@ -9,6 +9,13 @@ rule typed_instantiation:
   deduce consequent[x = y]
 ;
 
+// Generalization
+rule generalization:
+  over Domain, consequent, x
+  given exists x. consequent
+  deduce consequent[x = fresh(x)]
+;
+
 // Modus ponens / uninterpreted implication
 rule modus_ponens:
   over p, q

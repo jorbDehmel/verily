@@ -1,5 +1,7 @@
 # Sets in verily
 
+setting "time";
+
 rule set_1:
   over a
   deduce a in Set(a)

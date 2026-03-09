@@ -1,5 +1,5 @@
 
-# Verily: A proof system
+# Verily: A toy inductive proof system
 
 Jordan Dehmel, 2025-present
 

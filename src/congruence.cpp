@@ -1,5 +1,4 @@
 #include "congruence.hpp"
-// #include <iostream>
 
 void ASTNodeToIDMap::serialize(
     const ASTNode &_what,
