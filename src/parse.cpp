@@ -1,5 +1,3 @@
-// Lexes and parses verily.
-
 #include "parse.hpp"
 #include <fstream>
 #include <functional>
@@ -151,6 +149,14 @@ ASTNode::ASTNode(const Token &_text,
       }
     }
   }
+}
+
+uintmax_t ASTNode::get_height() const noexcept {
+  uintmax_t out = 0;
+  for (const auto &child : children) {
+    out = std::max(out, child.get_height() + 1);
+  }
+  return out;
 }
 
 bool ASTNode::operator==(const ASTNode &_other) const noexcept {
@@ -310,18 +316,20 @@ ASTNode Parser::parse_statement() {
 
   if (t == ";") {
     return ASTNode("NULL");
+  } else if (t == "ls") {
+    return ASTNode("LS");
   }
 
   else if (t == "function") {
     return parse_function();
   } else if (t == "method") {
     return parse_method();
-  } else if (t == "include") {
+  } else if (t == "include" || t == "import") {
     const auto written = ts.cur_next().text;
     return ASTNode(
         Token("INCLUDE"),
         {Token(written.substr(1, written.size() - 2))});
-  } else if (t == "setting") {
+  } else if (t == "setting" || t == "option") {
     const auto written = ts.cur_next().text;
     return ASTNode(
         Token("SETTING"),
@@ -780,6 +788,10 @@ ASTNode Parser::parse_expr_from_list(
             "Illegal non-atomic quantifier");
       }
 
+      if (output_items.size() < 2) {
+        throw std::runtime_error(
+            "Quantifier has no body and/or variable");
+      }
       const auto var = output_items.front();
       output_items.pop_front();
       const auto body = output_items.front();

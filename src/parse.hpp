@@ -121,6 +121,9 @@ struct ASTNode {
   /// the tree. This could enter an infinite loop (but will
   /// likely stack-overflow instead)!
   ASTNode beta_star() const noexcept;
+
+  /// Return the max heigh of the tree
+  uintmax_t get_height() const noexcept;
 };
 
 std::ostream &operator<<(std::ostream &_strm,

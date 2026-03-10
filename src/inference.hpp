@@ -178,6 +178,12 @@ public:
     }
   }
 
+  /// The max number of theorems to allow before emergency stop
+  uintmax_t theorem_limit = 10'000;
+
+  /// The highest tree height that is allowed to be checked
+  uintmax_t max_tree_height = 128;
+
   /// Maps theorem IDs to custom proofs (EG metalogical ones)
   std::map<int, ASTNode> special_proofs;
 

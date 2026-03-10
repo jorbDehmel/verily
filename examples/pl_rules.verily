@@ -1,4 +1,3 @@
-rule proposition_tf: over a given a in P deduce a or not a;
 rule and_def: over a, b given a, b deduce a and b;
 rule or_def: over a, b given a deduce a or b;
 rule and_comm: over a, b given a and b deduce b and a;

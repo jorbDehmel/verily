@@ -210,6 +210,10 @@ InferenceMaker::backward_prove(const ASTNode &_what,
     return get_theorem(res);
   }
 
+  if (_what.get_height() > max_tree_height) {
+    throw std::runtime_error("Emergency stop: Tree too big!");
+  }
+
   // If we're out of passes
   if (_passes <= 0) {
     if (debug) {
@@ -524,6 +528,15 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
     return get_theorem(res);
   }
 
+  if (known.size() >= theorem_limit) {
+    throw std::runtime_error(
+        "Emergency stop: Too many theorems!");
+  }
+
+  if (_thm.get_height() > max_tree_height) {
+    throw std::runtime_error("Emergency stop: Tree too big!");
+  }
+
   if (meta_proving && beta_reduced_thm.text == "==") {
     congruences.relate(beta_reduced_thm.children.at(0),
                        beta_reduced_thm.children.at(1));
@@ -557,10 +570,15 @@ std::optional<InferenceMaker::Theorem>
 InferenceMaker::prove(const ASTNode &_theorem,
                       const int &_passes) {
   if (debug) {
-    std::cout << "WTS " << _theorem << "\nWith pending:\n";
+    std::cout << "WTS " << _theorem << " w/ height "
+              << _theorem.get_height() << "\nWith pending:\n";
     for (const auto &p : pending) {
       std::cout << " - " << p << "\n";
     }
+  }
+
+  if (_theorem.get_height() > max_tree_height) {
+    throw std::runtime_error("Emergency stop: Tree too big!");
   }
 
   bool is_pending = false;

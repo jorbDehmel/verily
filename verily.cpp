@@ -11,9 +11,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
-const std::string version = "0.0.4";
+const std::string version = "0.0.5";
 
 int main(int argc, char *argv[]) {
   std::filesystem::path fp = null_fp;
@@ -30,6 +31,14 @@ int main(int argc, char *argv[]) {
       assert(i + 1 < argc);
       ++i;
       verily.pass_limit = std::stoi(argv[i]);
+    } else if (arg == "--max_theorems") {
+      assert(i + 1 < argc);
+      ++i;
+      verily.im.theorem_limit = std::stoi(argv[i]);
+    } else if (arg == "--max_tree_height") {
+      assert(i + 1 < argc);
+      ++i;
+      verily.im.max_tree_height = std::stoi(argv[i]);
     } else if (arg == "--time") {
       verily.time = !verily.time;
     } else if (arg == "--latex") {
@@ -46,15 +55,17 @@ int main(int argc, char *argv[]) {
         "+--------------------------------------------------+\n"
         "A deductive theorem prover. MIT License, 2025-2026. \n"
         "                                                    \n"
-        " CLI flag       | Default | Meaning                 \n"
-        "----------------|---------|-------------------------\n"
-        " --help         |         | Prints this text        \n"
-        " --debug        | false   | Toggles debug mode      \n"
-        " --alternate    | false   | Toggles alternation     \n"
-        " --pass_limit N | 64      | Sets the depth limit    \n"
-        " --latex        | false   | Prints latex to file    \n"
-        " --json         | false   | Prints json to file     \n"
-        " --metaprove    | true    | Toggles meta proving    \n"
+        " CLI flag          | Default | Meaning                 \n"
+        "-------------------|---------|-------------------------\n"
+        " --alternate       | false   | Toggles alternation     \n"
+        " --debug           | false   | Toggles debug mode      \n"
+        " --help            |         | Prints this text        \n"
+        " --json            | false   | Prints json to file     \n"
+        " --latex           | false   | Prints latex to file    \n"
+        " --max_theorems    | 10,000  | Sets the max # theorems \n"
+        " --max_tree_height | 100     | Set the max AST height  \n"
+        " --metaprove       | true    | Toggles meta proving    \n"
+        " --pass_limit N    | 64      | Sets the depth limit    \n"
         "                                                    \n"
         "You can give it a filepath as an argument, in which \n"
         "case that file will be analyzed. If no filepath is  \n"
@@ -64,6 +75,12 @@ int main(int argc, char *argv[]) {
         "Version " << version << "\n"
       ;
       // clang-format on
+      return 1;
+    }
+
+    else if (arg.starts_with("--")) {
+      std::cerr << "Unknown flag '" << arg
+                << "'. Use '--help' to get help.\n";
       return 2;
     }
 
@@ -115,7 +132,14 @@ int main(int argc, char *argv[]) {
 
         for (const auto &stmt : global.children) {
           if (stmt.text != "NULL") {
-            verily.process_statement(stmt, fp);
+            try {
+              verily.process_statement(stmt, fp);
+            } catch (std::runtime_error &_e) {
+              std::cerr << "Caught error: " << _e.what()
+                        << "\n";
+            } catch (...) {
+              std::cerr << "Unknown error!\n";
+            }
           }
         }
 
@@ -130,18 +154,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (verily.debug) {
-    std::cout << "All " << verily.im.rules.size()
-              << " rules:\n";
-    for (uint i = 0; i < verily.im.rules.size(); ++i) {
-      std::cout << " " << i << " " << verily.im.rules.at(i)
-                << '\n';
-    }
-    std::cout << "\nAll " << verily.im.known.size()
-              << " theorems:\n";
-    for (uint i = 0; i < verily.im.known.size(); ++i) {
-      std::cout << " " << i << " " << verily.im.known.at(i)
-                << '\n';
-    }
+    verily.ls();
   }
 
   for (const auto &index : verily.proven_theorems) {
@@ -166,7 +179,7 @@ int main(int argc, char *argv[]) {
     std::ofstream f(fp.string() + ".tex");
     if (!f.is_open()) {
       std::cerr << "Failed to open latex file\n";
-      return 2;
+      return 3;
     }
     verily.latex(f);
   }
@@ -174,13 +187,13 @@ int main(int argc, char *argv[]) {
     std::ofstream f(fp.string() + ".json");
     if (!f.is_open()) {
       std::cerr << "Failed to open json file\n";
-      return 2;
+      return 4;
     }
     verily.json(f);
   }
 
   if (verily.saw_error) {
-    return 1;
+    return 5;
   }
   return 0;
 }

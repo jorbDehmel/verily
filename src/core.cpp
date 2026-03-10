@@ -445,6 +445,10 @@ void Core::process_statement(
     }
   }
 
+  else if (_stmt.text == "LS") {
+    ls();
+  }
+
   // Axiom
   else if (_stmt.text == Token("AXIOM")) {
     // (AXIOM a)
@@ -552,5 +556,16 @@ void Core::do_file(const std::filesystem::path &_fp) {
 
   for (const auto &stmt : root.children) {
     process_statement(stmt, _fp);
+  }
+}
+
+void Core::ls() const noexcept {
+  std::cout << "All " << im.rules.size() << " rules:\n";
+  for (uint i = 0; i < im.rules.size(); ++i) {
+    std::cout << " " << i << " " << im.rules.at(i) << '\n';
+  }
+  std::cout << "\nAll " << im.known.size() << " theorems:\n";
+  for (uint i = 0; i < im.known.size(); ++i) {
+    std::cout << " " << i << " " << im.known.at(i) << '\n';
   }
 }

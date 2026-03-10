@@ -1,10 +1,12 @@
 #pragma once
 #include "inference.hpp"
 #include "parse.hpp"
+#include <cstdint>
 #include <iostream>
 
 /// A filepath used when none is provided
-const static std::filesystem::path null_fp = "NO_FP_GIVEN";
+const static std::filesystem::path null_fp =
+    "NO_FP_GIVEN.verily";
 
 /// The core Verily management class
 class Core {
@@ -27,6 +29,9 @@ public:
 
   /// Do a file, executing each statement sequentially
   void do_file(const std::filesystem::path &_fp);
+
+  /// List all rules and theorems
+  void ls() const noexcept;
 
   InferenceMaker im;
 

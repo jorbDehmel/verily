@@ -1,0 +1,34 @@
+include "pl_rules.verily";
+
+rule exists_introduction:
+  over f, y
+  given f(y)
+  deduce exists fresh(x). f(fresh(x))
+;
+
+rule exists_elimination:
+  over f, x
+  given exists x. f(x)
+  deduce f(fresh(x))
+;
+
+rule forall_introduction:
+  over f, x
+  given f(fresh(x))
+  deduce forall x. f(x)
+;
+
+rule forall_elimination:
+  over f, x, y, D
+  given
+    forall x. x in D implies f(x),
+    y in D
+  deduce f(y)
+;
+
+rule predicate_definition:
+  over f, x
+  deduce f(x) or not f(x)
+;
+
+theorem: g(a) or not g(a);

@@ -1,4 +1,6 @@
 # Propositional logic in Verily
+rule proposition_tf: over a given a in P deduce a or not a;
+
 include "pl_rules.verily";
 
 # Propositions
