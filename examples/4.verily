@@ -7,9 +7,11 @@ function f(x) {
 theorem: f(y) == y^2;
 theorem: f(f(y)) == f(y)^2;
 
-function g(x: Nat) {
+fn g(x: Nat) {
   x^2
 }
 
-theorem: (y in Nat) implies (g(y) == y ^ 2);
+theorem: (y in Nat) implies (g(y) == y^2);
+
+lemma: f(z) == z^2;
 theorem: (z in Nat) implies (g(z) == f(z));

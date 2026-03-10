@@ -320,7 +320,7 @@ ASTNode Parser::parse_statement() {
     return ASTNode("LS");
   }
 
-  else if (t == "function") {
+  else if (t == "function" || t == "fn") {
     return parse_function();
   } else if (t == "method") {
     return parse_method();
@@ -354,7 +354,8 @@ ASTNode Parser::parse_statement() {
     }
     ts.expect({":"});
     return ASTNode(Token("PROVE_SMT"), {parse_expr()});
-  } else if (t == "theorem") {
+  } else if (t == "theorem" || t == "lemma" || t == "deduce" ||
+             t == "prove" || t == "assert") {
     if (ts.cur().text != ":") {
       ts.next();
     }
@@ -362,7 +363,7 @@ ASTNode Parser::parse_statement() {
     return ASTNode(Token("THEOREM"), {parse_expr()});
   }
 
-  else if (t == "axiom") {
+  else if (t == "axiom" || t == "assume") {
     if (ts.cur().text != ":") {
       ts.next();
     }

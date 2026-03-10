@@ -1,29 +1,5 @@
 #include "congruence.hpp"
 
-void ASTNodeToIDMap::serialize(
-    const ASTNode &_what,
-    std::list<std::string> &_cur) const noexcept {
-  _cur.push_back("OPEN");
-  _cur.push_back(_what.text.text);
-  for (const auto &child : _what.children) {
-    serialize(child, _cur);
-  }
-  _cur.push_back("CLOSE");
-}
-
-int ASTNodeToIDMap::at(const ASTNode &_ast) {
-  std::list<std::string> serialized;
-  serialize(_ast, serialized);
-  TSTNode &cur = root;
-  for (const auto &entry : serialized) {
-    cur = cur.next[entry];
-  }
-  if (!cur.data.has_value()) {
-    cur.data = ++cur_size;
-  }
-  return cur.data.value();
-}
-
 int UnionFind::root(const int &_n) {
   // Special case: First time a node has been mentioned
   if (!parents.contains(_n)) {
@@ -94,11 +70,21 @@ void CongruenceKeeper::reset() {
   uf.reset();
 }
 
+size_t CongruenceKeeper::get_id(const ASTNode &_what) noexcept {
+  for (const auto &p : key_to_id) {
+    if (p.first == _what) {
+      return p.second;
+    }
+  }
+  key_to_id.push_back({_what, key_to_id.size()});
+  return key_to_id.size() - 1;
+}
+
 void CongruenceKeeper::relate(const ASTNode &_a,
                               const ASTNode &_b) {
   // std::cout << "Adding (" << _a << ") equiv (" << _b <<
   // ")\n";
-  uf.relate(key_to_id.at(_a), key_to_id.at(_b));
+  uf.relate(get_id(_a), get_id(_b));
 }
 
 bool CongruenceKeeper::are_related(const ASTNode &_a,
@@ -106,8 +92,8 @@ bool CongruenceKeeper::are_related(const ASTNode &_a,
   // std::cout << "Checking if (" << _a << ") equiv (" << _b
   //           << ")\n";
 
-  const int a_id = key_to_id.at(_a);
-  const int b_id = key_to_id.at(_b);
+  const int a_id = get_id(_a);
+  const int b_id = get_id(_b);
 
   // Raw + cheap case
   if (uf.are_related(a_id, b_id)) {

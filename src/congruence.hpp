@@ -39,34 +39,17 @@ public:
   bool are_related(const int &_a, const int &_b);
 };
 
-/// Maps AST nodes to unique integer IDs. I think an E-graph
-/// would be better as a replacement for this and the UnionFind
-/// class, but whatever.
-class ASTNodeToIDMap {
-protected:
-  void serialize(const ASTNode &_what,
-                 std::list<std::string> &_cur) const noexcept;
-
-  struct TSTNode {
-    std::optional<int> data;
-    std::map<std::string, TSTNode> next;
-  };
-  TSTNode root;
-  size_t cur_size = 0;
-
-public:
-  int at(const ASTNode &);
-};
-
 /// A specialized version of union find. It partitions the set
 /// of all ASTs into congruence classes.
 class CongruenceKeeper {
 protected:
   /// Maps a node to its ID
-  ASTNodeToIDMap key_to_id;
+  std::list<std::pair<ASTNode, int>> key_to_id;
 
   /// Used to relate IDs of nodes
   UnionFind uf;
+
+  size_t get_id(const ASTNode &) noexcept;
 
 public:
   /// Reset all relations

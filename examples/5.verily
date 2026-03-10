@@ -1,0 +1,8 @@
+axiom: a == b;
+axiom: b == c;
+theorem: a == c;
+
+axiom: d == e or d == f;
+axiom: e == f;
+axiom: f == g;
+theorem: d == g;

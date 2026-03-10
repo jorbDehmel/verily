@@ -131,6 +131,10 @@ InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
   known.push_back({known.size(), _what, -1, {}});
 
   if (meta_proving && _what.text == "==") {
+    if (debug) {
+      std::cout << "Congruence adding " << _what.children.at(0)
+                << " and " << _what.children.at(1) << "\n";
+    }
     congruences.relate(_what.children.at(0),
                        _what.children.at(1));
   }
@@ -666,8 +670,16 @@ InferenceMaker::prove(const ASTNode &_theorem,
 
     // Special case
     else if (_theorem.text == "==") {
+      if (debug) {
+        std::cout << "Congruence checking "
+                  << _theorem.children.at(0) << " against "
+                  << _theorem.children.at(1) << "\n";
+      }
       if (congruences.are_related(_theorem.children.at(0),
                                   _theorem.children.at(1))) {
+        if (debug) {
+          std::cout << "Congruence check worked.\n";
+        }
         const int out_ind = add_axiom(_theorem);
         special_proofs[out_ind] =
             ASTNode("meta", {ASTNode("congruence"), _theorem});
