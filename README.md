@@ -115,7 +115,8 @@ within the system).
 The following are operators which will be parsed. Note that,
 since the entire language is uninterpreted, straying from these
 will not cause any errors: It just might not parse the way you
-expect.
+expect. However, if you enable the meta-solver, only the basic
+boolean operations as defined below will be supported.
 
 Operators (in precedent order):
 - `in`
@@ -141,9 +142,30 @@ Since `a and b or c` is ambiguous in most languages, it is
 considered bad form to write it: Instead, write either
 `(a and b) or c` or `a and (b or c)`.
 
+Any single token can be used as a quantifier. Technically, the
+parser recognizes any expression of the form
+`TOKEN TOKEN . EXPR` as a quantified expression. Note that this
+means things like `forall x in A. M` must instead be written
+`forall x. (x in A) implies M` (which will be appropriately
+dealt with by the meta-prover, if enabled).
+
+### Meta-implication
+
+A human might see "assuming $A$, $B$ is a theorem" and add the
+theorem "$A$ implies $B$" to mean "the theoremhood of $A$
+implies the theoremhood of $B$". This is a meta-theorem (the
+induction theorem), and relies on the interpretation of the
+`implies` operator. However, it is also a very useful derivation
+rule: Therefore, verily provides the option to enable or disable
+it. This is bundled in with the meta-solver, toggled via the
+`--metaprove` CLI flag. The meta-solver will also apply other
+meta-rules wherever possible (preferring them to
+non-meta-rules).
+
 ## Importing other files
 
-You can use the `include "local_filepath";` command.
+You can use the `include "local_filepath";` command. This takes
+a path relative to the current file (the CWD in CLI mode).
 
 ## Rules
 
@@ -251,8 +273,28 @@ rule:
 ;
 ```
 
-Inference rules without "given" clauses are axioms or axiom
-schemas.
+Inference rules without "given" clauses are axioms (if there are
+no free variables) or axiom schemas (if the `over` clause is
+populated with free variables).
+
+Rules take the form
+`rule NAME? : (over ARGS)? (given ARGS)? deduce EXPR ;`
+where `ARGS` represents zero or more comma-separated
+expressions. The `over` clause declares expressions which can be
+replaced by anything in the antecedents and/or conclusion. The
+`given` clause lists the things which must be known to be
+theorems in order for the rule to apply (the antecedents). The
+`deduce` clause gives the thing that is known to be a theorem
+in the case that all the requirements are met (the consequence).
+
+In both forward and backwards derivation mode, rules use AST
+pattern matching to try to get theorems to align with rules. In
+backwards mode, the solver goes through any rules whose
+conclusion matches the would-be theorem and attempt to prove
+corresponding antecedents recursively. In forwards mode, the
+solver tries to apply any rules whose antecedents are already
+known theorems, adding their consequence to the set of known
+theorems.
 
 ## Axioms and Theorems
 
@@ -276,13 +318,61 @@ throughout. If they cannot be proven, an error will be raised.
 Once they are proven, they act the same as axioms: Another
 proof can use them without re-proving them.
 
+## Synonymous keywords
+
+There are many synonymous keywords. Some of them are listed
+below.
+
+Synonymous with `function`:
+- `fn` (ease of use)
+
+Synonymous with `include`:
+- `import` (ease of use)
+
+Synonymous with `setting`:
+- `option` (ease of use)
+
+Synonymous with `theorem`:
+- `lemma` (for organization)
+- `deduce` (because it's used for that within rules)
+- `prove` (for compatibility)
+- `assert` (for compatibility)
+
+Synonymous with `axiom`:
+- `assume` (for compatibility)
+
 ## Functions and Methods
 
 Functions are purely functional (possibly recursive), while
 methods are imperative. They are two syntaxes which can express
 equivalent computational tasks. Functions can be analyzed
 directly by the system, but methods must be analyzed via Hoare
-logic.
+logic (currently unimplemented). Functions and methods can be
+annotated with the `requires` and `ensures` keywords, each of
+which can be followed by a single expression.
+
+```verily
+function fib_1(n: Nat) {
+  if_then_else(
+    n < 2,
+    n,
+    fib_1(n - 1) + fib_1(n - 2)
+  )
+}
+
+method fib_2(n: Nat) returns ret {
+  if n < 2 {
+    ret = n;
+  } else {
+    ret = fib_2(n - 1) + fib_2(n - 2);
+  }
+}
+```
+
+As of writing, methods are not implemented: They will parse, but
+they won't do anything else. Functions are supported, and their
+signatures and bodies will be declared equivalent (EG `==`) via
+an implicitly-defined rule.
 
 ## Backward Deduction
 

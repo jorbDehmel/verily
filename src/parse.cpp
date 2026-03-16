@@ -558,16 +558,14 @@ ASTNode Parser::parse_method() {
   return out;
 }
 
-// Parses an expression in colinear time WRT number of
-// operations, number of tokens in expression. This is a
-// little baby push-reduce + linear recursive descent
-// parser all of its own.
+const static std::set<std::string> expression_terminators = {
+    ",",      ";", "requires", "ensures", "given",
+    "deduce", "{", "}",        "=",       "]"};
+
 ASTNode Parser::parse_expr() {
-  const static std::set<std::string> expression_terminators = {
-      ",",      ";", "requires", "ensures", "given",
-      "deduce", "{", "}",        "=",       "]"};
   const static std::set<std::string> keywords = {
-      "not", "and", "or", "implies", "iff"};
+      "not", "and", "or", "implies", "iff", "derives", "models",
+  };
 
   std::list<ASTNode> items;
   try {
@@ -662,9 +660,10 @@ ASTNode Parser::parse_expr() {
 ASTNode Parser::parse_expr_from_list(
     const std::list<ASTNode> &input_items) {
   const static std::list<std::string> order_of_operations = {
-      "'",     "^",   "*",  "/",   "%",   "+",       "-",
-      "<",     ">",   "<=", ">=",  "==",  "in",      "to",
-      "cross", "not", "or", "and", "iff", "implies",
+      "'",   "^",       "*",       "/",      "%",  "+",
+      "-",   "<",       ">",       "<=",     ">=", "==",
+      "in",  "to",      "cross",   "not",    "or", "and",
+      "iff", "implies", "derives", "models",
   };
 
   std::list<ASTNode> items = input_items;

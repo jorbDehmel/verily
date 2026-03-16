@@ -5,3 +5,10 @@ rule: over f, x, A, B given f: A to B, x: A deduce f(x): B;
 axiom: a in A;
 axiom: g: A to B;
 prove_forward: g(a): B;
+
+# A very complicated rule which I don't expect to work
+rule:
+  over B, x, A, M
+  given (x in A) derives (M in B)
+  deduce (lambda x. x in A implies M) in (A to B)
+;

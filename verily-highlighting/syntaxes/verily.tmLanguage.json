@@ -42,7 +42,7 @@
 		"keywords": {
 			"patterns": [
 				{
-					"match": "\\b(lemma|fn|fresh|setting|axiom|function|include|method|annotation|exists|forall|implies|iff|st|requires|ensures|bind|symbol|rule|over|given|deduce|theorem|prove[_a-zA-Z]*)\\b",
+					"match": "\\b(derives|models|lemma|fn|fresh|setting|axiom|function|include|method|annotation|exists|forall|implies|iff|st|requires|ensures|bind|symbol|rule|over|given|deduce|theorem|prove[_a-zA-Z]*)\\b",
 					"name": "keyword.control.verily"
 				},
 				{
