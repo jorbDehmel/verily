@@ -115,8 +115,7 @@ within the system).
 The following are operators which will be parsed. Note that,
 since the entire language is uninterpreted, straying from these
 will not cause any errors: It just might not parse the way you
-expect. However, if you enable the meta-solver, only the basic
-boolean operations as defined below will be supported.
+expect.
 
 Operators (in precedent order):
 - `in`

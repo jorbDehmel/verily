@@ -215,7 +215,10 @@ InferenceMaker::backward_prove(const ASTNode &_what,
   }
 
   if (_what.get_height() > max_tree_height) {
-    throw std::runtime_error("Emergency stop: Tree too big!");
+    if (debug) {
+      std::cerr << "Killing branch: Tree too big!";
+    }
+    return {};
   }
 
   // If we're out of passes
@@ -537,10 +540,6 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
         "Emergency stop: Too many theorems!");
   }
 
-  if (_thm.get_height() > max_tree_height) {
-    throw std::runtime_error("Emergency stop: Tree too big!");
-  }
-
   if (meta_proving && beta_reduced_thm.text == "==") {
     congruences.relate(beta_reduced_thm.children.at(0),
                        beta_reduced_thm.children.at(1));
@@ -582,7 +581,10 @@ InferenceMaker::prove(const ASTNode &_theorem,
   }
 
   if (_theorem.get_height() > max_tree_height) {
-    throw std::runtime_error("Emergency stop: Tree too big!");
+    if (debug) {
+      std::cerr << "Killing branch: Tree too big!";
+    }
+    return {};
   }
 
   bool is_pending = false;
@@ -634,42 +636,7 @@ InferenceMaker::prove(const ASTNode &_theorem,
 
       // Failed to derive
       pop();
-    } else if (_theorem.text == "and") {
-      const ASTNode a = _theorem.children.at(0);
-      const ASTNode b = _theorem.children.at(1);
-      if (prove(a, _passes - 1) && prove(b, _passes - 1)) {
-        // Success
-        const int out_ind = add_axiom(_theorem);
-        special_proofs[out_ind] = ASTNode(
-            "meta", {ASTNode("and", {theorem_to_proof(a),
-                                     theorem_to_proof(b)}),
-                     _theorem});
-        return get_theorem(out_ind);
-      }
-      pending.erase(a);
-      pending.erase(b);
-    } else if (_theorem.text == "or") {
-      const ASTNode a = _theorem.children.at(0);
-      const ASTNode b = _theorem.children.at(1);
-      if (prove(a, _passes - 1)) {
-        // Success
-        const int out_ind = add_axiom(_theorem);
-        special_proofs[out_ind] =
-            ASTNode("meta", {theorem_to_proof(a), _theorem});
-        return get_theorem(out_ind);
-      } else if (prove(b, _passes - 1)) {
-        // Success
-        const int out_ind = add_axiom(_theorem);
-        special_proofs[out_ind] =
-            ASTNode("meta", {theorem_to_proof(b), _theorem});
-        return get_theorem(out_ind);
-      }
-      pending.erase(a);
-      pending.erase(b);
-    }
-
-    // Special case
-    else if (_theorem.text == "==") {
+    } else if (_theorem.text == "==") {
       if (debug) {
         std::cout << "Congruence checking "
                   << _theorem.children.at(0) << " against "
