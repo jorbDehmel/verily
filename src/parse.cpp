@@ -1,6 +1,7 @@
 #include "parse.hpp"
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <iostream>
 #include <optional>
 #include <sstream>
@@ -558,15 +559,21 @@ ASTNode Parser::parse_method() {
   return out;
 }
 
+const static std::initializer_list<std::string>
+    order_of_operations = {
+        "'",     "^",       "*",       "/",      "%",  "+",
+        "-",     "<",       ">",       "<=",     ">=", "==",
+        "cross", "to",      "in",      "not",    "or", "and",
+        "iff",   "implies", "derives", "models",
+};
+const static std::set<std::string> keywords =
+    order_of_operations;
+
 const static std::set<std::string> expression_terminators = {
     ",",      ";", "requires", "ensures", "given",
     "deduce", "{", "}",        "=",       "]"};
 
 ASTNode Parser::parse_expr() {
-  const static std::set<std::string> keywords = {
-      "not", "and", "or", "implies", "iff", "derives", "models",
-  };
-
   std::list<ASTNode> items;
   try {
     while (!ts.done() &&
@@ -585,7 +592,7 @@ ASTNode Parser::parse_expr() {
             throw std::runtime_error("Malformed expression");
           }
 
-          ASTNode call(items.back());
+          ASTNode call("@", {items.back()});
           items.pop_back();
           while (!ts.done() && ts.cur().text != ")") {
             call.children.push_back(parse_expr());
@@ -659,13 +666,6 @@ ASTNode Parser::parse_expr() {
 
 ASTNode Parser::parse_expr_from_list(
     const std::list<ASTNode> &input_items) {
-  const static std::list<std::string> order_of_operations = {
-      "'",   "^",       "*",       "/",      "%",  "+",
-      "-",   "<",       ">",       "<=",     ">=", "==",
-      "in",  "to",      "cross",   "not",    "or", "and",
-      "iff", "implies", "derives", "models",
-  };
-
   std::list<ASTNode> items = input_items;
 
   if (debug) {
@@ -783,10 +783,6 @@ ASTNode Parser::parse_expr_from_list(
     } break;
     case 2: {
       const auto quant = item;
-      if (!quant.children.empty()) {
-        throw std::runtime_error(
-            "Illegal non-atomic quantifier");
-      }
 
       if (output_items.size() < 2) {
         throw std::runtime_error(

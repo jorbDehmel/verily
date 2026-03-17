@@ -55,6 +55,12 @@ void Core::latex(std::ostream &_strm) const {
       _strm << " \\in ";
       print_ast_latex(_what.children.at(1));
       _strm << ")";
+    } else if (t == "to") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\to ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
     } else if (t == "==") {
       _strm << "(";
       print_ast_latex(_what.children.at(0));
@@ -64,6 +70,18 @@ void Core::latex(std::ostream &_strm) const {
     } else if (t == "prime") {
       print_ast_latex(_what.children.at(0));
       _strm << "' ";
+    } else if (t == "derives") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\vdash ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
+    } else if (t == "models") {
+      _strm << "(";
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\models ";
+      print_ast_latex(_what.children.at(1));
+      _strm << ")";
     }
 
     // Math
@@ -84,6 +102,12 @@ void Core::latex(std::ostream &_strm) const {
       _strm << " )";
     } else if (t == "exists") {
       _strm << "( \\exists ";
+      print_ast_latex(_what.children.at(0));
+      _strm << " . ";
+      print_ast_latex(_what.children.at(1));
+      _strm << " )";
+    } else if (t == "lambda") {
+      _strm << "( \\lambda ";
       print_ast_latex(_what.children.at(0));
       _strm << " . ";
       print_ast_latex(_what.children.at(1));
@@ -159,7 +183,6 @@ void Core::latex(std::ostream &_strm) const {
       _strm << "\n}";
     }
 
-    // Default case: Just print the s-expr itself.
     else if (t == "_") {
       // List
       _strm << "(";
@@ -171,6 +194,23 @@ void Core::latex(std::ostream &_strm) const {
           _strm << ", ";
         }
         print_ast_latex(child);
+      }
+      _strm << ")";
+    } else if (t == "@") {
+      // Fn call
+      print_ast_latex(_what.children.front());
+      _strm << "(";
+      uint index = 0;
+      for (const auto &child : _what.children) {
+        switch (index) {
+        default:
+          _strm << ", ";
+        case 1:
+          print_ast_latex(child);
+        case 0:
+          break;
+        }
+        ++index;
       }
       _strm << ")";
     } else if (_what.children.empty()) {
@@ -471,7 +511,7 @@ void Core::process_statement(
     const auto out = ASTNode(Token("FUNCTION"),
                           {name, args, reqs_and_ens, body});
     */
-    const std::string name = _stmt.children.at(0).text.text;
+    const ASTNode name = _stmt.children.at(0);
     const ASTNode args = _stmt.children.at(1);
     const ASTNode reqs_and_ens = _stmt.children.at(2);
     const ASTNode body = _stmt.children.at(3);
@@ -484,14 +524,14 @@ void Core::process_statement(
     std::set<ASTNode> fvs;
     std::list<ASTNode> reqs;
     std::list<ASTNode> ens;
-    std::vector<ASTNode> typeless_args;
+    std::vector<ASTNode> call_args = {name};
 
     for (const auto &arg : args.children) {
       // {argname, domain}
       const ASTNode argname = arg.children.at(0);
       const ASTNode domain = arg.children.at(1);
       fvs.insert(argname);
-      typeless_args.push_back(argname);
+      call_args.push_back(argname);
 
       if (domain != "NULL") {
         reqs.push_back(ASTNode("in", {argname, domain}));
@@ -507,8 +547,8 @@ void Core::process_statement(
 
     InferenceMaker::InferenceRule r(
         fvs, reqs,
-        ASTNode("==", {ASTNode(name, typeless_args), body}));
-    r.name = "definition_of_" + name;
+        ASTNode("==", {ASTNode("@", call_args), body}));
+    r.name = "definition_of_" + name.text.text;
     im.add_rule(r);
 
     // VC check

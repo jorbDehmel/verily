@@ -122,7 +122,7 @@ public:
   std::optional<Theorem> forward_prove(const ASTNode &_what,
                                        const int &_passes);
 
-  /// Prove using settings. This is teh one you should call.
+  /// Prove using settings. This is the one you should call.
   std::optional<Theorem> prove(const ASTNode &_theorem,
                                const int &_passes);
 

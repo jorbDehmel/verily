@@ -612,7 +612,8 @@ InferenceMaker::prove(const ASTNode &_theorem,
       std::cout << "Checking meta-proving techniques...\n";
     }
 
-    if (_theorem.text == "implies") {
+    if (_theorem.text == "implies" ||
+        _theorem.text == "derives") {
       const ASTNode premise = _theorem.children.at(0);
       const ASTNode consequence = _theorem.children.at(1);
 

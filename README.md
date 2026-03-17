@@ -51,7 +51,7 @@ Given the file:
 rule typed_instantiation:
   over Domain, consequent, x, y
   given
-    forall x. x in Domain implies consequent,
+    forall x in Domain. consequent,
     y in Domain
   deduce consequent[x = y]
 ;
@@ -143,10 +143,7 @@ considered bad form to write it: Instead, write either
 
 Any single token can be used as a quantifier. Technically, the
 parser recognizes any expression of the form
-`TOKEN TOKEN . EXPR` as a quantified expression. Note that this
-means things like `forall x in A. M` must instead be written
-`forall x. (x in A) implies M` (which will be appropriately
-dealt with by the meta-prover, if enabled).
+`TOKEN EXPR . EXPR` as a quantified expression.
 
 ### Meta-implication
 
