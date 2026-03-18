@@ -6,104 +6,103 @@
 # Example theorems taken from same source
 
 setting "meta_prove=false";
-# setting "alternate=true";
-setting "pass_limit=8";
+setting "alternate=false";
 
-# rule set_1:
-#   over a
-#   deduce a in Set(a)
-# ;
-# rule set_2:
-#   over a, b
-#   deduce a in Set(a, b)
-# ;
+rule set_1:
+  over a
+  deduce a in Set(a)
+;
+rule set_2:
+  over a, b
+  deduce a in Set(a, b)
+;
 rule set_3:
   over a, b
   deduce a in Set(b, a)
 ;
-# rule set_4:
-#   over a, b, c
-#   given a in b
-#   deduce a in Set(c, b)
-# ;
+rule set_4:
+  over a, b, c
+  given a in b
+  deduce a in Set(c, b)
+;
 rule set_5:
   over a, b, c
   given a in c
   deduce a in Set(c, b)
 ;
 
-# rule axiom_schema:
-#   over Gamma, phi
-#   deduce set(Gamma, phi) derives phi
-# ;
+rule axiom_schema:
+  over Gamma, phi
+  deduce Set(Gamma, phi) derives phi
+;
 
-# rule and_introduction:
-#   over Gamma, phi, psi
-#   given
-#     Gamma derives phi,
-#     Gamma derives psi
-#   deduce Gamma derives phi and psi
-# ;
+rule and_introduction:
+  over Gamma, phi, psi
+  given
+    Gamma derives phi,
+    Gamma derives psi
+  deduce Gamma derives phi and psi
+;
 
-# rule and_elimination_1:
-#   over Gamma, phi, psi
-#   given Gamma derives phi and psi
-#   deduce Gamma derives phi
-# ;
+rule and_elimination_1:
+  over Gamma, phi, psi
+  given Gamma derives phi and psi
+  deduce Gamma derives phi
+;
 
-# rule and_elimination_2:
-#   over Gamma, phi, psi
-#   given Gamma derives phi and psi
-#   deduce Gamma derives psi
-# ;
+rule and_elimination_2:
+  over Gamma, phi, psi
+  given Gamma derives phi and psi
+  deduce Gamma derives psi
+;
 
-# rule or_introduction_1:
-#   over Gamma, phi, psi
-#   given Gamma derives phi
-#   deduce Gamma derives phi or psi
-# ;
+rule or_introduction_1:
+  over Gamma, phi, psi
+  given Gamma derives phi
+  deduce Gamma derives phi or psi
+;
 
-# rule or_introduction_2:
-#   over Gamma, phi, psi
-#   given Gamma derives psi
-#   deduce Gamma derives phi or psi
-# ;
+rule or_introduction_2:
+  over Gamma, phi, psi
+  given Gamma derives psi
+  deduce Gamma derives phi or psi
+;
 
-# rule or_elimination:
-#   over Gamma, phi, rho, psi
-#   given
-#     set(Gamma, phi) derives rho,
-#     set(Gamma, psi) derives rho,
-#     Gamma derives phi or psi
-#   deduce Gamma derives rho
-# ;
+rule or_elimination:
+  over Gamma, phi, rho, psi
+  given
+    Set(Gamma, phi) derives rho,
+    Set(Gamma, psi) derives rho,
+    Gamma derives phi or psi
+  deduce Gamma derives rho
+;
+
+rule implies_introduction_simple_case:
+  over phi, psi
+  given Set(phi) derives psi
+  deduce Set() derives phi implies psi
+;
 
 # AKA deduction theorem
 rule implies_introduction:
   over Gamma, phi, psi
-  given set(Gamma, phi) derives psi
+  given Set(Gamma, phi) derives psi
   deduce Gamma derives phi implies psi
 ;
 
-# # AKA modus ponens
-# rule implies_elimination:
-#   over Gamma, phi, psi
-#   given
-#     Gamma derives phi implies psi,
-#     Gamma derives phi
-#   deduce Gamma derives psi
-# ;
+# AKA modus ponens
+rule implies_elimination:
+  over Gamma, phi, psi
+  given
+    Gamma derives phi implies psi,
+    Gamma derives phi
+  deduce Gamma derives psi
+;
 
-# rule false_elimination:
-#   over Gamma, phi
-#   given Gamma derives false
-#   deduce Gamma derives phi
-# ;
-
-rule implicit_empty_gamma:
-  over phi
-  given set() derives phi
-  deduce phi
+rule false_elimination:
+  over Gamma, phi
+  given Gamma derives false
+  deduce Gamma derives phi
 ;
 
 rule direct_derivation:
@@ -113,33 +112,17 @@ rule direct_derivation:
 ;
 
 # Proven as in the source
-# prove: phi implies phi;
-
-# Fails?
-prove_backward: phi implies (psi implies phi);
-
-# Proof:
-# phi implies (psi implies phi)
-# implicit_empty_gamma
-# set() derives phi implies (psi implies phi)
-# implies_introduction
-# set(set(), phi) derives psi implies phi
-# implies_introduction
-# set(set(set(), phi), psi) derives phi
-# direct_derivation
-
-# It gets here:
-# phi in set(set(set(), phi), psi) | (in phi (@ set (@ set (@ set) phi) psi))
-# But no further
-
-# set_5
-# phi in set(set(), phi)
-# set_3
+prove: Set() derives phi implies phi;
+prove_backward: Set() derives phi implies (psi implies phi);
 
 # # Spins its wheels for a long time, needs low pass limit (and
 # # fails)
+# setting "alternate=true";
+# setting "pass_limit=4";
+# setting "max_theorems=1000";
+# setting "debug=true";
 # prove:
-#   set()
+#   Set()
 #   derives
 #   (phi implies (psi implies v))
 #     implies (phi implies psi)

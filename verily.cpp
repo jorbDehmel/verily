@@ -164,6 +164,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (!verily.im.quiet) {
+    std::cout << "\n";
     for (const auto &index : verily.proven_theorems) {
       std::cout << verily.im.proof_to_ast(index) << "\n\n";
     }

@@ -568,6 +568,7 @@ void Core::process_statement(
 
     if (t == "debug") {
       debug = !debug;
+      im.debug = debug;
     } else if (t == "latex") {
       print_latex = !print_latex;
     } else if (t == "json") {
@@ -584,8 +585,10 @@ void Core::process_statement(
 
     else if (t == "debug=true") {
       debug = true;
+      im.debug = debug;
     } else if (t == "debug=false") {
       debug = false;
+      im.debug = debug;
     } else if (t == "latex=true") {
       print_latex = true;
     } else if (t == "latex=false") {
@@ -616,10 +619,10 @@ void Core::process_statement(
       const size_t l = std::stoull(t.substr(11));
       pass_limit = l;
     } else if (t.starts_with("max_tree_height=")) {
-      const size_t l = std::stoull(t.substr(11));
+      const size_t l = std::stoull(t.substr(16));
       im.max_tree_height = l;
     } else if (t.starts_with("max_theorems=")) {
-      const size_t l = std::stoull(t.substr(11));
+      const size_t l = std::stoull(t.substr(13));
       im.theorem_limit = l;
     }
 
