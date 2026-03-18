@@ -18,6 +18,9 @@ public:
   /// If true, prints some extra info
   bool debug = false;
 
+  /// If true, suppresses warning and error messages
+  bool quiet = false;
+
   /// If true, forward_prove and backward_prove can call each
   /// other.
   bool enable_alternation = false;

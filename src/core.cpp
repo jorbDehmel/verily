@@ -462,8 +462,11 @@ void Core::process_statement(
       proven_theorems.insert(res.value().index);
     } else {
       saw_error = true;
-      std::cerr << "ERROR:   Failed to prove "
-                << _stmt.children.front() << "\n";
+
+      if (!im.quiet) {
+        std::cout << "ERROR:   Failed to prove "
+                  << _stmt.children.front() << "\n";
+      }
     }
   }
 
@@ -477,8 +480,10 @@ void Core::process_statement(
     const auto theorem = _stmt.children.front();
     const auto res = im.prove(theorem, pass_limit);
     if (!res.has_value()) {
-      std::cerr << "ERROR:   Failed to prove "
-                << _stmt.children.front() << "\n";
+      if (!im.quiet) {
+        std::cout << "ERROR:   Failed to prove "
+                  << _stmt.children.front() << "\n";
+      }
       saw_error = true;
     } else {
       proven_theorems.insert(res.value().index);
@@ -552,14 +557,15 @@ void Core::process_statement(
     im.add_rule(r);
 
     // VC check
-    if (!ens.empty()) {
-      std::cerr
+    if (!ens.empty() && !im.quiet) {
+      std::cout
           << "Function keyword 'ensures' is unimplemented!\n";
     }
   }
 
   else if (_stmt.text == Token("SETTING")) {
     const std::string t = _stmt.children.front().text.text;
+
     if (t == "debug") {
       debug = !debug;
     } else if (t == "latex") {
@@ -572,14 +578,57 @@ void Core::process_statement(
       im.meta_proving = !im.meta_proving;
     } else if (t == "time") {
       time = !time;
+    } else if (t == "quiet") {
+      im.quiet = !im.quiet;
     }
 
-    else {
+    else if (t == "debug=true") {
+      debug = true;
+    } else if (t == "debug=false") {
+      debug = false;
+    } else if (t == "latex=true") {
+      print_latex = true;
+    } else if (t == "latex=false") {
+      print_latex = false;
+    } else if (t == "json=true") {
+      print_json = true;
+    } else if (t == "json=false") {
+      print_json = false;
+    } else if (t == "alternate=true") {
+      im.enable_alternation = true;
+    } else if (t == "alternate=false") {
+      im.enable_alternation = false;
+    } else if (t == "meta_prove=true") {
+      im.meta_proving = true;
+    } else if (t == "meta_prove=false") {
+      im.meta_proving = false;
+    } else if (t == "time=true") {
+      time = true;
+    } else if (t == "time=false") {
+      time = false;
+    } else if (t == "time=quiet") {
+      im.quiet = true;
+    } else if (t == "time=quiet") {
+      im.quiet = false;
+    }
+
+    else if (t.starts_with("pass_limit=")) {
+      const size_t l = std::stoull(t.substr(11));
+      pass_limit = l;
+    } else if (t.starts_with("max_tree_height=")) {
+      const size_t l = std::stoull(t.substr(11));
+      im.max_tree_height = l;
+    } else if (t.starts_with("max_theorems=")) {
+      const size_t l = std::stoull(t.substr(11));
+      im.theorem_limit = l;
+    }
+
+    else if (!im.quiet) {
       std::cout << "WARNING: Unknown setting " << t << "\n";
     }
   }
 
-  else {
+  else if (!im.quiet) {
     std::cout << "WARNING: Skipping statement " << _stmt
               << "\n";
   }

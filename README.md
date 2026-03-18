@@ -41,7 +41,8 @@ build the extension. This will produce a local file ending in
 `.vsix`. If this file were named `NAME_GOES_HERE.vsix`, you
 would then run `code --install-extension NAME_GOES_HERE.vsix`.
 You must then reload your `vscode` window for the syntax
-highlighter to start working.
+highlighter to start syntax-highlighting any files with the
+extension `.verily`.
 
 ## Example
 

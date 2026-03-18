@@ -45,16 +45,18 @@ int main(int argc, char *argv[]) {
       verily.print_latex = !verily.print_latex;
     } else if (arg == "--json") {
       verily.print_json = !verily.print_json;
-    } else if (arg == "--metaprove") {
+    } else if (arg == "--meta_prove") {
       verily.im.meta_proving = !verily.im.meta_proving;
+    } else if (arg == "--quiet") {
+      verily.im.quiet = !verily.im.quiet;
     } else if (arg == "--help") {
       // clang-format off
       std::cout <<
-        "+--------------------------------------------------+\n"
-        "|                     Verily                       |\n"
-        "+--------------------------------------------------+\n"
-        "A deductive theorem prover. MIT License, 2025-2026. \n"
-        "                                                    \n"
+        "+-----------------------------------------------------+\n"
+        "|                       Verily                        |\n"
+        "+-----------------------------------------------------+\n"
+        "A deductive theorem prover. MIT License, 2025-2026.    \n"
+        "                                                       \n"
         " CLI flag          | Default | Meaning                 \n"
         "-------------------|---------|-------------------------\n"
         " --alternate       | false   | Toggles alternation     \n"
@@ -64,14 +66,14 @@ int main(int argc, char *argv[]) {
         " --latex           | false   | Prints latex to file    \n"
         " --max_theorems    | 10,000  | Sets the max # theorems \n"
         " --max_tree_height | 100     | Set the max AST height  \n"
-        " --metaprove       | true    | Toggles meta proving    \n"
+        " --meta_prove      | true    | Toggles meta proving    \n"
         " --pass_limit N    | 64      | Sets the depth limit    \n"
-        "                                                    \n"
-        "You can give it a filepath as an argument, in which \n"
-        "case that file will be analyzed. If no filepath is  \n"
-        "provided, it will read from stdin in a REPL         \n"
-        "interface.                                          \n"
-        "                                                    \n"
+        " --quiet           | false   | Toggles quiet mode      \n"
+        "                                                       \n"
+        "You can give it a filepath as an argument, in which    \n"
+        "case that file will be analyzed. If no filepath is     \n"
+        "provided, it will read from stdin in a REPL interface. \n"
+        "                                                       \n"
         "Version " << version << "\n"
       ;
       // clang-format on
@@ -79,7 +81,7 @@ int main(int argc, char *argv[]) {
     }
 
     else if (arg.starts_with("--")) {
-      std::cerr << "Unknown flag '" << arg
+      std::cout << "Unknown flag '" << arg
                 << "'. Use '--help' to get help.\n";
       return 2;
     }
@@ -104,8 +106,12 @@ int main(int argc, char *argv[]) {
   else {
     // CLI mode
     if (verily.time) {
-      std::cerr << "WARNING: Cannot time in CLI mode\n";
+      std::cout << "WARNING: Cannot time in CLI mode\n";
       verily.time = false;
+    } else if (verily.im.quiet) {
+      std::cout
+          << "WARNING: Cannot use '--quiet' in CLI mode\n";
+      verily.im.quiet = false;
     }
 
     std::cout << "Verily CLI mode: CTL+D / EOF to exit.\n";
@@ -135,10 +141,10 @@ int main(int argc, char *argv[]) {
             try {
               verily.process_statement(stmt, fp);
             } catch (std::runtime_error &_e) {
-              std::cerr << "Caught error: " << _e.what()
+              std::cout << "Caught error: " << _e.what()
                         << "\n";
             } catch (...) {
-              std::cerr << "Unknown error!\n";
+              std::cout << "Unknown error!\n";
             }
           }
         }
@@ -148,7 +154,7 @@ int main(int argc, char *argv[]) {
       }
     }
     if (!cur_statement.empty()) {
-      std::cerr << "WARNING: Discarding partial statement "
+      std::cout << "WARNING: Discarding partial statement "
                 << cur_statement << "\n";
     }
   }
@@ -157,8 +163,10 @@ int main(int argc, char *argv[]) {
     verily.ls();
   }
 
-  for (const auto &index : verily.proven_theorems) {
-    std::cout << verily.im.proof_to_ast(index) << "\n\n";
+  if (!verily.im.quiet) {
+    for (const auto &index : verily.proven_theorems) {
+      std::cout << verily.im.proof_to_ast(index) << "\n\n";
+    }
   }
 
   if (verily.time) {
@@ -178,7 +186,7 @@ int main(int argc, char *argv[]) {
   if (verily.print_latex) {
     std::ofstream f(fp.string() + ".tex");
     if (!f.is_open()) {
-      std::cerr << "Failed to open latex file\n";
+      std::cout << "Failed to open latex file\n";
       return 3;
     }
     verily.latex(f);
@@ -186,7 +194,7 @@ int main(int argc, char *argv[]) {
   if (verily.print_json) {
     std::ofstream f(fp.string() + ".json");
     if (!f.is_open()) {
-      std::cerr << "Failed to open json file\n";
+      std::cout << "Failed to open json file\n";
       return 4;
     }
     verily.json(f);

@@ -146,6 +146,11 @@ InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
 }
 
 void InferenceMaker::add_rule(const InferenceRule &_rule) {
+  if (!quiet && _rule.type == InferenceRule::FORWARD_ONLY) {
+    std::cout << "WARNING: Rule requires alternation! " << _rule
+              << "\n";
+  }
+
   rules.push_back(_rule);
   if (debug) {
     std::cout << "Added rule w/ index " << rules.size() - 1
@@ -191,12 +196,7 @@ InferenceMaker::InferenceRule::InferenceRule(
     type = BACKWARD_ONLY;
   } else if (has_fvs_in_reqs) {
     type = FORWARD_ONLY;
-    std::cerr << "WARNING: Rule requires alternation! " << *this
-              << "\n";
   } else {
-    std::cerr << "Rule which is neither forward- nor "
-                 "backward-derivable: "
-              << *this << "\n\n";
     throw std::runtime_error(
         "Rule is neither forward-derivable nor "
         "backward-derivable: Not all free variables occur in "
@@ -216,7 +216,7 @@ InferenceMaker::backward_prove(const ASTNode &_what,
 
   if (_what.get_height() > max_tree_height) {
     if (debug) {
-      std::cerr << "Killing branch: Tree too big!";
+      std::cout << "Killing branch: Tree too big!";
     }
     return {};
   }
@@ -224,7 +224,7 @@ InferenceMaker::backward_prove(const ASTNode &_what,
   // If we're out of passes
   if (_passes <= 0) {
     if (debug) {
-      std::cerr << "Out of passes in backward mode!\n";
+      std::cout << "Out of passes in backward mode!\n";
     }
     return {};
   }
@@ -233,9 +233,6 @@ InferenceMaker::backward_prove(const ASTNode &_what,
   for (uint rule_index = 0; rule_index < rules.size();
        ++rule_index) {
     const auto rule = rules.at(rule_index);
-    if (debug) {
-      std::cout << "Checking rule " << rule << "\n";
-    }
 
     // If _what is of the form of the implication of the rule
     auto free_variables = rule.free_variables;
@@ -244,15 +241,22 @@ InferenceMaker::backward_prove(const ASTNode &_what,
                    substitutions)) {
       if (!free_variables.empty()) {
         if (debug) {
-          std::cerr << "Remaining FVs:";
+          std::cout << "Remaining FVs:";
           for (const auto &fv : free_variables) {
-            std::cerr << ' ' << fv;
+            std::cout << ' ' << fv;
           }
-          std::cerr << ", skipping " << rule << " when WTS "
+          std::cout << ", skipping " << rule << " when WTS "
                     << _what << "\n";
         }
 
         continue;
+      }
+
+      if (debug) {
+        std::cout << "Trying rule "
+                  << rule.name.value_or(
+                         std::to_string(rule_index))
+                  << ": " << rule << "\n";
       }
 
       const std::string fresh_uid =
@@ -343,8 +347,6 @@ InferenceMaker::backward_prove(const ASTNode &_what,
         }
         return add_theorem(_what, rule_index, premises, trash);
       }
-    } else if (debug) {
-      std::cout << "Theorem is not of rule's form.\n";
     }
   }
 
@@ -573,7 +575,7 @@ std::optional<InferenceMaker::Theorem>
 InferenceMaker::prove(const ASTNode &_theorem,
                       const int &_passes) {
   if (debug) {
-    std::cout << "WTS " << _theorem << " w/ height "
+    std::cout << "\nWTS " << _theorem << " w/ height "
               << _theorem.get_height() << "\nWith pending:\n";
     for (const auto &p : pending) {
       std::cout << " - " << p << "\n";
@@ -582,7 +584,7 @@ InferenceMaker::prove(const ASTNode &_theorem,
 
   if (_theorem.get_height() > max_tree_height) {
     if (debug) {
-      std::cerr << "Killing branch: Tree too big!";
+      std::cout << "Killing branch: Tree too big!";
     }
     return {};
   }

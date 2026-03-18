@@ -113,7 +113,7 @@ struct ASTNode {
   ASTNode replace(const ASTNode &_to_replace,
                   const ASTNode &_replace_with) const noexcept;
 
-  /// Equivalent to repeatedly single-replacing the AST
+  /// Many replacements (in precedent order). Returns a copy.
   ASTNode replace(const std::list<std::pair<ASTNode, ASTNode>>
                       &_replacements) const noexcept;
 

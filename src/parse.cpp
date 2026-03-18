@@ -168,7 +168,7 @@ bool ASTNode::operator==(const ASTNode &_other) const noexcept {
     return false;
   }
   for (uint i = 0; i < children.size(); ++i) {
-    if (children[i] != _other.children[i]) {
+    if (!children[i].operator==(_other.children[i])) {
       return false;
     }
   }
@@ -187,9 +187,6 @@ ASTNode::operator<=>(const ASTNode &_other) const noexcept {
 
 bool ASTNode::contains(const ASTNode &_what) const noexcept {
   if (operator==(_what)) {
-    return true;
-  } else if (_what.children.empty() && _what.text == text) {
-    // Special case: Fn literals
     return true;
   }
   for (const auto &child : children) {
@@ -237,12 +234,6 @@ ASTNode::replace(const ASTNode &_to_replace,
     return _replace_with;
   } else {
     ASTNode out(text);
-
-    if (text == _to_replace.text &&
-        _replace_with.children.empty()) {
-      out.text = _replace_with.text;
-    }
-
     for (const auto &child : children) {
       out.children.push_back(
           child.replace(_to_replace, _replace_with));
@@ -254,9 +245,15 @@ ASTNode::replace(const ASTNode &_to_replace,
 ASTNode ASTNode::replace(
     const std::list<std::pair<ASTNode, ASTNode>> &_replacements)
     const noexcept {
-  ASTNode out = *this;
   for (const auto &p : _replacements) {
-    out = out.replace(p.first, p.second);
+    if (operator==(p.first)) {
+      return p.second;
+    }
+  }
+
+  ASTNode out(text);
+  for (const auto &child : children) {
+    out.children.push_back(child.replace(_replacements));
   }
   return out;
 }

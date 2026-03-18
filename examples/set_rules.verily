@@ -1,0 +1,54 @@
+rule set_1:
+  over a
+  deduce a in Set(a)
+;
+rule set_2:
+  over a, b
+  deduce a in Set(a, b)
+;
+rule set_3:
+  over a, b
+  deduce a in Set(b, a)
+;
+rule set_4:
+  over a, b, c
+  given a in b
+  deduce a in Set(c, b)
+;
+rule set_5:
+  over a, b, c
+  given a in c
+  deduce a in Set(c, b)
+;
+
+rule set_union:
+  over a, b, c
+  given a in b
+  deduce a in union(b, c)
+;
+rule set_union_negation:
+  over a, b, c
+  given not (a in b), not (a in c)
+  deduce not (a in union(b, c))
+;
+rule set_union_comm:
+  over a, b, c
+  given a in union(b, c)
+  deduce a in union(c, b)
+;
+
+rule set_intersection:
+  over a, b, c
+  given a in b, a in c
+  deduce a in intersection(b, c)
+;
+rule set_intersection_negation:
+  over a, b, c
+  given not (a in b)
+  deduce not (a in intersection(b, c))
+;
+rule set_intersection_comm:
+  over a, b, c
+  given a in intersection(b, c)
+  deduce a in intersection(c, b)
+;

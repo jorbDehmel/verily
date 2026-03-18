@@ -17,3 +17,11 @@ rule abstraction_typing:
   given (x in A) derives (M in B)
   deduce (lambda x in A. M) in (A to B)
 ;
+
+prove_forward:
+  ((c in One) derives (N in Two))
+  implies
+  b in One
+  implies
+  (lambda c in One. N)(b): Two
+;
