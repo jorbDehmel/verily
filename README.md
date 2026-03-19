@@ -1,21 +1,14 @@
 
 # Verily: A toy inductive proof system
 
-Jordan Dehmel, 2025-present
+Jordan Dehmel, 2025-2026
 
 ## About
-
-This began as an SMT implementation I wrote for Computer-Aided
-Verification at CU Boulder in Fall '25. I then translated it
-from Python to C++ and continued expanding it. The deductive
-proof system (mostly separate from the SMT stuff) came in Spring
-'26 when I was taking a logic course.
 
 **This is not necessarily decidable!** If you choose your rules
 wisely, it might be, but it almost certainly will not be if you
 aren't smart about it. A poor choice of rules can make proving
-"2 is a natural number" take seconds. This is NP-complete for
-obvious reasons, so tread with care!
+"2 is a natural number" take seconds. Tread with care!
 
 You can do a few things.
 
@@ -24,6 +17,10 @@ You can do a few things.
   `rule`s
 3. Query whether we can deduce something to be true via
   `theorem`s
+
+**Everything is uninterpreted!** Though operators like `+`, `*`,
+etc are built-in and have the expected precedence,
+**they don't do anything!** They are just ASTs!
 
 ## This Repo
 
@@ -35,14 +32,15 @@ This will create `./verily.out`, which is the executable. Run
 `./verily.out --help` for help. View the examples to see
 verily's syntax.
 
-To install the `vscode` extension, change directories to
-`verily-highlighting`. Then, run `npx @vscode/vsce package` to
-build the extension. This will produce a local file ending in
-`.vsix`. If this file were named `NAME_GOES_HERE.vsix`, you
-would then run `code --install-extension NAME_GOES_HERE.vsix`.
-You must then reload your `vscode` window for the syntax
-highlighter to start syntax-highlighting any files with the
-extension `.verily`.
+To install the `vscode` syntax highlighting extension, change
+directories to `verily-highlighting`. Then, run
+`npx @vscode/vsce package` to build the extension. This will
+produce a local file ending in `.vsix`. If this file were named
+`NAME_GOES_HERE.vsix`, you would then run
+`code --install-extension NAME_GOES_HERE.vsix`. You must then
+reload your `vscode` window (ctrl+shift+p
+'Developer: Reload Window') for the extension to start
+syntax-highlighting any open files with the extension `.verily`.
 
 ## Example
 
@@ -119,57 +117,89 @@ will not cause any errors: It just might not parse the way you
 expect.
 
 Operators (in precedent order):
-- `in`
+- `'` ("prime", suffix unary)
+- `^`
+- `*`
+- `/`
+- `%`
+- `+`
+- `-`
+- `<`
+- `>`
+- `<=`
+- `>=`
 - `==`
-- `not`
-- `and`
+- `cross`
+- `to`
+- `in`
+- `not` (prefix unary)
 - `or`
-- `implies`
+- `and`
 - `iff`
+- `implies`
+- `derives`
+- `models`
 
-Parentheses and `python`-syntax function calls are also
-built-in. Symbols do not need to be defined before use.
+Unless otherwise specified, the above operators are infix binary
+(for operator `x` and terms `A`, `B`, it would look like `A x B`
+and parse to S-EXPR `(x A A)`).
 
-```verily
-axiom: forall x. f(x) == foo;
-```
-
-For instance, `a in b == c in d and not e or f implies g iff h`
-would parse equivalently to
-`(((((a in b) == (c in d)) and (not e)) or f) implies g) iff h`.
+Parentheses and `python`-syntax function calls (and tuples) are
+also built-in. Symbols do not need to be defined before use. All
+statements should end in semicolons.
 
 Since `a and b or c` is ambiguous in most languages, it is
 considered bad form to write it: Instead, write either
-`(a and b) or c` or `a and (b or c)`.
+`(a and b) or c` or `a and (b or c)`, depending on what you
+actually want.
 
 Any single token can be used as a quantifier. Technically, the
 parser recognizes any expression of the form
-`TOKEN EXPR . EXPR` as a quantified expression.
+`TOKEN EXPR . EXPR` as a quantified expression. The basic ones
+are `forall`, `exists`, and `lambda`, although
+**none of these are interpreted**. If you want them to perform
+their intuitive functions, you need to add appropriate rules.
 
 ### Meta-implication
 
-A human might see "assuming $A$, $B$ is a theorem" and add the
-theorem "$A$ implies $B$" to mean "the theoremhood of $A$
-implies the theoremhood of $B$". This is a meta-theorem (the
-induction theorem), and relies on the interpretation of the
-`implies` operator. However, it is also a very useful derivation
-rule: Therefore, verily provides the option to enable or disable
-it. This is bundled in with the meta-solver, toggled via the
-`--meta_prove` CLI flag. The meta-solver will also apply other
-meta-rules wherever possible (preferring them to
-non-meta-rules).
+The deduction theorem goes something like this: "If we can
+derive $B$ by assuming $A$, then $A \implies B$". This is a
+meta-theorem, since it deals with assumptions. Since a user may
+or may not want to allow this rule in their proofs, verily can
+take it or leave it. If you enable the meta-prover via the
+`--meta_prove` CLI flag or the `setting "meta_prove=true";`
+verily statement, this will be a valid rule.
 
 ## Importing other files
 
 You can use the `include "local_filepath";` command. This takes
 a path relative to the current file (the CWD in CLI mode).
 
+## Axioms and Theorems
+
+Axioms are things that are assumed to be true. They are declared
+using the `axiom` keyword.
+
+```verily
+axiom: is_even(0);
+```
+
+Theorems are *not* assumed to be true: They must be proven via
+the known induction rules and axioms. They use the same syntax,
+but use the `theorem` keyword.
+
+```
+theorem: is_even(S(S(0)));
+```
+
+Theorems are interchangeably referred to as "annotations"
+throughout. If they cannot be proven, an error will be raised.
+Once they are proven, they act the same as axioms: Another
+proof can use them without re-proving them.
+
 ## Rules
 
-ASTs are well-formed formulae over the language. They can be
-asserted as axioms via `axiom` statements. Theorems are derived
-from axiomatic ASTs via inference rules.
-
+Theorems are derived from axioms via inference rules.
 An inference rule takes the form
 
 ```verily
@@ -196,126 +226,47 @@ An inference rule "rule: over x given A, B deduce C" can be read
 The "over" and "given" sections of a rule are optional, but the
 "deduce" section is required.
 
-## Rule Examples
+## Keywords
 
-This is an incomplete list of encodings of basic principles.
-These are **not** built-in: No inference rules are.
+Despite repeated claims to the contrary, there are actually a
+few words which mean something specific in verily. Each of them
+starts a statement. The following are those keywords, with their
+form and purpose.
 
-```verily
-# Boolean logic
-rule:
-  over x, y
-  given x, y
-  deduce x and y
-;
-rule:
-  over x, y
-  given x
-  deduce x and y
-;
+`rule` introduces a new rule. See previous sections for the
+form of these statements.
 
-# Modus ponens
-rule:
-  over p, q
-  given p, p implies q
-  deduce q
-;
+`axiom: EXPR;` introduces an axiom (statement which can be
+taken to be true without proof).
 
-# Modus tollens
-rule:
-  over p, q
-  given not q, p implies q
-  deduce not p
-;
+`theorem: EXPR;` tells the solver to try to find a proof for
+the given expression before moving on to the next statement.
 
-# Hypothetical syllogism / transitivity of implication
-rule:
-  over a, b, c
-  given a implies b, b implies c
-  deduce a implies c
-;
+`prove_forward: EXPR;` works the same as `theorem`, but starts
+in forward derivation mode instead of the default backwards.
 
-# Disjunctive syllogism
-rule:
-  over p, q
-  given p or q, not p
-  deduce q
-;
+`setting "SOME_STR";` depending on the string, sets some
+internal setting.
 
-# Instantiation
-rule:
-  over f, y
-  given forall x. f(x)
-  deduce f(y)
-;
+`include "SOME_STR";` runs the given (local-path, like EG `C++`)
+file, executing each statement in that file before moving onto
+the next statement in the current file.
 
-# Generalization
-rule:
-  over f, y
-  given f(y)
-  deduce exists x. f(x)
-;
+`function NAME(untyped_arg, b: TypeOfB, c in TypeOfC) REQS_AND_ENS { EXPR }`
+is a shorthand statement which introduces a rule describing the
+given function (EG if all the requirements are met, then a call
+to the function is `==` to its definition). `REQS_AND_ENS` is
+any number of `requires EXPR` and/or `ensures EXPR` clauses.
+There is no punctuation terminating each expression in these
+clauses or in the body (EG no semicolons).
 
-# Danger zone!
-rule:
-  over a
-  deduce a or not a
-;
+`method NAME(ARGS) returns VAR REQS_AND_ENS { METHOD_STATEMENTS }`
+is an unimplemented statement. It will parse, but will not do
+anything else. Since it is unimplemented, we will not give the
+grammar of `METHOD_STATEMENTS` here (it's just a basic
+imperative sublanguage with `let`, `while`, `if`, etc).
 
-# Double negation elimination
-rule:
-  over a
-  given not not a
-  deduce a
-;
-```
-
-Inference rules without "given" clauses are axioms (if there are
-no free variables) or axiom schemas (if the `over` clause is
-populated with free variables).
-
-Rules take the form
-`rule NAME? : (over ARGS)? (given ARGS)? deduce EXPR ;`
-where `ARGS` represents zero or more comma-separated
-expressions. The `over` clause declares expressions which can be
-replaced by anything in the antecedents and/or conclusion. The
-`given` clause lists the things which must be known to be
-theorems in order for the rule to apply (the antecedents). The
-`deduce` clause gives the thing that is known to be a theorem
-in the case that all the requirements are met (the consequence).
-
-In both forward and backwards derivation mode, rules use AST
-pattern matching to try to get theorems to align with rules. In
-backwards mode, the solver goes through any rules whose
-conclusion matches the would-be theorem and attempt to prove
-corresponding antecedents recursively. In forwards mode, the
-solver tries to apply any rules whose antecedents are already
-known theorems, adding their consequence to the set of known
-theorems.
-
-## Axioms and Theorems
-
-Axioms are things that are assumed to be true. They are declared
-using the `axiom` keyword.
-
-```verily
-axiom: is_even(0);
-```
-
-Theorems are *not* assumed to be true: They must be proven via
-the known induction rules and axioms. They use the same syntax,
-but use the `theorem` keyword.
-
-```
-theorem: is_even(S(S(0)));
-```
-
-Theorems are interchangeably referred to as "annotations"
-throughout. If they cannot be proven, an error will be raised.
-Once they are proven, they act the same as axioms: Another
-proof can use them without re-proving them.
-
-## Synonymous keywords
+### Synonymous keywords
 
 There are many synonymous keywords. Some of them are listed
 below.
@@ -333,6 +284,7 @@ Synonymous with `theorem`:
 - `lemma` (for organization)
 - `deduce` (because it's used for that within rules)
 - `prove` (for compatibility)
+- `prove_backward` (to match the form of `prove_forward`)
 - `assert` (for compatibility)
 
 Synonymous with `axiom`:
@@ -373,16 +325,6 @@ an implicitly-defined rule.
 
 ## Backward Deduction
 
-A rule is defined as follows. Given free variables
-$f_1, \ldots, f_n$, antecedents $A = \{a_1, \ldots, a_m\}$, and
-consequence $C$:
-
-$$
-  \forall f_1. \ldots. \forall f_n.
-  \left(\bigwedge_{a \in A} a(f_1, \ldots, f_n)\right)
-  \implies C(f_1, \ldots, f_n)
-$$
-
 We want to work backwards: Given some theorem to prove, find the
 theorems which prove it, and the theorems to prove those, etc.
 This is not necessarily decidable or more efficient than forward
@@ -412,40 +354,6 @@ theorems.
 
 ### Alternation
 
-Consider Modus Ponens: "$P$ and $P \implies Q$ implies $Q$".
-Suppose we want to show "$\lnot \texttt{isSunny}$". Further
-suppose that
-$\texttt{isRaining} \implies \lnot \texttt{isSunny}$ and
-$\texttt{isRaining}$ are both *derivable* theorems (EG applying
-backward deduction to them would prove them), but that neither
-are known to the prover.
-
-Forward search would, starting from axioms, eventually discover
-the above antecedents and apply MP. However, a backward system
-could not! There is no way to derive the free variable $P$!
-
-Formally:
-
-$$
-  \forall P. \forall Q. (P \land (P \implies Q)) \implies Q
-$$
-
-Under any backward deduction, the best we can get is:
-
-$$
-  \forall P. (P \land (P \implies Q)) \implies Q
-$$
-
-Now the question of proving $Q$'s theoremhood is equivalent to
-finding $P$ such that both $P$ and $P \implies Q$ are theorems:
-There are countably infinitely many possible values for $P$, so
-this is undecidable (consider the case where no such $P$
-exists).
-
-The core issue here is that there is a free variable which does
-not occur in the consequence. There is a dual issue for forward
-provers when a free variable does not appear in the antecedents.
-
  FVs in antecedents | FVs in consequence | Notes
 --------------------|--------------------|----------------------
  Not all            | Not all            | Neither method works
@@ -459,7 +367,7 @@ can go no further. Then, it will try forward deduction until
 that can go no further. This will continue until the theorem is
 proven or the number of allotted deduction passes is exhausted.
 
-## Lemmas and a Silly Analogy
+## Lemmas, Efficiency, and a Silly Analogy
 
 Think of the known truths as one point $A$ in space and the
 desired theorem as another point $B$. If we use forward
