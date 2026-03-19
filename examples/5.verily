@@ -5,4 +5,17 @@ theorem: a == c;
 axiom: d == e or d == f;
 axiom: e == f;
 axiom: f == g;
+
+# Fails to prove!
 theorem: d == g;
+
+rule:
+  over A, B, phi
+  given A == B, phi
+  deduce phi[A = B]
+;
+
+axiom: foo(a);
+
+setting "alternate=true";
+prove_forward: foo(c);

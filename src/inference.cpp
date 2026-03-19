@@ -367,9 +367,6 @@ void InferenceMaker::inst_all(
     const uint &_rule_index, const uint &_first_n_thms,
     const std::vector<uint> &_cur_indices) {
 
-  static std::set<std::pair<uint, std::vector<uint>>>
-      nontheorem_pairings;
-
   const auto rule = rules.at(_rule_index);
 
   if (_cur_indices.size() < rule.requirements.size()) {
@@ -382,11 +379,6 @@ void InferenceMaker::inst_all(
       inst_all(_rule_index, _first_n_thms, next_ind);
     }
   } else {
-    if (nontheorem_pairings.contains(
-            {_rule_index, _cur_indices})) {
-      return;
-    }
-
     // Determine substitutions, if they exist
     auto fv = rule.free_variables;
     std::list<std::pair<ASTNode, ASTNode>> substitutions;
@@ -399,7 +391,6 @@ void InferenceMaker::inst_all(
               thm,
               corresponding_requirement.replace(substitutions),
               fv, substitutions)) {
-        nontheorem_pairings.insert({_rule_index, _cur_indices});
         return;
       }
 
@@ -450,7 +441,7 @@ void InferenceMaker::inst_all(
     const auto res = add_theorem(replaced_cons, _rule_index,
                                  premises, actually_added);
 
-    nontheorem_pairings.insert({_rule_index, _cur_indices});
+    // nontheorem_pairings.insert({_rule_index, _cur_indices});
   }
 }
 
@@ -475,14 +466,14 @@ InferenceMaker::forward_prove(const ASTNode &_what,
       if (rule.type == InferenceRule::BACKWARD_ONLY) {
         if (debug) {
           std::cout << "In forward pass " << cur_pass << " of "
-                    << _passes << " skipping rule " << rule
+                    << _passes
+                    << " skipping backward-only rule " << rule
                     << " of total " << rules.size() << "\n";
         }
         ++rule_index;
         continue;
       }
 
-      // Attempt to find ONE instantiation
       if (debug) {
         std::cout << "In forward pass " << cur_pass << " of "
                   << _passes << " examining rule " << rule

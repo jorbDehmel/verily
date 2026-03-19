@@ -1,0 +1,7 @@
+# Tuple testing
+
+axiom: (a, b) in Tuples;
+axiom: a in (a, b);
+axiom: foo((a, b));
+axiom: () in Tuples;
+axiom: not (a in ());

@@ -1,39 +1,20 @@
-# Intuitionist propositional calculus
+# Intuitionist propositional calculus (IPC)
+# Known in other literature as IPL (IPC[calculus := logic])
 
 # Taken from page 27 of
 # "Lectures on the Curry-Howard Isomorphism"
 # by Sorensen and Urzyczyn
 # Example theorems taken from same source
+# Uses binary tuple trees to capture set presence
 
 setting "meta_prove=false";
 setting "alternate=false";
 
-rule set_1:
-  over a
-  deduce a in Set(a)
-;
-rule set_2:
-  over a, b
-  deduce a in Set(a, b)
-;
-rule set_3:
-  over a, b
-  deduce a in Set(b, a)
-;
-rule set_4:
-  over a, b, c
-  given a in b
-  deduce a in Set(c, b)
-;
-rule set_5:
-  over a, b, c
-  given a in c
-  deduce a in Set(c, b)
-;
+include "tuple_rules.verily";
 
 rule axiom_schema:
   over Gamma, phi
-  deduce Set(Gamma, phi) derives phi
+  deduce (Gamma, phi) derives phi
 ;
 
 rule and_introduction:
@@ -71,22 +52,22 @@ rule or_introduction_2:
 rule or_elimination:
   over Gamma, phi, rho, psi
   given
-    Set(Gamma, phi) derives rho,
-    Set(Gamma, psi) derives rho,
+    (Gamma, phi) derives rho,
+    (Gamma, psi) derives rho,
     Gamma derives phi or psi
   deduce Gamma derives rho
 ;
 
 rule implies_introduction_simple_case:
   over phi, psi
-  given Set(phi) derives psi
-  deduce Set() derives phi implies psi
+  given (phi,) derives psi
+  deduce () derives phi implies psi
 ;
 
 # AKA deduction theorem
 rule implies_introduction:
   over Gamma, phi, psi
-  given Set(Gamma, phi) derives psi
+  given (Gamma, phi) derives psi
   deduce Gamma derives phi implies psi
 ;
 
@@ -112,19 +93,19 @@ rule direct_derivation:
 ;
 
 # Proven as in the source
-prove: Set() derives phi implies phi;
-prove_backward: Set() derives phi implies (psi implies phi);
+prove: () derives phi implies phi;
+prove: () derives phi implies (psi implies phi);
 
-# # Spins its wheels for a long time, needs low pass limit (and
-# # fails)
-# setting "alternate=true";
-# setting "pass_limit=4";
-# setting "max_theorems=1000";
-# setting "debug=true";
 # prove:
-#   Set()
+#   (
+#     (
+#       phi implies (psi implies v),
+#       phi implies psi
+#     ),
+#     phi
+#   )
 #   derives
 #   (phi implies (psi implies v))
-#     implies (phi implies psi)
-#     implies (phi implies v)
+#   implies (phi implies psi)
+#   implies (phi implies v)
 # ;

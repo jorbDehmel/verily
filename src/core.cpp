@@ -575,7 +575,7 @@ void Core::process_statement(
       print_json = !print_json;
     } else if (t == "alternate") {
       im.enable_alternation = !im.enable_alternation;
-    } else if (t == "meta_proving") {
+    } else if (t == "meta_prove") {
       im.meta_proving = !im.meta_proving;
     } else if (t == "time") {
       time = !time;

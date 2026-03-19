@@ -132,7 +132,7 @@ TokenStream lex_file(const std::filesystem::path &fp) {
   std::string line, text;
   while (!f.eof()) {
     std::getline(f, line);
-    text += line + "\n\n";
+    text += line + "\n";
   }
   return lex_text(text, fp);
 }
@@ -448,7 +448,7 @@ ASTNode Parser::parse_args() {
           ASTNode(Token("ARG"), {argname, ASTNode("NULL")}));
     }
 
-    if (ts.cur().text == ",") {
+    while (ts.cur().text == ",") {
       ts.next();
     }
   }
@@ -593,16 +593,44 @@ ASTNode Parser::parse_expr() {
           items.pop_back();
           while (!ts.done() && ts.cur().text != ")") {
             call.children.push_back(parse_expr());
-            if (ts.cur().text == ",") {
+            while (ts.cur().text == ",") {
               ts.next();
             }
           }
           ts.expect({")"});
           items.push_back(call);
         } else {
-          // Parse parentheses
-          items.push_back(parse_expr());
-          ts.expect({")"});
+          // Special case: Unit tuple ()
+          if (ts.cur().text == ")") {
+            items.push_back(ASTNode("_", {}));
+            ts.next();
+          } else {
+            // Parse parentheses
+            items.push_back(parse_expr());
+
+            if (ts.cur().text == ",") {
+              // Actually a tuple / list
+              ASTNode tuple = ASTNode("_", {items.back()});
+              items.pop_back();
+
+              // Parse any number of statements, then close
+              while (ts.cur().text != ")") {
+                while (ts.cur().text == ",") {
+                  ts.next();
+                }
+                if (ts.cur().text == ")") {
+                  break;
+                }
+
+                tuple.children.push_back(parse_expr());
+              }
+
+              // Append tuple to items
+              items.push_back(tuple);
+            }
+
+            ts.expect({")"});
+          }
         }
       } else if (cur.text == "[") {
         // Replacement notation

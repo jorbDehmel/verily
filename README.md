@@ -155,7 +155,7 @@ induction theorem), and relies on the interpretation of the
 `implies` operator. However, it is also a very useful derivation
 rule: Therefore, verily provides the option to enable or disable
 it. This is bundled in with the meta-solver, toggled via the
-`--metaprove` CLI flag. The meta-solver will also apply other
+`--meta_prove` CLI flag. The meta-solver will also apply other
 meta-rules wherever possible (preferring them to
 non-meta-rules).
 
@@ -458,3 +458,34 @@ statement is found, it will try backwards deduction until that
 can go no further. Then, it will try forward deduction until
 that can go no further. This will continue until the theorem is
 proven or the number of allotted deduction passes is exhausted.
+
+## Lemmas and a Silly Analogy
+
+Think of the known truths as one point $A$ in space and the
+desired theorem as another point $B$. If we use forward
+derivation, think of circles emanating from $A$: In order for
+$B$ to be proven, the circles must reach it.
+
+In alternating mode, circles are emitted from both $A$ and $B$,
+and they only have to touch in order to prove the theorem. The
+expected cumulative area (number of potential theorems examined)
+of the circles is much smaller!
+
+Now imagine we put a third point $C$ directly in between $A$ and
+$B$: This is a well-designed lemma. Now we have circles going
+out from all three points, and we only need $A$ and $C$ to touch
+and $C$ and $B$ to touch. The expected cumulative area of the
+circles is even smaller!
+
+Note that the solver could give up due to resource constraints
+without a lemma but quickly find a proof with a lemma. However,
+a bad lemma could lie completely off the path between the known
+truth and the would-be theorem, in which case it will only waste
+solver time. In general, designing good lemmas is about as hard
+as finding a proof. However, if you already have a proof in
+mind, a good lemma can help the solver connect the dots.
+
+Technically speaking, backwards proof search is more like bolts
+of lightning shooting off the point in random directions, hoping
+to touch the known truth. This is because forwards proof search
+is breadth-first while backwards proof search is depth-first.

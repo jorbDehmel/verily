@@ -18,10 +18,21 @@ rule abstraction_typing:
   deduce (lambda x in A. M) in (A to B)
 ;
 
-prove_forward:
+setting "meta_prove=true";
+setting "alternate=true";
+
+# Load-bearing lemma! Otherwise it runs out of juice before
+# proving the subsequent theorem.
+lemma:
   ((c in One) derives (N in Two))
-  implies
-  b in One
-  implies
-  (lambda c in One. N)(b): Two
+  implies (lambda c in One. N): One to Two
+;
+
+theorem:
+  ((c in One) derives (N in Two))
+  implies (
+    b in One
+    implies
+    (lambda c in One. N)(b): Two
+  )
 ;

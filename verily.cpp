@@ -14,7 +14,7 @@
 #include <stdexcept>
 #include <string>
 
-const std::string version = "0.0.6";
+const std::string version = "0.0.7";
 
 int main(int argc, char *argv[]) {
   std::filesystem::path fp = null_fp;

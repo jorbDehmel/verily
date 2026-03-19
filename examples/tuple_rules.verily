@@ -1,0 +1,40 @@
+# Rules for binary tuple trees
+
+# These define the 'in' operator
+rule in_unary_tuple:
+  over a
+  deduce a in (a,)
+;
+rule in_binary_tuple_first:
+  over a, b
+  deduce a in (a, b)
+;
+rule in_binary_tuple_second:
+  over a, b
+  deduce a in (b, a)
+;
+rule in_tuple_implication_first:
+  over a, b, c
+  given a in c
+  deduce a in (c, b)
+;
+rule in_tuple_implication_second:
+  over a, b, c
+  given a in b
+  deduce a in (c, b)
+;
+rule never_in_empty_tuple:
+  over a
+  deduce not (a in ())
+;
+
+# These define the 'first' and 'second' functions
+# Only useful if you define equality
+rule def_of_first:
+  over a, b
+  deduce first((a, b)) == a
+;
+rule def_of_second:
+  over a, b
+  deduce second((a, b)) == b
+;

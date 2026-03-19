@@ -3,3 +3,4 @@
 ---------|------------|-----------------------------------------
  0.0.5   | 3/10/2026  | Started changelog
  0.0.6   | 3/17/2026  | Fixed parsing bug, reworked calls (@)
+ 0.0.7   | 3/19/2026  | Added tuples, fixed line numbering
