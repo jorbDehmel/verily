@@ -1,0 +1,86 @@
+# Regular ol' sequent calculus. See `isc.verily` for the
+# intuitionist version.
+
+# Also taken from "Lectures on the Curry-Howard Isomorphism"
+
+include "tuple_rules.verily";
+setting "meta_prove=false";
+
+rule axiom_schema:
+  over Gamma, Delta, phi
+  deduce (Gamma, phi) derives (phi, Delta)
+;
+
+rule left_and_1:
+  over Gamma, phi, psi, Sigma
+  given (Gamma, phi) derives Sigma
+  deduce (Gamma, phi and psi) derives Sigma
+;
+
+rule left_and_2:
+  over Gamma, phi, psi, Sigma
+  given (Gamma, psi) derives Sigma
+  deduce (Gamma, phi and psi) derives Sigma
+;
+
+rule right_and:
+  over Gamma, phi, psi, Delta
+  given
+    Gamma derives (phi, Delta),
+    Gamma derives (psi, Delta)
+  deduce Gamma derives (phi and psi, Delta)
+;
+
+rule left_or:
+  over Gamma, phi, Sigma, psi
+  given
+    (Gamma, phi) derives Sigma,
+    (Gamma, psi) derives Sigma
+  deduce (Gamma, phi or psi) derives Sigma
+;
+
+rule right_or_1:
+  over Gamma, phi, Delta, psi
+  given Gamma derives (phi, Delta)
+  deduce Gamma derives (phi and psi, Delta)
+;
+
+rule right_or_2:
+  over Gamma, phi, Delta, psi
+  given Gamma derives (psi, Delta)
+  deduce Gamma derives (phi or psi, Delta)
+;
+
+rule left_implies:
+  over Gamma, phi, Delta, Sigma
+  given
+    Gamma derives (phi, Delta),
+    (Gamma, psi) derives Sigma
+  deduce (Gamma, phi implies psi) derives (Delta, Sigma)
+;
+
+rule right_implies:
+  over Gamma, phi, psi, Delta
+  given (Gamma, phi) derives (psi, Delta)
+  deduce Gamma derives (phi implies psi, Delta)
+;
+
+rule left_false:
+  over Gamma, Sigma
+  deduce (Gamma, false) derives Sigma
+;
+
+rule cut:
+  over Gamma, phi, Delta, Sigma
+  given
+    Gamma derives (phi, Delta),
+    (Gamma, phi) derives Sigma
+  deduce Gamma derives (Delta, Sigma)
+;
+
+rule axiom_schema_simple:
+  over phi
+  deduce (phi,) derives (phi,)
+;
+
+theorem: () derives (psi implies (phi implies psi),);

@@ -404,7 +404,10 @@ ASTNode Parser::parse_statement() {
         {over_block, given_block, deduce_block, ASTNode(name)});
   } else {
     throw std::runtime_error(
-        "Unexpected statement start token '" + t + "'");
+        "At " + tok.file.string() + ":" +
+        std::to_string(tok.line) + "." +
+        std::to_string(tok.col) +
+        "- Unexpected statement start token '" + t + "'");
   }
 }
 
