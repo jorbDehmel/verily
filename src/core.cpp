@@ -236,71 +236,77 @@ void Core::latex(std::ostream &_strm) const {
            "\\usepackage{mathpartir}\n"
            "\\begin{document}\n\n";
 
-  _strm << "\\textbf{Rules:}\n\n";
+  if (!im.rules.empty()) {
+    _strm << "\\textbf{Rules:}\n\n";
 
-  size_t rule_index = 0;
-  for (const auto &rule : im.rules) {
-    if (!rule.free_variables.empty()) {
-      _strm << "For generic";
+    size_t rule_index = 0;
+    for (const auto &rule : im.rules) {
+      if (!rule.free_variables.empty()) {
+        _strm << "For generic";
+        bool first = true;
+        for (const auto &fv : rule.free_variables) {
+          if (first) {
+            first = false;
+          } else {
+            _strm << ",";
+          }
+          _strm << " \\texttt{" << fv << "}";
+        }
+        _strm << ":\n\n";
+      }
+
+      const std::string rule_name =
+          rule.name.value_or(std::to_string(rule_index));
+      ++rule_index;
+      _strm << "\\[\n"
+               "\\inferrule*[right="
+            << sanitize_name(rule_name) << "]{";
+
+      // Premises
       bool first = true;
-      for (const auto &fv : rule.free_variables) {
+      for (const auto &premise : rule.requirements) {
         if (first) {
           first = false;
         } else {
-          _strm << ",";
+          _strm << "\n\\\\\n";
         }
-        _strm << " \\texttt{" << fv << "}";
+        print_ast_latex(premise);
       }
-      _strm << ":\n\n";
-    }
-
-    const std::string rule_name =
-        rule.name.value_or(std::to_string(rule_index));
-    ++rule_index;
-    _strm << "\\[\n"
-             "\\inferrule*[right="
-          << sanitize_name(rule_name) << "]{";
-
-    // Premises
-    bool first = true;
-    for (const auto &premise : rule.requirements) {
       if (first) {
-        first = false;
-      } else {
-        _strm << "\n\\\\\n";
+        _strm << "\\,";
       }
-      print_ast_latex(premise);
+
+      _strm << "}{\n";
+
+      // Consequence
+      print_ast_latex(rule.consequence);
+
+      _strm << "  }\n"
+               "\\]\n\n";
     }
-    if (first) {
-      _strm << "\\,";
+  }
+
+  if (!axioms.empty()) {
+    _strm << "\\textbf{Axioms:}\n\n";
+
+    for (const auto &axiom : axioms) {
+      _strm << "\\[\n";
+      print_ast_latex(im.proof_to_ast(axiom));
+      _strm << "\n\\]\n\n";
+    }
+  }
+
+  if (!proven_theorems.empty()) {
+    _strm << "\\textbf{Selected Theorems:}\n\n";
+
+    for (const auto &theorem : proven_theorems) {
+      _strm << "\\[\n";
+      print_ast_latex(im.proof_to_ast(theorem));
+      _strm << "\n\\]\n\n";
     }
 
-    _strm << "}{\n";
-
-    // Consequence
-    print_ast_latex(rule.consequence);
-
-    _strm << "  }\n"
-             "\\]\n\n";
+    _strm << "\\end{document}\n";
   }
-
-  _strm << "\\textbf{Axioms:}\n\n";
-
-  for (const auto &axiom : axioms) {
-    _strm << "\\[\n";
-    print_ast_latex(im.proof_to_ast(axiom));
-    _strm << "\n\\]\n\n";
-  }
-
-  _strm << "\\textbf{Selected Theorems:}\n\n";
-
-  for (const auto &theorem : proven_theorems) {
-    _strm << "\\[\n";
-    print_ast_latex(im.proof_to_ast(theorem));
-    _strm << "\n\\]\n\n";
-  }
-
-  _strm << "\\end{document}\n";
 }
 
 void Core::json(std::ostream &_strm) const {
