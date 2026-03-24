@@ -1,0 +1,87 @@
+include "tuple_rules.verily";
+setting "meta_prove=false";
+
+rule isc_axiom_schema_simple:
+  over phi
+  deduce (phi,) derives phi
+;
+
+rule isc_axiom_schema:
+  over Gamma, phi
+  given phi in Gamma
+  deduce Gamma derives phi
+;
+
+rule isc_left_and_1:
+  over Gamma, phi, psi, sigma
+  given (Gamma, phi) derives sigma
+  deduce (Gamma, phi and psi) derives sigma
+;
+
+rule isc_left_and_2:
+  over Gamma, phi, psi, sigma
+  given (Gamma, psi) derives sigma
+  deduce (Gamma, phi and psi) derives sigma
+;
+
+rule isc_right_and:
+  over Gamma, phi, psi
+  given
+    Gamma derives phi,
+    Gamma derives psi
+  deduce Gamma derives phi and psi
+;
+
+rule isc_left_or:
+  over Gamma, phi, psi, sigma
+  given
+    (Gamma, phi) derives sigma,
+    (Gamma, psi) derives sigma
+  deduce (Gamma, phi or psi) derives sigma
+;
+
+rule isc_right_or_1:
+  over Gamma, phi, psi
+  given Gamma derives phi
+  deduce Gamma derives phi or psi
+;
+
+rule isc_right_or_2:
+  over Gamma, phi, psi
+  given Gamma derives psi
+  deduce Gamma derives phi or psi
+;
+
+rule isc_left_implies:
+  over Gamma, phi, psi, sigma
+  given
+    Gamma derives phi,
+    (Gamma, psi) derives sigma
+  deduce (Gamma, phi implies psi) derives sigma
+;
+
+rule isc_right_implies_simple_case:
+  over phi, psi
+  given (phi,) derives psi
+  deduce () derives phi implies psi
+;
+
+rule isc_right_implies:
+  over Gamma, phi, psi
+  given (Gamma, phi) derives psi
+  deduce Gamma derives phi implies psi
+;
+
+rule isc_left_false:
+  over Gamma, sigma
+  deduce (Gamma, false) derives sigma
+;
+
+# # The only one not backwards-derivable
+# rule isc_cut:
+#   over Gamma, phi, sigma
+#   given
+#     Gamma derives phi,
+#     (Gamma, phi) derives sigma
+#   deduce Gamma derives sigma
+# ;

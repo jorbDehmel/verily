@@ -1,33 +1,31 @@
-rule:
+setting "alternate=false";
+setting "meta_prove=false";
+include "isc_rules.verily";
+
+rule list_nil:
   over D
   deduce Nil in List::D
 ;
 
-rule:
+rule list_cons:
   over x, y, D
   given x in D, y in List::D
   deduce Cons(x, y) in List::D
 ;
 
-rule:
+rule list_match_nil:
   over f, s
   deduce match(Nil, f, s) == f
 ;
 
-# This doesn't really work (how do you get data and next?)
-rule:
+rule list_match_cons:
   over data, next, f, s
-  deduce match(Cons(data, next), f, s) == s
+  deduce match(Cons(data, next), f, s) == s(data)(next)
 ;
 
 axiom: x in D;
 axiom: y in D;
+
 theorem: Cons(x, Cons(y, Nil)) in List::D;
-
-theorem:
-  match(Cons(x, Nil), false, true) == true
-;
-
-theorem:
-  match(Nil, true, false) == true
-;
+theorem: match(Cons(x, Nil), false, f) == f(x)(Nil);
+theorem: match(Nil, true, f) == true;
