@@ -1,0 +1,11 @@
+# Tests currying
+
+axiom: f(x)(y)(z)(g(x)(y));
+
+# This is just to print out the AST
+# It does seem to work.
+prove: f(x)(y)(z)(g(x)(y));
+
+# Namespace stuff
+axiom: A::B::c()::D;
+prove: A::B::c()::D;

@@ -103,14 +103,17 @@ int main() {
       "==",
       {
         ASTNode(
-          "e",
+          "@",
           {
+            Token("e"),
             ASTNode(
-              "S",
+              "@",
               {
+                Token("S"),
                 ASTNode(
-                  "S",
+                  "@",
                   {
+                    Token("S"),
                     Token("x")
                   }
                 )
@@ -119,8 +122,9 @@ int main() {
           }
         ),
         ASTNode(
-          "e",
+          "@",
           {
+            Token("e"),
             Token("x")
           }
         )
@@ -142,8 +146,9 @@ int main() {
               "and",
               {
                 ASTNode(
-                  "a",
+                  "@",
                   {
+                    Token("a"),
                     Token("b")
                   }
                 ),
@@ -215,9 +220,25 @@ int main() {
           }
         ),
         ASTNode(
-          "phi",
+          "@",
           {
+            Token("phi"),
             Token("x")
+          }
+        )
+      }
+    )
+  );
+  compare(
+    {"A", "::", "B", "(", ")"},
+    ASTNode(
+      "@",
+      {
+        ASTNode(
+          "::",
+          {
+            ASTNode("A"),
+            ASTNode("B")
           }
         )
       }

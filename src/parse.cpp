@@ -90,12 +90,24 @@ TokenStream lex_text(const std::string &text,
       cur.push_back(c);
     }
 
-    else if (std::set<char>({':', ';', '(', ')', '{', '}', '.',
-                             ',', '[', ']', '\'', '^'})
+    // Singletons
+    else if (std::set<char>({';', '(', ')', '{', '}', '.', ',',
+                             '[', ']', '\'', '^'})
                  .contains(c)) {
       add_tok();
       cur = c;
       add_tok();
+    }
+
+    // typing or member access
+    else if (c == ':') {
+      if (cur == ":") {
+        cur.push_back(c);
+        add_tok();
+      } else {
+        add_tok();
+        cur = c;
+      }
     }
 
     else if (c == '#') {
@@ -115,6 +127,10 @@ TokenStream lex_text(const std::string &text,
     }
 
     else {
+      if (cur == ":") {
+        add_tok();
+      }
+
       cur += c;
     }
 
@@ -658,7 +674,24 @@ ASTNode Parser::parse_expr() {
         ts.expect({"]"});
 
         // Push replacement expression
-        return ASTNode("REPLACE", {A, x, B});
+        items.push_back(ASTNode("REPLACE", {A, x, B}));
+      } else if (cur.text == "::") {
+        // Member access
+        if (items.empty()) {
+          throw std::runtime_error(
+              "Malformed expression: access operator '::' "
+              "must act upon an expression");
+        }
+
+        // Pop A
+        const auto A = items.back();
+        items.pop_back();
+
+        // Get B (NOT parsing an expression)
+        const auto B = ts.cur_next();
+
+        // Push replacement expression
+        items.push_back(ASTNode("::", {A, B}));
       }
 
       // Non-parentheses case

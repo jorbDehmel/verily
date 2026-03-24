@@ -55,6 +55,10 @@ void Core::latex(std::ostream &_strm) const {
       _strm << " \\in ";
       print_ast_latex(_what.children.at(1));
       _strm << ")";
+    } else if (t == "::") {
+      print_ast_latex(_what.children.at(0));
+      _strm << " \\texttt{::}";
+      print_ast_latex(_what.children.at(1));
     } else if (t == "to") {
       _strm << "(";
       print_ast_latex(_what.children.at(0));
@@ -304,9 +308,9 @@ void Core::latex(std::ostream &_strm) const {
       print_ast_latex(im.proof_to_ast(theorem));
       _strm << "\n\\]\n\n";
     }
-
-    _strm << "\\end{document}\n";
   }
+
+  _strm << "\\end{document}\n";
 }
 
 void Core::json(std::ostream &_strm) const {
