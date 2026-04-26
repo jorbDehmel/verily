@@ -377,6 +377,22 @@ ASTNode Parser::parse_statement() {
     return ASTNode(Token("THEOREM"), {parse_expr()});
   }
 
+  else if (t == "apply") {
+    // apply X;
+    // apply X to Y, Z, A, B;
+    const auto rule_name = ts.cur_next();
+    ASTNode arguments("_");
+    if (ts.cur().text == "to") {
+      ts.next();
+      arguments.children.push_back(ts.cur_next());
+      while (ts.cur().text == ",") {
+        ts.next();
+        arguments.children.push_back(ts.cur_next());
+      }
+    }
+    return ASTNode(Token("APPLY"), {rule_name, arguments});
+  }
+
   else if (t == "axiom" || t == "assume") {
     if (ts.cur().text != ":") {
       ts.next();

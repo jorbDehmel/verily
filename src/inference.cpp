@@ -4,9 +4,11 @@
 
 #include "inference.hpp"
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 ASTNode
@@ -48,7 +50,7 @@ InferenceMaker::InferenceRule::remove_first_req(
     return {};
   }
 
-  std::list<ASTNode> new_reqs;
+  std::vector<ASTNode> new_reqs;
   bool first = true;
   for (const auto &req : requirements) {
     if (first) {
@@ -79,6 +81,52 @@ InferenceMaker::get_theorem(const uint &_index) const {
                              std::to_string(_index));
   }
   return known.at(_index);
+}
+
+const InferenceMaker::InferenceRule
+InferenceMaker::get_rule(const std::string &_name,
+                         size_t &_index) const {
+  int index = -1;
+  for (size_t i = 0; i < rules.size(); ++i) {
+    const auto rule = rules.at(i);
+    if (rule.name.value_or(std::to_string(i)) == _name) {
+      if (index != -1) {
+        throw std::runtime_error(
+            "Multiple rules are identified by '" + _name + "'");
+      }
+      index = i;
+    }
+  }
+
+  if (index != -1) {
+    _index = index;
+    return get_rule(index);
+  }
+
+  throw std::runtime_error("Invalid rule identifier " + _name);
+}
+
+const InferenceMaker::Theorem
+InferenceMaker::get_theorem(const std::string &_name) const {
+  int index = -1;
+  for (size_t i = 0; i < known.size(); ++i) {
+    const auto thm = known.at(i);
+    if (thm.name.value_or(std::to_string(i)) == _name) {
+      if (index != -1) {
+        throw std::runtime_error(
+            "Multiple theorems are identified by '" + _name +
+            "'");
+      }
+      index = i;
+    }
+  }
+
+  if (index != -1) {
+    return get_theorem(index);
+  }
+
+  throw std::runtime_error("Invalid theorem identifier " +
+                           _name);
 }
 
 bool InferenceMaker::is_of_form(
@@ -128,7 +176,7 @@ int InferenceMaker::has(const ASTNode &_what) const noexcept {
 size_t
 InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
   pending.erase(_what);
-  known.push_back({known.size(), _what, -1, {}});
+  known.push_back({{}, known.size(), _what, -1, {}});
 
   if (meta_proving && _what.text == "==") {
     if (debug) {
@@ -160,7 +208,7 @@ void InferenceMaker::add_rule(const InferenceRule &_rule) {
 
 InferenceMaker::InferenceRule::InferenceRule(
     const std::set<ASTNode> &_fv,
-    const std::list<ASTNode> &_req, const ASTNode &_cons)
+    const std::vector<ASTNode> &_req, const ASTNode &_cons)
     : free_variables(_fv), requirements(_req),
       consequence(_cons) {
   bool has_fvs_in_cons = true;
@@ -197,6 +245,7 @@ InferenceMaker::InferenceRule::InferenceRule(
   } else if (has_fvs_in_reqs) {
     type = FORWARD_ONLY;
   } else {
+    std::cerr << "Offending rule: " << *this << '\n';
     throw std::runtime_error(
         "Rule is neither forward-derivable nor "
         "backward-derivable: Not all free variables occur in "
@@ -317,7 +366,7 @@ InferenceMaker::backward_prove(const ASTNode &_what,
       // Now we have to prove that, given these substitutions,
       // ALL of the LHS of the implication are provable
       bool rule_works = true;
-      std::list<size_t> premises;
+      std::vector<size_t> premises;
       for (const auto &to_prove_minus_fresh :
            replaced_requirements) {
         const ASTNode to_prove = to_prove_minus_fresh.replace(
@@ -345,7 +394,8 @@ InferenceMaker::backward_prove(const ASTNode &_what,
         if (debug) {
           std::cout << "Rule worked!\n";
         }
-        return add_theorem(_what, rule_index, premises, trash);
+        return add_theorem(_what, {}, rule_index, premises,
+                           trash);
       }
     }
   }
@@ -363,9 +413,62 @@ InferenceMaker::backward_prove(const ASTNode &_what,
   return {};
 }
 
+void InferenceMaker::name_theorem(const ASTNode &_what,
+                                  const std::string &_name) {
+  for (auto &thm : known) {
+    if (thm.thm == _what) {
+      thm.name = _name;
+    }
+  }
+}
+
+ASTNode InferenceMaker::InferenceRule::apply(
+    const std::vector<InferenceMaker::Theorem> &_premises,
+    const size_t &_fresh_num) const {
+  auto fv = free_variables;
+  std::list<std::pair<ASTNode, ASTNode>> substitutions;
+  for (size_t i = 0; i < _premises.size(); ++i) {
+    const auto corresponding_requirement = requirements.at(i);
+    const auto thm = _premises.at(i);
+
+    if (!is_of_form(
+            thm.thm,
+            corresponding_requirement.replace(substitutions),
+            fv, substitutions)) {
+      throw std::runtime_error("Malformed rule application");
+    }
+  }
+
+  const std::string fresh_uid = std::to_string(_fresh_num);
+  std::function<ASTNode(const ASTNode &)> deal_with_fresh =
+      [&](const ASTNode &_root) -> ASTNode {
+    if (_root.text == "fresh") {
+      if (_root.children.size() != 1) {
+        throw std::runtime_error("'fresh' takes 1 argument");
+      }
+      if (!_root.children.front().children.empty()) {
+        throw std::runtime_error("Argument to 'fresh' must "
+                                 "be an atomic identifier");
+      }
+      return ASTNode("FRESH_" +
+                     _root.children.front().text.text + "_" +
+                     fresh_uid);
+    } else {
+      ASTNode out;
+      out.text = _root.text;
+      for (const auto &child : _root.children) {
+        out.children.push_back(deal_with_fresh(child));
+      }
+      return out;
+    }
+  };
+
+  return deal_with_fresh(consequence.replace(substitutions));
+}
+
 void InferenceMaker::inst_all(
-    const uint &_rule_index, const uint &_first_n_thms,
-    const std::vector<uint> &_cur_indices) {
+    const size_t &_rule_index, const size_t &_first_n_thms,
+    const std::vector<size_t> &_cur_indices) {
 
   const auto rule = rules.at(_rule_index);
 
@@ -373,7 +476,7 @@ void InferenceMaker::inst_all(
     std::vector<uint> to_visit;
     for (uint i = 0; i < known.size() && i < _first_n_thms;
          ++i) {
-      std::vector<uint> next_ind = _cur_indices;
+      auto next_ind = _cur_indices;
       next_ind.push_back(i);
 
       inst_all(_rule_index, _first_n_thms, next_ind);
@@ -404,44 +507,17 @@ void InferenceMaker::inst_all(
     }
 
     // Add the thing
-    bool actually_added = true;
-    std::list<size_t> premises;
+    std::vector<Theorem> premises;
     for (const auto &item : _cur_indices) {
-      premises.push_back(item);
+      premises.push_back(get_theorem(item));
     }
 
-    const std::string fresh_uid = std::to_string(known.size());
+    const auto replaced_cons =
+        rule.apply(premises, known.size());
 
-    std::function<ASTNode(const ASTNode &)> deal_with_fresh =
-        [&](const ASTNode &_root) -> ASTNode {
-      if (_root.text == "fresh") {
-        if (_root.children.size() != 1) {
-          throw std::runtime_error("'fresh' takes 1 argument");
-        }
-        if (!_root.children.front().children.empty()) {
-          throw std::runtime_error("Argument to 'fresh' must "
-                                   "be an atomic identifier");
-        }
-        return ASTNode("FRESH_" +
-                       _root.children.front().text.text + "_" +
-                       fresh_uid);
-      } else {
-        ASTNode out;
-        out.text = _root.text;
-        for (const auto &child : _root.children) {
-          out.children.push_back(deal_with_fresh(child));
-        }
-        return out;
-      }
-    };
-
-    const ASTNode replaced_cons = deal_with_fresh(
-        rule.consequence.replace(substitutions));
-
-    const auto res = add_theorem(replaced_cons, _rule_index,
-                                 premises, actually_added);
-
-    // nontheorem_pairings.insert({_rule_index, _cur_indices});
+    bool actually_added = true;
+    const auto res = add_theorem(replaced_cons, {}, _rule_index,
+                                 _cur_indices, actually_added);
   }
 }
 
@@ -519,8 +595,11 @@ InferenceMaker::forward_prove(const ASTNode &_what,
 }
 
 const InferenceMaker::Theorem InferenceMaker::add_theorem(
-    const ASTNode &_thm, const uint &_rule_index,
-    const std::list<size_t> &_premises, bool &_actually_added) {
+    const ASTNode &_thm,
+    const std::optional<std::string> &_name,
+    const size_t &_rule_index,
+    const std::vector<size_t> &_premises,
+    bool &_actually_added) {
   const auto beta_reduced_thm = _thm.beta_star();
   const auto res = has(beta_reduced_thm);
   if (res >= 0) {
@@ -538,9 +617,11 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
                        beta_reduced_thm.children.at(1));
   }
 
-  const Theorem out = {.index = known.size(),
+  const Theorem out = {.name = _name,
+                       .index = known.size(),
                        .thm = beta_reduced_thm,
-                       .rule_index = _rule_index,
+                       .rule_index =
+                           static_cast<intmax_t>(_rule_index),
                        .premises = _premises};
   known.push_back(out);
   pending.erase(beta_reduced_thm);

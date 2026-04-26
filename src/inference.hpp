@@ -31,6 +31,26 @@ public:
   /// Don't mess with. Internally used during alternation.
   bool cur_alternation_is_forward = false;
 
+  /// A statement, along with proof that it is a theorem
+  struct Theorem {
+    /// If given, the name of the theorem.
+    std::optional<std::string> name;
+
+    /// The internal index of this theorem
+    size_t index;
+
+    /// The syntactic representation of this theorem
+    ASTNode thm;
+
+    /// Either the index of the rule causing this theorem or
+    /// a negative number (indicating an axiom).
+    intmax_t rule_index;
+
+    /// The indices of the theorems which satisfied the rule to
+    /// create this. This might be empty.
+    std::vector<size_t> premises;
+  };
+
   /// If all the requirements are met, the consequences are
   /// implied
   struct InferenceRule {
@@ -39,7 +59,7 @@ public:
 
     /// Construct an inference rule
     InferenceRule(const std::set<ASTNode> &_fv,
-                  const std::list<ASTNode> &_req,
+                  const std::vector<ASTNode> &_req,
                   const ASTNode &_cons);
 
     /// The free variables over both the requirements and the
@@ -47,7 +67,7 @@ public:
     std::set<ASTNode> free_variables;
 
     /// The things which must be known theorems
-    std::list<ASTNode> requirements;
+    std::vector<ASTNode> requirements;
 
     /// Given the requirements over some substitutions, derive
     /// this theorem
@@ -68,23 +88,10 @@ public:
     /// return the result
     std::optional<InferenceRule>
     remove_first_req(const ASTNode &_sub) const noexcept;
-  };
 
-  /// A statement, along with proof that it is a theorem
-  struct Theorem {
-    /// The internal index of this theorem
-    size_t index;
-
-    /// The syntactic representation of this theorem
-    ASTNode thm;
-
-    /// Either the index of the rule causing this theorem or
-    /// a negative number (indicating an axiom).
-    intmax_t rule_index;
-
-    /// The indices of the theorems which satisfied the rule to
-    /// create this. This might be empty.
-    std::list<size_t> premises;
+    /// Throws on failure
+    ASTNode apply(const std::vector<Theorem> &_premises,
+                  const uintmax_t &_fresh_num) const;
   };
 
   ASTNode proof_to_ast(const size_t &_thm_index) const;
@@ -132,24 +139,37 @@ public:
   /// Adds an axiom and returns its index
   size_t add_axiom(const ASTNode &_what) noexcept;
 
-  /// Gets a rule
+  /// Gets a rule by internal index
   const InferenceRule get_rule(const uint &_index) const;
 
-  /// Gets a theorem
+  /// Gets a rule by name
+  const InferenceRule get_rule(const std::string &_name,
+                               size_t &_index) const;
+
+  /// Find the given theorem and name it
+  void name_theorem(const ASTNode &_what,
+                    const std::string &_name);
+
+  /// Gets a theorem by internal index
   const Theorem get_theorem(const uint &_index) const;
 
+  /// Gets a theorem by name
+  const Theorem get_theorem(const std::string &_name) const;
+
   /// Adds a theorem
-  const Theorem add_theorem(const ASTNode &_thm,
-                            const uint &_rule_index,
-                            const std::list<size_t> &_premises,
-                            bool &_actually_added);
+  const Theorem
+  add_theorem(const ASTNode &_thm,
+              const std::optional<std::string> &_name,
+              const size_t &_rule_index,
+              const std::vector<size_t> &_premises,
+              bool &_actually_added);
 
   /// Iterates through all possible theorem choices and
   /// instantiates wherever possible. Note that this only looks
   /// at theorems from the first n of them.
-  void inst_all(const uint &_rule_index,
-                const uint &_first_n_thms,
-                const std::vector<uint> &_cur_indices = {});
+  void inst_all(const size_t &_rule_index,
+                const size_t &_first_n_thms,
+                const std::vector<size_t> &_cur_indices = {});
 
   /// Statements which are known to be true
   std::vector<Theorem> known;

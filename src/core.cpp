@@ -1,6 +1,7 @@
 #include "core.hpp"
 #include "inference.hpp"
 #include <functional>
+#include <stdexcept>
 
 std::string Core::sanitize_name(const std::string &_s) {
   std::string out;
@@ -446,7 +447,7 @@ void Core::process_statement(
     const std::string name = _stmt.children.at(3).text.text;
 
     std::set<ASTNode> free_variables;
-    std::list<ASTNode> requirements;
+    std::vector<ASTNode> requirements;
     for (const auto &child : over.children) {
       free_variables.insert(child);
     }
@@ -537,8 +538,8 @@ void Core::process_statement(
     // rule definition_of_f: over x given x in A deduce f(x) ==
     // body;
     std::set<ASTNode> fvs;
-    std::list<ASTNode> reqs;
-    std::list<ASTNode> ens;
+    std::vector<ASTNode> reqs;
+    std::vector<ASTNode> ens;
     std::vector<ASTNode> call_args = {name};
 
     for (const auto &arg : args.children) {
@@ -641,6 +642,49 @@ void Core::process_statement(
     }
   }
 
+  else if (_stmt.text == "APPLY") {
+    // apply X to Y, Z, A;
+    // (APPLY rule_name argument_list)
+    const std::string rule_name =
+        _stmt.children.at(0).text.text;
+    const ASTNode thm_list = _stmt.children.at(1);
+
+    // Find and verify rule
+    size_t rule_index = 0;
+    const auto rule = im.get_rule(rule_name, rule_index);
+    if (rule.requirements.size() != thm_list.children.size()) {
+      std::cerr << "Rule " << rule << " requires "
+                << rule.requirements.size() << " arguments (";
+      bool first = true;
+      for (const auto &req : rule.requirements) {
+        if (first) {
+          first = false;
+        } else {
+          std::cerr << ' ';
+        }
+        std::cerr << req;
+      }
+      std::cerr << "), but " << thm_list.children.size()
+                << " were provided " << thm_list << '\n';
+      throw std::runtime_error("Rule application mismatch");
+    }
+
+    // Find theorems
+    std::vector<InferenceMaker::Theorem> thms;
+    std::vector<size_t> premise_indices;
+    for (const auto &t : thm_list.children) {
+      const auto thm = im.get_theorem(t.text.text);
+      thms.push_back(thm);
+      premise_indices.push_back(thm.index);
+    }
+
+    // Try to apply
+    const auto res = rule.apply(thms, im.known.size());
+
+    bool trash = false;
+    im.add_theorem(res, {}, rule_index, premise_indices, trash);
+  }
+
   else if (!im.quiet) {
     std::cout << "WARNING: Skipping statement " << _stmt
               << "\n";
@@ -664,10 +708,14 @@ void Core::do_file(const std::filesystem::path &_fp) {
 void Core::ls() const noexcept {
   std::cout << "All " << im.rules.size() << " rules:\n";
   for (uint i = 0; i < im.rules.size(); ++i) {
-    std::cout << " " << i << " " << im.rules.at(i) << '\n';
+    const auto r = im.rules.at(i);
+    std::cout << " " << r.name.value_or(std::to_string(i))
+              << " " << r << '\n';
   }
   std::cout << "\nAll " << im.known.size() << " theorems:\n";
   for (uint i = 0; i < im.known.size(); ++i) {
-    std::cout << " " << i << " " << im.known.at(i) << '\n';
+    const auto t = im.known.at(i);
+    std::cout << " " << t.name.value_or(std::to_string(i))
+              << " " << t << '\n';
   }
 }

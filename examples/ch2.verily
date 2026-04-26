@@ -1,0 +1,73 @@
+include "isc_rules.verily";
+
+rule assumption_typing:
+  over x, A, Gamma
+  given (x: A) in Gamma
+  deduce Gamma derives (x: A)
+;
+
+rule application_typing:
+  over f, g, A, B
+  given
+    Gamma derives (f: A implies B),
+    Gamma derives (g: A)
+  deduce Gamma derives (f::A(g): B)
+;
+
+rule abstraction_typing:
+  over Gamma, x, A, M, B
+  given (Gamma, (x: A)) derives (M: B)
+  deduce Gamma derives ((lambda x: A. M): A implies B)
+;
+
+rule introduce_and:
+  over M, N, A, B, Gamma
+  given
+    Gamma derives M: A,
+    Gamma derives N: B
+  deduce Gamma derives (M, N): A and B
+;
+
+rule first:
+  over M, A, B, Gamma
+  given Gamma derives M: A and B
+  deduce Gamma derives M::first::A::B: A
+;
+
+rule second:
+  over M, A, B, Gamma
+  given Gamma derives M: A and B
+  deduce Gamma derives M::second::A::B: A
+;
+
+rule variant_cons_1:
+  over Gamma, N, A, B
+  given Gamma derives N in A
+  deduce Gamma derives variant::A::B::A(N): A or B
+;
+
+rule variant_cons_2:
+  over Gamma, N, A, B
+  given Gamma derives N in B
+  deduce Gamma derives variant::A::B::B(N): A or B
+;
+
+rule match:
+  over Gamma, a, b, c
+  given
+    Gamma derives a: A or B,
+    Gamma derives b: A to C,
+    Gamma derives c: B to C
+  deduce Gamma derives match(a)(b)(c): C
+;
+
+# Verification
+
+theorem: () derives (lambda x: phi. x): phi implies phi;
+theorem:
+  () derives (
+    lambda x: phi.
+    lambda y: phi implies false.
+    y(x)
+  ): phi implies ((phi implies false) implies false)
+;
