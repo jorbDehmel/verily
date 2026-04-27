@@ -1,0 +1,15 @@
+axiom zero_nat: 0 in Nat;
+axiom succ: S in Nat to Nat;
+
+# This sort of rule doesn't make as much sense in a CH-based
+# theorem prover, but verily makes no assumptions
+rule application_typing:
+  over f, x, A, B
+  given f in A to B, x in A
+  deduce f(x) in B
+;
+
+wts S(S(S(0))) in Nat;
+  apply application_typing to succ, zero_nat as one_nat;
+  apply application_typing to succ, one_nat as two_nat;
+  apply application_typing to succ, two_nat as three_nat;

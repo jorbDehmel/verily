@@ -1,10 +1,10 @@
-rule:
+rule mp:
   over p, q
   given p, p implies q
   deduce q
 ;
 
-rule:
+rule double_negation_introduction:
   over p
   given p
   deduce not not p

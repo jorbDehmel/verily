@@ -160,6 +160,11 @@ are `forall`, `exists`, and `lambda`, although
 **none of these are interpreted**. If you want them to perform
 their intuitive functions, you need to add appropriate rules.
 
+Calls are written `f(x)`. Only unary calls are built-in. If you
+wanted to provide multiple arguments (interpretation-specific),
+you could say `f(x)(y)` (Currying) or `f((x, y))` (providing a
+single 2-tuple).
+
 ### Meta-implication
 
 The deduction theorem goes something like this: "If we can
@@ -322,6 +327,27 @@ As of writing, methods are not implemented: They will parse, but
 they won't do anything else. Functions are supported, and their
 signatures and bodies will be declared equivalent (EG `==`) via
 an implicitly-defined rule.
+
+## Manual Forward Deduction
+
+We can manually add pending theorems via `wts` (Want To Show).
+We can manually apply rules via the `apply` keyword.
+
+```verily
+wts S(S(S(0))) in Nat;
+  apply application_typing to succ, zero_nat as one_nat;
+  apply application_typing to succ, one_nat as two_nat;
+  apply application_typing to succ, two_nat as three_nat;
+```
+
+All of the following are valid formulations.
+
+- `apply X;` (applies rule `X` to every viable existing case)
+- `apply X to Y;`
+- `apply X to Y, Z, A;`
+- `apply X to A as Y;`
+- `apply all;` (applies all rules to every viable existing case
+  exactly once)
 
 ## Backward Deduction
 

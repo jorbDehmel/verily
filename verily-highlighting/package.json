@@ -2,7 +2,7 @@
   "name": "verily-language",
   "displayName": "Verily Syntax Highlighting",
   "description": "VSCode language support for Verily",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "engines": {
     "vscode": "^1.90.0"
   },

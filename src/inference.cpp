@@ -3,6 +3,7 @@
  */
 
 #include "inference.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -42,7 +43,7 @@ InferenceMaker::proof_to_ast(const size_t &_thm_index) const {
 std::optional<InferenceMaker::InferenceRule>
 InferenceMaker::InferenceRule::remove_first_req(
     const ASTNode &_sub) const noexcept {
-  std::set<ASTNode> new_fv = free_variables;
+  std::vector<ASTNode> new_fv = free_variables;
   std::list<std::pair<ASTNode, ASTNode>> subs;
 
   // If not a valid replacement, return none
@@ -131,7 +132,7 @@ InferenceMaker::get_theorem(const std::string &_name) const {
 
 bool InferenceMaker::is_of_form(
     const ASTNode &_to_examine, const ASTNode &_form,
-    std::set<ASTNode> &_free_variables,
+    std::vector<ASTNode> &_free_variables,
     std::list<std::pair<ASTNode, ASTNode>> &_substitutions) {
   // Existing replacements
   for (const auto &p : _substitutions) {
@@ -141,9 +142,14 @@ bool InferenceMaker::is_of_form(
   }
 
   // New replacement
-  if (_free_variables.contains(_form)) {
+  if (std::find(_free_variables.cbegin(),
+                _free_variables.cend(),
+                _form) != _free_variables.cend()) {
     _substitutions.push_back({_form, _to_examine});
-    _free_variables.erase(_form);
+    std::erase_if(_free_variables,
+                  [&](const auto &_item) -> bool {
+                    return _item == _form;
+                  });
     return true;
   }
 
@@ -175,7 +181,7 @@ int InferenceMaker::has(const ASTNode &_what) const noexcept {
 
 size_t
 InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
-  pending.erase(_what);
+  pop_pending(_what);
   known.push_back({{}, known.size(), _what, -1, {}});
 
   if (meta_proving && _what.text == "==") {
@@ -194,11 +200,6 @@ InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
 }
 
 void InferenceMaker::add_rule(const InferenceRule &_rule) {
-  if (!quiet && _rule.type == InferenceRule::FORWARD_ONLY) {
-    std::cout << "WARNING: Rule requires alternation! " << _rule
-              << "\n";
-  }
-
   rules.push_back(_rule);
   if (debug) {
     std::cout << "Added rule w/ index " << rules.size() - 1
@@ -207,7 +208,7 @@ void InferenceMaker::add_rule(const InferenceRule &_rule) {
 }
 
 InferenceMaker::InferenceRule::InferenceRule(
-    const std::set<ASTNode> &_fv,
+    const std::vector<ASTNode> &_fv,
     const std::vector<ASTNode> &_req, const ASTNode &_cons)
     : free_variables(_fv), requirements(_req),
       consequence(_cons) {
@@ -624,7 +625,7 @@ const InferenceMaker::Theorem InferenceMaker::add_theorem(
                            static_cast<intmax_t>(_rule_index),
                        .premises = _premises};
   known.push_back(out);
-  pending.erase(beta_reduced_thm);
+  pop_pending(beta_reduced_thm);
 
   if (debug) {
     std::cout << "Derived theorem " << out << "\n\n";
@@ -672,13 +673,13 @@ InferenceMaker::prove(const ASTNode &_theorem,
   if (is_pending) {
     const auto res = has(_theorem);
     if (res >= 0) {
-      pending.erase(_theorem);
+      pop_pending(_theorem);
       return get_theorem(res);
     } else {
       return {};
     }
   }
-  pending.insert(_theorem);
+  pending.push_back(_theorem);
 
   // Meta special case(s)
   if (meta_proving) {
@@ -695,7 +696,8 @@ InferenceMaker::prove(const ASTNode &_theorem,
       special_proofs[add_axiom(premise)] =
           ASTNode("assumption", {premise});
       const auto res = prove(consequence, _passes - 1);
-      pending.erase(consequence);
+
+      pop_pending(consequence);
 
       if (res.has_value()) {
         // Success

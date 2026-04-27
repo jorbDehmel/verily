@@ -7,8 +7,8 @@ Tests pattern matching in the verily src code
 #include <cassert>
 
 int main() {
-  std::set<ASTNode> free_variables = {ASTNode("f"),
-                                      ASTNode("x")};
+  std::vector<ASTNode> free_variables = {ASTNode("f"),
+                                         ASTNode("x")};
   std::list<std::pair<ASTNode, ASTNode>> replacements;
 
   assert(

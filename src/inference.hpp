@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <map>
 #include <optional>
-#include <set>
 
 /// A maker of inferences. It takes rules and axioms and deduces
 /// theorems
@@ -58,13 +57,13 @@ public:
     std::optional<std::string> name;
 
     /// Construct an inference rule
-    InferenceRule(const std::set<ASTNode> &_fv,
+    InferenceRule(const std::vector<ASTNode> &_fv,
                   const std::vector<ASTNode> &_req,
                   const ASTNode &_cons);
 
     /// The free variables over both the requirements and the
     /// consequence
-    std::set<ASTNode> free_variables;
+    std::vector<ASTNode> free_variables;
 
     /// The things which must be known theorems
     std::vector<ASTNode> requirements;
@@ -106,7 +105,7 @@ public:
   /// are logged in _substitutions).
   static bool is_of_form(
       const ASTNode &_to_examine, const ASTNode &_form,
-      std::set<ASTNode> &_free_variables,
+      std::vector<ASTNode> &_free_variables,
       std::list<std::pair<ASTNode, ASTNode>> &_substitutions);
 
   /// Adds a new rule
@@ -175,13 +174,14 @@ public:
   std::vector<Theorem> known;
 
   /// Statements currently being proven
-  std::set<ASTNode> pending;
+  std::vector<ASTNode> pending;
 
   /// Inference rules
   std::vector<InferenceRule> rules;
 
   struct BackupFrame {
     std::vector<Theorem> theorems;
+    std::vector<ASTNode> pending;
     std::vector<InferenceRule> rules;
   };
   std::list<BackupFrame> backup_frames;
@@ -189,16 +189,35 @@ public:
   /// Push a frame such that any theorems will not be saved
   /// after popping
   inline void push() noexcept {
-    backup_frames.push_back(BackupFrame(known, rules));
+    backup_frames.push_back(BackupFrame(known, pending, rules));
   }
 
   /// Pop the most recent frame (if there is one)
   inline void pop() noexcept {
     if (!backup_frames.empty()) {
       known = backup_frames.back().theorems;
+      pending = backup_frames.back().pending;
       rules = backup_frames.back().rules;
       backup_frames.pop_back();
     }
+  }
+
+  /// Pop the given item, warning if it is not the current back
+  inline void pop_pending(const ASTNode &_expected_back) {
+    std::erase_if(pending, [&](const ASTNode &_item) -> bool {
+      return _item == _expected_back;
+    });
+  }
+
+  /// Returns true iff the given theorem is currently pending
+  inline bool is_pending(const ASTNode &_thm) {
+    for (auto rit = pending.rbegin(); rit != pending.rend();
+         ++rit) {
+      if (*rit == _thm) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// The max number of theorems to allow before emergency stop

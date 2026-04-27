@@ -14,7 +14,37 @@
 #include <stdexcept>
 #include <string>
 
-const std::string version = "0.0.7";
+const std::string version = "0.0.8";
+
+void print_help() {
+  // clang-format off
+  std::cout <<
+    "+-----------------------------------------------------+\n"
+    "|                       Verily                        |\n"
+    "+-----------------------------------------------------+\n"
+    "A deductive theorem prover. MIT License, 2025-2026.    \n"
+    "                                                       \n"
+    " CLI flag          | Default | Meaning                 \n"
+    "-------------------|---------|-------------------------\n"
+    " --alternate       | false   | Toggles alternation     \n"
+    " --debug           | false   | Toggles debug mode      \n"
+    " --help            |         | Prints this text        \n"
+    " --json            | false   | Prints json to file     \n"
+    " --latex           | false   | Prints latex to file    \n"
+    " --max_theorems    | 10,000  | Sets the max # theorems \n"
+    " --max_tree_height | 100     | Set the max AST height  \n"
+    " --meta_prove      | true    | Toggles meta proving    \n"
+    " --pass_limit N    | 64      | Sets the depth limit    \n"
+    " --quiet           | false   | Toggles quiet mode      \n"
+    "                                                       \n"
+    "You can give it a filepath as an argument, in which    \n"
+    "case that file will be analyzed. If no filepath is     \n"
+    "provided, it will read from stdin in a REPL interface. \n"
+    "                                                       \n"
+    "Version " << version << "\n"
+  ;
+  // clang-format on
+}
 
 int main(int argc, char *argv[]) {
   std::filesystem::path fp = null_fp;
@@ -50,33 +80,7 @@ int main(int argc, char *argv[]) {
     } else if (arg == "--quiet") {
       verily.im.quiet = !verily.im.quiet;
     } else if (arg == "--help") {
-      // clang-format off
-      std::cout <<
-        "+-----------------------------------------------------+\n"
-        "|                       Verily                        |\n"
-        "+-----------------------------------------------------+\n"
-        "A deductive theorem prover. MIT License, 2025-2026.    \n"
-        "                                                       \n"
-        " CLI flag          | Default | Meaning                 \n"
-        "-------------------|---------|-------------------------\n"
-        " --alternate       | false   | Toggles alternation     \n"
-        " --debug           | false   | Toggles debug mode      \n"
-        " --help            |         | Prints this text        \n"
-        " --json            | false   | Prints json to file     \n"
-        " --latex           | false   | Prints latex to file    \n"
-        " --max_theorems    | 10,000  | Sets the max # theorems \n"
-        " --max_tree_height | 100     | Set the max AST height  \n"
-        " --meta_prove      | true    | Toggles meta proving    \n"
-        " --pass_limit N    | 64      | Sets the depth limit    \n"
-        " --quiet           | false   | Toggles quiet mode      \n"
-        "                                                       \n"
-        "You can give it a filepath as an argument, in which    \n"
-        "case that file will be analyzed. If no filepath is     \n"
-        "provided, it will read from stdin in a REPL interface. \n"
-        "                                                       \n"
-        "Version " << version << "\n"
-      ;
-      // clang-format on
+      print_help();
       return 1;
     }
 
@@ -117,7 +121,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Verily CLI mode: CTL+D / EOF to exit.\n";
 
     std::string cur_statement;
-    while (!std::cin.eof()) {
+    bool is_running = true;
+    while (!std::cin.eof() && is_running) {
       std::string line;
       std::cout << "> ";
       std::getline(std::cin, line);
@@ -133,20 +138,24 @@ int main(int argc, char *argv[]) {
                     << cur_statement << "\n";
         }
 
-        const ASTNode global =
-            Parser(lex_text(cur_statement, fp)).parse();
+        try {
+          const ASTNode global =
+              Parser(lex_text(cur_statement, fp)).parse();
 
-        for (const auto &stmt : global.children) {
-          if (stmt.text != "NULL") {
-            try {
+          for (const auto &stmt : global.children) {
+            if (stmt == ASTNode("HELP")) {
+              print_help();
+            } else if (stmt == ASTNode("QUIT")) {
+              is_running = false;
+              break;
+            } else if (stmt.text != "NULL") {
               verily.process_statement(stmt, fp);
-            } catch (std::runtime_error &_e) {
-              std::cout << "Caught error: " << _e.what()
-                        << "\n";
-            } catch (...) {
-              std::cout << "Unknown error!\n";
             }
           }
+        } catch (std::runtime_error &_e) {
+          std::cout << "Caught error: " << _e.what() << "\n";
+        } catch (...) {
+          std::cout << "Unknown error!\n";
         }
 
         // Clear
@@ -199,6 +208,13 @@ int main(int argc, char *argv[]) {
       return 4;
     }
     verily.json(f);
+  }
+
+  if (!verily.im.pending.empty()) {
+    std::cerr << "Pending (unproven) theorems:\n";
+    for (const auto &p : verily.im.pending) {
+      std::cerr << p << '\n';
+    }
   }
 
   if (verily.saw_error) {

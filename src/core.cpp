@@ -446,10 +446,10 @@ void Core::process_statement(
         _stmt.children.at(2).children.front();
     const std::string name = _stmt.children.at(3).text.text;
 
-    std::set<ASTNode> free_variables;
+    std::vector<ASTNode> free_variables;
     std::vector<ASTNode> requirements;
     for (const auto &child : over.children) {
-      free_variables.insert(child);
+      free_variables.push_back(child);
     }
     for (const auto &child : given.children) {
       requirements.push_back(child);
@@ -466,17 +466,19 @@ void Core::process_statement(
 
   // Thing to prove
   else if (_stmt.text == Token("PROVE_FORWARD")) {
-    // (THEOREM to_prove)
-    const auto res =
-        im.forward_prove(_stmt.children.front(), pass_limit);
+    // (THEOREM name to_prove)
+    const auto name = _stmt.children.at(0).text.text;
+    const auto thm = _stmt.children.at(1);
+    const auto res = im.forward_prove(thm, pass_limit);
     if (res.has_value()) {
       proven_theorems.insert(res.value().index);
+      if (!name.empty()) {
+        im.name_theorem(thm, name);
+      }
     } else {
       saw_error = true;
-
       if (!im.quiet) {
-        std::cout << "ERROR:   Failed to prove "
-                  << _stmt.children.front() << "\n";
+        std::cout << "ERROR:   Failed to prove " << thm << "\n";
       }
     }
   }
@@ -488,7 +490,9 @@ void Core::process_statement(
   else if (_stmt.text == Token("PROVE_BACKWARD") ||
            _stmt.text == Token("THEOREM")) {
     // (THEOREM to_prove)
-    const auto theorem = _stmt.children.front();
+    const auto name = _stmt.children.at(0).text.text;
+    const auto theorem = _stmt.children.at(1);
+
     const auto res = im.prove(theorem, pass_limit);
     if (!res.has_value()) {
       if (!im.quiet) {
@@ -498,6 +502,9 @@ void Core::process_statement(
       saw_error = true;
     } else {
       proven_theorems.insert(res.value().index);
+      if (!name.empty()) {
+        im.name_theorem(theorem, name);
+      }
     }
   }
 
@@ -507,8 +514,13 @@ void Core::process_statement(
 
   // Axiom
   else if (_stmt.text == Token("AXIOM")) {
-    // (AXIOM a)
-    const size_t index = im.add_axiom(_stmt.children.front());
+    // (AXIOM name a)
+    const auto name = _stmt.children.at(0).text.text;
+    const auto thm = _stmt.children.at(1);
+    const size_t index = im.add_axiom(thm);
+    if (!name.empty()) {
+      im.name_theorem(thm, name);
+    }
     axioms.insert(index);
   }
 
@@ -537,7 +549,7 @@ void Core::process_statement(
     // f(x: A) { body }
     // rule definition_of_f: over x given x in A deduce f(x) ==
     // body;
-    std::set<ASTNode> fvs;
+    std::vector<ASTNode> fvs;
     std::vector<ASTNode> reqs;
     std::vector<ASTNode> ens;
     std::vector<ASTNode> call_args = {name};
@@ -546,7 +558,7 @@ void Core::process_statement(
       // {argname, domain}
       const ASTNode argname = arg.children.at(0);
       const ASTNode domain = arg.children.at(1);
-      fvs.insert(argname);
+      fvs.push_back(argname);
       call_args.push_back(argname);
 
       if (domain != "NULL") {
@@ -642,51 +654,99 @@ void Core::process_statement(
     }
   }
 
+  else if (_stmt.text == "WTS") {
+    im.pending.push_back(_stmt.children.at(0));
+  }
+
   else if (_stmt.text == "APPLY") {
     // apply X to Y, Z, A;
+    // apply all;
+    // apply X;
+
     // (APPLY rule_name argument_list)
     const std::string rule_name =
         _stmt.children.at(0).text.text;
     const ASTNode thm_list = _stmt.children.at(1);
+    const std::string result_name =
+        _stmt.children.at(2).text.text;
 
-    // Find and verify rule
-    size_t rule_index = 0;
-    const auto rule = im.get_rule(rule_name, rule_index);
-    if (rule.requirements.size() != thm_list.children.size()) {
-      std::cerr << "Rule " << rule << " requires "
-                << rule.requirements.size() << " arguments (";
-      bool first = true;
-      for (const auto &req : rule.requirements) {
-        if (first) {
-          first = false;
-        } else {
-          std::cerr << ' ';
-        }
-        std::cerr << req;
+    if (rule_name == "all") {
+      if (!result_name.empty()) {
+        throw std::runtime_error(
+            "'apply all as ...' makes no sense");
       }
-      std::cerr << "), but " << thm_list.children.size()
-                << " were provided " << thm_list << '\n';
-      throw std::runtime_error("Rule application mismatch");
+      const auto first_n = im.known.size();
+      for (size_t rule_index = 0; rule_index < im.rules.size();
+           ++rule_index) {
+        im.inst_all(rule_index, first_n);
+      }
+      if (first_n == im.known.size()) {
+        throw std::runtime_error("No rules could be applied");
+      }
+    } else {
+      // Find and verify rule
+      size_t rule_index = 0;
+      const auto rule = im.get_rule(rule_name, rule_index);
+
+      if (thm_list.children.empty()) {
+        if (!result_name.empty()) {
+          throw std::runtime_error(
+              "'apply ... as ...' (without 'to' clause) makes "
+              "no sense");
+        }
+
+        const auto before = im.known.size();
+        im.inst_all(rule_index, before);
+
+        if (before == im.known.size()) {
+          throw std::runtime_error("Rule " + rule_name +
+                                   " could not be applied");
+        }
+      } else {
+        if (rule.requirements.size() !=
+            thm_list.children.size()) {
+          std::cerr << "Rule " << rule << " requires "
+                    << rule.requirements.size()
+                    << " arguments (";
+          bool first = true;
+          for (const auto &req : rule.requirements) {
+            if (first) {
+              first = false;
+            } else {
+              std::cerr << ' ';
+            }
+            std::cerr << req;
+          }
+          std::cerr << "), but " << thm_list.children.size()
+                    << " were provided " << thm_list << '\n';
+          throw std::runtime_error("Rule application mismatch");
+        }
+
+        // Find theorems
+        std::vector<InferenceMaker::Theorem> thms;
+        std::vector<size_t> premise_indices;
+        for (const auto &t : thm_list.children) {
+          const auto thm = im.get_theorem(t.text.text);
+          thms.push_back(thm);
+          premise_indices.push_back(thm.index);
+        }
+
+        // Try to apply
+        const auto res = rule.apply(thms, im.known.size());
+
+        bool trash = false;
+        std::optional<std::string> n = {};
+        if (!result_name.empty()) {
+          n = result_name;
+        }
+        im.add_theorem(res, result_name, rule_index,
+                       premise_indices, trash);
+      }
     }
-
-    // Find theorems
-    std::vector<InferenceMaker::Theorem> thms;
-    std::vector<size_t> premise_indices;
-    for (const auto &t : thm_list.children) {
-      const auto thm = im.get_theorem(t.text.text);
-      thms.push_back(thm);
-      premise_indices.push_back(thm.index);
-    }
-
-    // Try to apply
-    const auto res = rule.apply(thms, im.known.size());
-
-    bool trash = false;
-    im.add_theorem(res, {}, rule_index, premise_indices, trash);
   }
 
   else if (!im.quiet) {
-    std::cout << "WARNING: Skipping statement " << _stmt
+    std::cout << "WARNING: Skipping unknown statement " << _stmt
               << "\n";
   }
 }
@@ -717,5 +777,9 @@ void Core::ls() const noexcept {
     const auto t = im.known.at(i);
     std::cout << " " << t.name.value_or(std::to_string(i))
               << " " << t << '\n';
+  }
+  std::cout << "\nAll " << im.pending.size() << " pending:\n";
+  for (const auto &p : im.pending) {
+    std::cout << " " << p << '\n';
   }
 }

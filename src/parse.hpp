@@ -159,10 +159,6 @@ public:
   /// Parses a (functional) function definition
   ASTNode parse_function();
 
-  /// Parses an annotation. This can be used in either the
-  /// global context or within an imperative block.
-  ASTNode parse_theorem();
-
   /// Parses an imperative method definition
   ASTNode parse_method();
 

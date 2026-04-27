@@ -112,7 +112,8 @@ TokenStream lex_text(const std::string &text,
 
     else if (c == '#') {
       in_comment = true;
-    } else if (c == '/' && cur == "/") {
+    } else if ((c == '/' && cur == "/") ||
+               (c == '-' && cur == "-")) {
       cur.clear();
       in_comment = true;
     }
@@ -332,6 +333,14 @@ ASTNode Parser::parse_statement() {
     return ASTNode("NULL");
   } else if (t == "ls") {
     return ASTNode("LS");
+  } else if (t == "quit") {
+    return ASTNode("QUIT");
+  } else if (t == "help") {
+    return ASTNode("HELP");
+  }
+
+  else if (t == "wts") {
+    return ASTNode(Token("WTS"), {parse_expr()});
   }
 
   else if (t == "function" || t == "fn") {
@@ -351,30 +360,42 @@ ASTNode Parser::parse_statement() {
   }
 
   else if (t == "prove_forward") {
+    std::string name = "";
     if (ts.cur().text != ":") {
+      name = ts.cur().text;
       ts.next();
     }
     ts.expect({":"});
-    return ASTNode(Token("PROVE_FORWARD"), {parse_expr()});
+    return ASTNode(Token("PROVE_FORWARD"),
+                   {ASTNode(name), parse_expr()});
   } else if (t == "prove_backward") {
+    std::string name = "";
     if (ts.cur().text != ":") {
+      name = ts.cur().text;
       ts.next();
     }
     ts.expect({":"});
-    return ASTNode(Token("PROVE_BACKWARD"), {parse_expr()});
+    return ASTNode(Token("PROVE_BACKWARD"),
+                   {ASTNode(name), parse_expr()});
   } else if (t == "prove_smt") {
+    std::string name = "";
     if (ts.cur().text != ":") {
+      name = ts.cur().text;
       ts.next();
     }
     ts.expect({":"});
-    return ASTNode(Token("PROVE_SMT"), {parse_expr()});
+    return ASTNode(Token("PROVE_SMT"),
+                   {ASTNode(name), parse_expr()});
   } else if (t == "theorem" || t == "lemma" || t == "deduce" ||
              t == "prove" || t == "assert") {
+    std::string name = "";
     if (ts.cur().text != ":") {
+      name = ts.cur().text;
       ts.next();
     }
     ts.expect({":"});
-    return ASTNode(Token("THEOREM"), {parse_expr()});
+    return ASTNode(Token("THEOREM"),
+                   {ASTNode(name), parse_expr()});
   }
 
   else if (t == "apply") {
@@ -390,15 +411,24 @@ ASTNode Parser::parse_statement() {
         arguments.children.push_back(ts.cur_next());
       }
     }
-    return ASTNode(Token("APPLY"), {rule_name, arguments});
+    std::string result_name = "";
+    if (ts.cur().text == "as") {
+      ts.next();
+      result_name = ts.cur_next().text;
+    }
+    return ASTNode(Token("APPLY"), {rule_name, arguments,
+                                    ASTNode(result_name)});
   }
 
   else if (t == "axiom" || t == "assume") {
+    std::string name = "";
     if (ts.cur().text != ":") {
+      name = ts.cur().text;
       ts.next();
     }
     ts.expect({":"});
-    return ASTNode(Token("AXIOM"), {parse_expr()});
+    return ASTNode(Token("AXIOM"),
+                   {ASTNode(name), parse_expr()});
   } else if (t == "rule") {
     std::string name = "NULL";
     if (ts.cur().text != ":") {
