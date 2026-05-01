@@ -1,0 +1,7 @@
+// The deal with prove_smt is that all the satisfying
+// assignments must be provable. It is a very simple SMT solver.
+
+axiom: a;
+axiom: not b;
+
+prove_smt: a and (a or b) and not b;

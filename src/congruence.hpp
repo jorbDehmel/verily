@@ -8,7 +8,6 @@
 
 #include "parse.hpp"
 #include <map>
-#include <optional>
 
 /// Associates ints in an equivalence relation (efficiently).
 /// This is weighted union find with path compression.

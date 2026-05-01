@@ -17,6 +17,7 @@ You can do a few things.
   `rule`s
 3. Query whether we can deduce something to be true via
   `theorem`s
+4. Manually derive new truths from existing ones via `apply`
 
 **Everything is uninterpreted!** Though operators like `+`, `*`,
 etc are built-in and have the expected precedence,

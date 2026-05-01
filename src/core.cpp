@@ -1,4 +1,5 @@
 #include "core.hpp"
+#include "cdcl.hpp"
 #include "inference.hpp"
 #include <functional>
 #include <stdexcept>
@@ -464,6 +465,16 @@ void Core::process_statement(
     im.add_rule(ir);
   }
 
+  else if (_stmt.text == Token("NULL")) {
+    return;
+  }
+
+  else if (_stmt.text == Token("SCOPE")) {
+    for (const auto &stmt : _stmt.children) {
+      process_statement(stmt, _cur_path);
+    }
+  }
+
   // Thing to prove
   else if (_stmt.text == Token("PROVE_FORWARD")) {
     // (THEOREM name to_prove)
@@ -484,7 +495,137 @@ void Core::process_statement(
   }
 
   else if (_stmt.text == Token("PROVE_SMT")) {
-    throw std::runtime_error("'prove_smt' is unimplemented!");
+    // Takes in a single CNF formula, automatically deduces the
+    // leaves, and runs it through a naive SMT solver. This is
+    // a baby parser of its own.
+
+    const auto name = _stmt.children.at(0).text.text;
+    const auto to_prove = _stmt.children.at(1);
+
+    // Deconstruct CNF statement and handle symbols
+    CNF phi;
+    std::vector<ASTNode> atoms;
+    atoms.push_back(ASTNode("NULL"));
+
+    std::function<int(const ASTNode &)> process_atom =
+        [&](auto _t) {
+          if (_t.text.text == "not") {
+            return -process_atom(_t.children.front());
+          }
+
+          for (size_t i = 0; i < atoms.size(); ++i) {
+            if (atoms[i] == _t) {
+              return (int)i;
+            }
+          }
+
+          atoms.push_back(_t);
+          return (int)(atoms.size() - 1);
+        };
+
+    // 'or' clauses return nonempty sets, 'and' clauses return
+    // empty sets, atoms return single-element sets (but that's
+    // a special case of 'or', anyway).
+    std::function<std::set<int>(const ASTNode &)> process_node =
+        [&](auto _t) {
+          if (_t.text.text == "and") {
+            for (const auto &child : _t.children) {
+              const auto res = process_node(child);
+              if (!res.empty()) {
+                // Child was an 'or' clause
+                phi.clauses.push_back(res);
+              }
+            }
+            return std::set<int>{};
+          } else if (_t.text.text == "or") {
+            std::set<int> out;
+            for (const auto &child : _t.children) {
+              if (child.text.text == "and") {
+                // Special case: Recursion can't be trusted here
+                out.insert(process_atom(child));
+              } else {
+                const auto res = process_node(child);
+                for (const auto &element : res) {
+                  out.insert(element);
+                }
+              }
+            }
+            return out;
+          } else {
+            return std::set<int>{process_atom(_t)};
+          }
+        };
+
+    const auto res = process_node(to_prove);
+    if (!res.empty()) {
+      phi.clauses.push_back(res);
+    }
+
+    // Process, including basic theory checks
+    CDCL c(phi);
+    c.theory_check = [&](const std::set<int> &_solution)
+        -> std::optional<std::set<int>> {
+      // If the given solution is not provably true, return a
+      // (naive) conflict.
+
+      for (const auto &asserted_value : _solution) {
+        bool clause_error = false;
+        if (asserted_value > 0) {
+          // Positive assertion: Make sure it is provable
+          if (!im.prove(atoms.at(asserted_value), pass_limit)) {
+            clause_error = true;
+          }
+        } else {
+          // Negative assertion: Make sure it's negation is
+          // provable
+          if (!im.prove(
+                  ASTNode("not", {atoms.at(-asserted_value)}),
+                  pass_limit)) {
+            clause_error = true;
+          }
+        }
+        if (clause_error) {
+          return std::set<int>{-asserted_value};
+        }
+      }
+
+      return {};
+    };
+
+    const auto result = c.go();
+
+    if (result.has_value()) {
+      // The result has already passed the theory check, meaning
+      // every asserted clause is provable. Therefore, the
+      // result is tautologically true: Add it as a theorem.
+
+      ASTNode smt_proof("SMT");
+      for (const auto &thm : result.value()) {
+        if (thm < 0) {
+          smt_proof.children.push_back(im.theorem_to_proof(
+              ASTNode("not", {atoms.at(-thm)})));
+        } else {
+          smt_proof.children.push_back(
+              im.theorem_to_proof(atoms.at(thm)));
+        }
+      }
+
+      const int out_ind = im.add_axiom(to_prove);
+      im.special_proofs[out_ind] =
+          ASTNode("meta", {smt_proof, to_prove});
+
+      if (!name.empty()) {
+        im.name_theorem(to_prove, name);
+      }
+
+      proven_theorems.insert(out_ind);
+    } else {
+      if (!im.quiet) {
+        std::cout << "ERROR:   Failed to SMT prove "
+                  << _stmt.children.front() << "\n";
+      }
+      saw_error = true;
+    }
   }
 
   else if (_stmt.text == Token("PROVE_BACKWARD") ||

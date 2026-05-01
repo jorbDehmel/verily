@@ -110,7 +110,11 @@ public:
   /// SMT solver
   std::optional<std::set<int>> theory_clc = {};
 
-  /// A function interfacing with SMT solvers
+  /// A function interfacing with SMT solvers. Return a value
+  /// upon theory conflict, nothing upon theory non-conflict.
+  /// The value returned will be stored as the theory
+  /// conflict-learned-clause and will be naively used as a
+  /// blocking clause.
   std::function<std::optional<std::set<int>>(
       const std::set<int> &)>
       theory_check = [](auto) -> std::optional<std::set<int>> {

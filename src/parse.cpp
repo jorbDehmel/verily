@@ -339,6 +339,15 @@ ASTNode Parser::parse_statement() {
     return ASTNode("HELP");
   }
 
+  else if (t == "{") {
+    ASTNode out("SCOPE");
+    while (!ts.done() && ts.cur().text != "}") {
+      out.children.push_back(parse_statement());
+    }
+    ts.next();
+    return out;
+  }
+
   else if (t == "wts") {
     return ASTNode(Token("WTS"), {parse_expr()});
   }
