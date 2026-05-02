@@ -1,0 +1,99 @@
+option "meta_prove=false";
+
+rule list_nil:
+  over D
+  deduce List::D::Nil in List::D
+;
+
+rule list_cons:
+  over x, y, D
+  given x in D, y in List::D
+  deduce List::D::Cons(x, y) in List::D
+;
+
+rule list_match_nil:
+  over f, s
+  deduce match(List::D::Nil, f, s) == f
+;
+
+rule list_match_cons:
+  over data, next, f, s
+  deduce match(List::D::Cons(data, next), f, s) == s(data)(next)
+;
+
+rule eq_trans:
+  over A, B, C
+  given A == B, B == C
+  deduce A == C
+;
+
+fn len(l: List::D) {
+  match(l,
+    0,
+    lambda d. lambda n. S(len(n))
+  )
+}
+
+# Can't be proven on own as a theorem, needs some support
+wts len(List::D::Nil) == 0 {
+  theorem list_nil_d:
+    List::D::Nil in List::D
+  ;
+
+  apply len
+    to list_nil_d
+    as len_on_nil
+  ;
+
+  theorem len_intermediate_1:
+    len(List::D::Nil) == match(
+      List::D::Nil,
+      0,
+      lambda d. lambda n. S(len(d))
+    )
+  ;
+
+  theorem len_intermediate_2:
+    match(List::D::Nil, 0, lambda d. lambda n. S(len(d))) == 0
+  ;
+
+  # This is a forward-only rule
+  apply eq_trans
+    to len_intermediate_1, len_intermediate_2
+    as len_of_nil_is_0
+  ;
+}
+
+axiom: some_item in D;
+axiom: 1 == S(0);
+
+rule cong:
+  over M, x, y
+  given M
+  deduce M[x := y]
+;
+
+rule lambda_reduction:
+  over x, M, N
+  deduce (lambda x. M) N == M[x := N]
+;
+
+wts len(List::D::Cons(some_item, List::D::Nil)) == 1 {
+  # len(List::D::Cons(some_item, List::D::Nil)) == match(l, 0, ((lambda d. lambda n. S(len(n))) some_item) List::D::Nil)
+  # match(l, 0, ((lambda d. lambda n. S(len(n))) some_item) List::D::Nil) == match(l, 0, (lambda n. S(len(n))) List::D::Nil)
+
+  # len(List::D::Cons(some_item, List::D::Nil)) == match(l, 0, (lambda n. S(len(n))) List::D::Nil)
+  # match(l, 0, (lambda n. S(len(n))) List::D::Nil) == match(l, 0, S(len(List::D::Nil)))
+
+  # len(List::D::Cons(some_item, List::D::Nil)) == match(l, 0, S(len(List::D::Nil)))
+  # ???
+
+  # len(List::D::Cons(some_item, List::D::Nil)) == S(len(List::D::Nil))
+  # S(len(List::D::Nil)) == S(0)
+
+  # len(List::D::Cons(some_item, List::D::Nil)) == S(0)
+  # S(0) == 1
+
+  # len(List::D::Cons(some_item, List::D::Nil)) == 1
+  # QED
+}

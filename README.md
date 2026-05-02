@@ -23,6 +23,9 @@ You can do a few things.
 etc are built-in and have the expected precedence,
 **they don't do anything!** They are just ASTs!
 
+This is a string-rewriting-rule-based theorem prover, **not** a
+Curry-Howard-isomorphism-based one!
+
 ## This Repo
 
 This repo contains some examples, a verily CLI, some tests, and

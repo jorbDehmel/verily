@@ -296,8 +296,16 @@ void Core::latex(std::ostream &_strm) const {
     _strm << "\\textbf{Axioms:}\n\n";
 
     for (const auto &axiom : axioms) {
+      const auto t = im.get_theorem(axiom);
+      const auto proof = im.proof_to_ast(axiom);
+
+      _strm << "\\texttt{"
+            << sanitize_name(
+                   t.name.value_or(std::to_string(axiom)))
+            << "}:\n\n";
+
       _strm << "\\[\n";
-      print_ast_latex(im.proof_to_ast(axiom));
+      print_ast_latex(proof);
       _strm << "\n\\]\n\n";
     }
   }
@@ -306,8 +314,16 @@ void Core::latex(std::ostream &_strm) const {
     _strm << "\\textbf{Selected Theorems:}\n\n";
 
     for (const auto &theorem : proven_theorems) {
+      const auto t = im.get_theorem(theorem);
+      const auto proof = im.proof_to_ast(theorem);
+
+      _strm << "\\texttt{"
+            << sanitize_name(
+                   t.name.value_or(std::to_string(theorem)))
+            << "}:\n\n";
+
       _strm << "\\[\n";
-      print_ast_latex(im.proof_to_ast(theorem));
+      print_ast_latex(proof);
       _strm << "\n\\]\n\n";
     }
   }
@@ -637,8 +653,8 @@ void Core::process_statement(
     const auto res = im.prove(theorem, pass_limit);
     if (!res.has_value()) {
       if (!im.quiet) {
-        std::cout << "ERROR:   Failed to prove "
-                  << _stmt.children.front() << "\n";
+        std::cout << "ERROR:   Failed to prove " << theorem
+                  << "\n";
       }
       saw_error = true;
     } else {
@@ -687,9 +703,6 @@ void Core::process_statement(
 
     // Write the definition as a rule
 
-    // f(x: A) { body }
-    // rule definition_of_f: over x given x in A deduce f(x) ==
-    // body;
     std::vector<ASTNode> fvs;
     std::vector<ASTNode> reqs;
     std::vector<ASTNode> ens;
@@ -717,7 +730,7 @@ void Core::process_statement(
     InferenceMaker::InferenceRule r(
         fvs, reqs,
         ASTNode("==", {ASTNode("@", call_args), body}));
-    r.name = "definition_of_" + name.text.text;
+    r.name = name.text.text;
     im.add_rule(r);
 
     // VC check
@@ -880,8 +893,10 @@ void Core::process_statement(
         if (!result_name.empty()) {
           n = result_name;
         }
-        im.add_theorem(res, result_name, rule_index,
-                       premise_indices, trash);
+        const auto thm_add_res =
+            im.add_theorem(res, result_name, rule_index,
+                           premise_indices, trash);
+        proven_theorems.insert(thm_add_res.index);
       }
     }
   }
