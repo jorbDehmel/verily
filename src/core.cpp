@@ -119,12 +119,6 @@ void Core::latex(std::ostream &_strm) const {
       print_ast_latex(_what.children.at(1));
       _strm << " )";
     } else if (t == "REPLACE") {
-      /*
-      const auto A = children.at(0);
-      const auto x = children.at(1);
-      const auto B = children.at(2);
-      return A.replace(x, B).beta_star();
-      */
       print_ast_latex(_what.children.at(0));
       _strm << " [ ";
       print_ast_latex(_what.children.at(1));
@@ -463,10 +457,10 @@ void Core::process_statement(
         _stmt.children.at(2).children.front();
     const std::string name = _stmt.children.at(3).text.text;
 
-    std::vector<ASTNode> free_variables;
+    ASTSet free_variables;
     std::vector<ASTNode> requirements;
     for (const auto &child : over.children) {
-      free_variables.push_back(child);
+      free_variables.insert(child);
     }
     for (const auto &child : given.children) {
       requirements.push_back(child);
@@ -703,7 +697,7 @@ void Core::process_statement(
 
     // Write the definition as a rule
 
-    std::vector<ASTNode> fvs;
+    ASTSet fvs;
     std::vector<ASTNode> reqs;
     std::vector<ASTNode> ens;
     std::vector<ASTNode> call_args = {name};
@@ -712,7 +706,7 @@ void Core::process_statement(
       // {argname, domain}
       const ASTNode argname = arg.children.at(0);
       const ASTNode domain = arg.children.at(1);
-      fvs.push_back(argname);
+      fvs.insert(argname);
       call_args.push_back(argname);
 
       if (domain != "NULL") {

@@ -261,27 +261,10 @@ internal setting.
 file, executing each statement in that file before moving onto
 the next statement in the current file.
 
-`function NAME(untyped_arg, b: TypeOfB, c in TypeOfC) REQS_AND_ENS { EXPR }`
-is a shorthand statement which introduces a rule describing the
-given function (EG if all the requirements are met, then a call
-to the function is `==` to its definition). `REQS_AND_ENS` is
-any number of `requires EXPR` and/or `ensures EXPR` clauses.
-There is no punctuation terminating each expression in these
-clauses or in the body (EG no semicolons).
-
-`method NAME(ARGS) returns VAR REQS_AND_ENS { METHOD_STATEMENTS }`
-is an unimplemented statement. It will parse, but will not do
-anything else. Since it is unimplemented, we will not give the
-grammar of `METHOD_STATEMENTS` here (it's just a basic
-imperative sublanguage with `let`, `while`, `if`, etc).
-
 ### Synonymous keywords
 
 There are many synonymous keywords. Some of them are listed
 below.
-
-Synonymous with `function`:
-- `fn` (ease of use)
 
 Synonymous with `include`:
 - `import` (ease of use)
@@ -298,39 +281,6 @@ Synonymous with `theorem`:
 
 Synonymous with `axiom`:
 - `assume` (for compatibility)
-
-## Functions and Methods
-
-Functions are purely functional (possibly recursive), while
-methods are imperative. They are two syntaxes which can express
-equivalent computational tasks. Functions can be analyzed
-directly by the system, but methods must be analyzed via Hoare
-logic (currently unimplemented). Functions and methods can be
-annotated with the `requires` and `ensures` keywords, each of
-which can be followed by a single expression.
-
-```verily
-function fib_1(n: Nat) {
-  if_then_else(
-    n < 2,
-    n,
-    fib_1(n - 1) + fib_1(n - 2)
-  )
-}
-
-method fib_2(n: Nat) returns ret {
-  if n < 2 {
-    ret = n;
-  } else {
-    ret = fib_2(n - 1) + fib_2(n - 2);
-  }
-}
-```
-
-As of writing, methods are not implemented: They will parse, but
-they won't do anything else. Functions are supported, and their
-signatures and bodies will be declared equivalent (EG `==`) via
-an implicitly-defined rule.
 
 ## Manual Forward Deduction
 

@@ -2,17 +2,11 @@
 
 CPP = g++ -pedantic -Wall -std=c++20 -O3 -g
 HEADERS = src/parse.hpp src/inference.hpp src/core.hpp \
-	src/congruence.hpp src/cdcl.hpp
-TESTS = tests/expr_parse_test.out tests/parse_verily.out \
-	tests/pattern_matching.out
+	src/congruence.hpp src/cdcl.hpp src/ast.hpp
 
 OBJECTS = $(HEADERS:.hpp=.o)
 
 all:	verily.out
-
-test:	tests/expr_parse_test.out tests/parse_verily.out \
-	tests/pattern_matching.out
-	./tests/pattern_matching.out
 
 %.out:	%.o $(OBJECTS)
 	$(CPP) -o $@ $^

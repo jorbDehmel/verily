@@ -3,7 +3,6 @@
  */
 
 #include "inference.hpp"
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -43,11 +42,11 @@ InferenceMaker::proof_to_ast(const size_t &_thm_index) const {
 std::optional<InferenceMaker::InferenceRule>
 InferenceMaker::InferenceRule::remove_first_req(
     const ASTNode &_sub) const noexcept {
-  std::vector<ASTNode> new_fv = free_variables;
+  auto new_fv = free_variables;
   std::list<std::pair<ASTNode, ASTNode>> subs;
 
   // If not a valid replacement, return none
-  if (!is_of_form(_sub, requirements.front(), new_fv, subs)) {
+  if (!_sub.is_of_form(requirements.front(), new_fv, subs)) {
     return {};
   }
 
@@ -130,46 +129,6 @@ InferenceMaker::get_theorem(const std::string &_name) const {
                            _name);
 }
 
-bool InferenceMaker::is_of_form(
-    const ASTNode &_to_examine, const ASTNode &_form,
-    std::vector<ASTNode> &_free_variables,
-    std::list<std::pair<ASTNode, ASTNode>> &_substitutions) {
-  // Existing replacements
-  for (const auto &p : _substitutions) {
-    if (p.first == _form) {
-      return _to_examine == p.second;
-    }
-  }
-
-  // New replacement
-  if (std::find(_free_variables.cbegin(),
-                _free_variables.cend(),
-                _form) != _free_variables.cend()) {
-    _substitutions.push_back({_form, _to_examine});
-    std::erase_if(_free_variables,
-                  [&](const auto &_item) -> bool {
-                    return _item == _form;
-                  });
-    return true;
-  }
-
-  // Else, _form is not a free variable directly. Recurse like
-  // a funky equality
-  if (_to_examine.text != _form.text ||
-      _to_examine.children.size() != _form.children.size()) {
-    return false;
-  }
-  for (uint child = 0; child < _to_examine.children.size();
-       ++child) {
-    if (!is_of_form(_to_examine.children.at(child),
-                    _form.children.at(child), _free_variables,
-                    _substitutions)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 int InferenceMaker::has(const ASTNode &_what) const noexcept {
   for (int i = known.size() - 1; i >= 0; --i) {
     if (known.at(i).thm == _what) {
@@ -208,8 +167,8 @@ void InferenceMaker::add_rule(const InferenceRule &_rule) {
 }
 
 InferenceMaker::InferenceRule::InferenceRule(
-    const std::vector<ASTNode> &_fv,
-    const std::vector<ASTNode> &_req, const ASTNode &_cons)
+    const ASTSet &_fv, const std::vector<ASTNode> &_req,
+    const ASTNode &_cons)
     : free_variables(_fv), requirements(_req),
       consequence(_cons) {
   bool has_fvs_in_cons = true;
@@ -287,8 +246,8 @@ InferenceMaker::backward_prove(const ASTNode &_what,
     // If _what is of the form of the implication of the rule
     auto free_variables = rule.free_variables;
     std::list<std::pair<ASTNode, ASTNode>> substitutions;
-    if (is_of_form(_what, rule.consequence, free_variables,
-                   substitutions)) {
+    if (_what.is_of_form(rule.consequence, free_variables,
+                         substitutions)) {
       if (!free_variables.empty()) {
         if (debug) {
           std::cout << "Remaining FVs:";
@@ -426,16 +385,23 @@ void InferenceMaker::name_theorem(const ASTNode &_what,
 ASTNode InferenceMaker::InferenceRule::apply(
     const std::vector<InferenceMaker::Theorem> &_premises,
     const size_t &_fresh_num) const {
-  auto fv = free_variables;
+  ASTSet fv = free_variables;
   std::list<std::pair<ASTNode, ASTNode>> substitutions;
   for (size_t i = 0; i < _premises.size(); ++i) {
     const auto corresponding_requirement = requirements.at(i);
     const auto thm = _premises.at(i);
 
-    if (!is_of_form(
-            thm.thm,
+    if (!thm.thm.is_of_form(
             corresponding_requirement.replace(substitutions),
             fv, substitutions)) {
+      std::cerr << "Expected " << thm.thm << " to be of form "
+                << corresponding_requirement.replace(
+                       substitutions)
+                << " with free variables [";
+      for (const auto &fv : free_variables) {
+        std::cerr << ' ' << fv;
+      }
+      std::cerr << " ] (but failed pattern-match)\n";
       throw std::runtime_error("Malformed rule application");
     }
   }
@@ -491,8 +457,7 @@ void InferenceMaker::inst_all(
          rule.requirements) {
       const auto thm =
           get_theorem(_cur_indices.at(req_ind)).thm;
-      if (!is_of_form(
-              thm,
+      if (!thm.is_of_form(
               corresponding_requirement.replace(substitutions),
               fv, substitutions)) {
         return;
@@ -595,13 +560,30 @@ InferenceMaker::forward_prove(const ASTNode &_what,
   return {};
 }
 
+ASTNode beta_star(const ASTNode &_what) noexcept {
+  if (_what.text == "REPLACE") {
+    // Apply beta reduction a single time, then recurse
+    const auto A = _what.children.at(0);
+    const auto x = _what.children.at(1);
+    const auto B = _what.children.at(2);
+    return beta_star(A.replace(x, B));
+  } else {
+    // Apply beta star to all children and return
+    ASTNode out(_what.text);
+    for (const auto &child : _what.children) {
+      out.children.push_back(beta_star(child));
+    }
+    return out;
+  }
+}
+
 const InferenceMaker::Theorem InferenceMaker::add_theorem(
     const ASTNode &_thm,
     const std::optional<std::string> &_name,
     const size_t &_rule_index,
     const std::vector<size_t> &_premises,
     bool &_actually_added) {
-  const auto beta_reduced_thm = _thm.beta_star();
+  const auto beta_reduced_thm = beta_star(_thm);
   const auto res = has(beta_reduced_thm);
   if (res >= 0) {
     _actually_added = false;

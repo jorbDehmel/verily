@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../src/parse.hpp"
+#include "ast.hpp"
 #include "congruence.hpp"
 #include <cstdint>
 #include <map>
@@ -57,13 +57,13 @@ public:
     std::optional<std::string> name;
 
     /// Construct an inference rule
-    InferenceRule(const std::vector<ASTNode> &_fv,
+    InferenceRule(const ASTSet &_fv,
                   const std::vector<ASTNode> &_req,
                   const ASTNode &_cons);
 
     /// The free variables over both the requirements and the
     /// consequence
-    std::vector<ASTNode> free_variables;
+    ASTSet free_variables;
 
     /// The things which must be known theorems
     std::vector<ASTNode> requirements;
@@ -98,15 +98,6 @@ public:
   /// Given a theorem which has already been proven, return its
   /// proof as a new AST.
   ASTNode theorem_to_proof(const ASTNode &_theorem) const;
-
-  /// Returns true iff _to_examine is of the form _form
-  /// with
-  /// free variables _free_variables (whose substitutions
-  /// are logged in _substitutions).
-  static bool is_of_form(
-      const ASTNode &_to_examine, const ASTNode &_form,
-      std::vector<ASTNode> &_free_variables,
-      std::list<std::pair<ASTNode, ASTNode>> &_substitutions);
 
   /// Adds a new rule
   void add_rule(const InferenceRule &_rule);
@@ -234,8 +225,10 @@ public:
   CongruenceKeeper congruences;
 };
 
+/// Print a rule
 std::ostream &operator<<(std::ostream &,
                          const InferenceMaker::InferenceRule &);
 
+/// Print a theorem
 std::ostream &operator<<(std::ostream &,
                          const InferenceMaker::Theorem &);

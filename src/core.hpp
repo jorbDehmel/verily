@@ -1,6 +1,6 @@
 #pragma once
+
 #include "inference.hpp"
-#include "parse.hpp"
 #include <cstdint>
 #include <iostream>
 
