@@ -1,0 +1,52 @@
+# Hoare logic in verily
+# This is not even close to being useful
+
+# Notation for a Hoare triple:
+# hoare(pre, statement, post)
+
+rule empty_statement:
+  over P
+  deduce hoare(P, skip, P)
+;
+
+rule composition:
+  over P, S, Q, T, R
+  given hoare(P, S, Q), hoare(Q, T, R)
+  deduce hoare(P, (S, T), R)
+;
+
+rule conditional:
+  over B, P, S, Q, T
+  given hoare(
+    B and P,
+    S,
+    Q
+  ), hoare(
+    (not B) and P,
+    T,
+    Q
+  )
+  deduce hoare(
+    P,
+    ite(B, S, T),
+    Q
+  )
+;
+
+rule consequence:
+  over P1, P2, S, Q1, Q2
+  given P1 implies P2, hoare(P2, S, Q2), Q2 implies Q1
+  deduce hoare(P1, S, Q1)
+;
+
+rule partial_correctness_while:
+  over P, B, S, P
+  given hoare(P and B, S, P)
+  deduce hoare(P, while(B, S), (not B) and P)
+;
+
+theorem true_skip_true: hoare(true, skip, true);
+
+apply composition to true_skip_true, true_skip_true;
+
+theorem: hoare(true, (skip, skip), true);
