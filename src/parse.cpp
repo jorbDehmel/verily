@@ -281,6 +281,8 @@ ASTNode Parser::parse_statement() {
     return ASTNode(
         Token("RULE"),
         {over_block, given_block, deduce_block, ASTNode(name)});
+  } else if (t == "method") {
+    return parse_method();
   } else {
     throw std::runtime_error(
         "At " + tok.file.string() + ":" +
@@ -325,7 +327,7 @@ const static std::set<std::string> keywords =
     order_of_operations;
 
 const static std::set<std::string> expression_terminators = {
-    ",",      ";", "requires", "ensures", "given",
+    ",",      ";", "requires", "ensures", "given", "returns",
     "deduce", "{", "}",        "=",       "]"};
 
 ASTNode Parser::parse_expr() {
@@ -610,4 +612,60 @@ ASTNode Parser::parse_expr_from_list(
         std::to_string(output_items.size()));
   }
   return *output_items.begin();
+}
+
+ASTNode Parser::parse_method() {
+  const auto name = ts.cur_next();
+  ts.expect({"("});
+  ASTNode args("_");
+  while (ts.cur() != ")") {
+    args.children.push_back(ts.cur_next());
+    while (ts.cur() == ",") {
+      ts.next();
+    }
+  }
+  ts.expect({")"});
+
+  ts.expect({"requires"});
+  const auto requirement = parse_expr();
+  ts.expect({"ensures"});
+  const auto ensurement = parse_expr();
+  ts.expect({"returns"});
+  const auto return_val = ts.cur_next();
+
+  const auto body = parse_method_statement();
+
+  return ASTNode("METHOD", {name, args, requirement, ensurement,
+                            return_val, body});
+}
+
+ASTNode Parser::parse_method_statement() {
+  const auto t = ts.cur_next();
+  if (t == "{") {
+    ASTNode out("_");
+    while (ts.cur() != "}") {
+      out.children.push_back(parse_method_statement());
+    }
+    ts.expect({"}"});
+    return out;
+  } else if (t == "if") {
+    ASTNode out("ITE");
+    out.children.push_back(parse_expr());
+    out.children.push_back(parse_method_statement());
+    ts.expect({"else"});
+    out.children.push_back(parse_method_statement());
+    return out;
+  } else if (t == "while") {
+    ASTNode out("WHILE");
+    out.children.push_back(parse_expr());
+    out.children.push_back(parse_method_statement());
+    return out;
+  } else if (t == ";") {
+    return ASTNode("_");
+  } else {
+    ASTNode out("SET", {t});
+    ts.expect({"="});
+    out.children.push_back(parse_expr());
+    return out;
+  }
 }

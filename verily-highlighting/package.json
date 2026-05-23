@@ -2,7 +2,12 @@
   "name": "verily-language",
   "displayName": "Verily Syntax Highlighting",
   "description": "VSCode language support for Verily",
-  "version": "0.0.8",
+  "version": "0.0.10",
+  "repository": {
+    "type": "git",
+    "directory": "verily-highlighting",
+    "url": "https://github.com/jorbDehmel/verily"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },

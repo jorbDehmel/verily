@@ -11,7 +11,8 @@
 #include <map>
 
 /// Manages grammars, but only LR(1) recursive-descent ones. No
-/// shift-reduce allowed!
+/// shift-reduce allowed, and grammars must be disambiguated by
+/// their first literal tokens.
 class GrammarController {
 public:
   ASTNode parse(TokenStream &_ts,
@@ -92,6 +93,12 @@ int main() {
                       ASTNode("LITERAL", {ASTNode("and")}),
                       ASTNode("GRAMMAR", {ASTNode("FORMULA")}),
                       ASTNode("GRAMMAR", {ASTNode("FORMULA")}),
+                  }),
+          ASTNode("_",
+                  {
+                      ASTNode("LITERAL", {ASTNode("[")}),
+                      ASTNode("GRAMMAR", {ASTNode("FORMULA")}),
+                      ASTNode("LITERAL", {ASTNode("]")}),
                   }),
           ASTNode("_", {ASTNode("TOKEN")}),
       });

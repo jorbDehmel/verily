@@ -8,7 +8,16 @@ Jordan Dehmel, 2025-2026
 **This is not necessarily decidable!** If you choose your rules
 wisely, it might be, but it almost certainly will not be if you
 aren't smart about it. A poor choice of rules can make proving
-"2 is a natural number" take seconds. Tread with care!
+"2 is a natural number" take seconds, or not verify at all!
+Tread with care!
+
+Verily is a theorem prover based on AST-rewriting-rules.
+It is *not* based on the Curry-Howard isomorphism. An axiom is a
+syntax tree which is taken to be a theorem without proof, and a
+theorem is a syntax tree which is derived from known theorems
+via known rules. A tree is said to be proven if it is a theorem.
+Verily finds theorems given axioms and rules, and also allows
+you to apply rules yourself.
 
 You can do a few things.
 
@@ -51,32 +60,33 @@ syntax-highlighting any open files with the extension `.verily`.
 Given the file:
 
 ```verily
-rule typed_instantiation:
-  over Domain, consequent, x, y
-  given
-    forall x in Domain. consequent,
-    y in Domain
-  deduce consequent[x = y]
+# I am a comment
+// I am also a comment
+-- I, too, am a comment
+
+axiom zero_in_nat: 0 in Nat;
+axiom successor_fn: S in Nat to Nat;
+
+rule fn_app_typing:
+  over f, x, A, B
+  given f in A to B, x in A
+  deduce f(x) in B
 ;
 
-rule modus_ponens:
-  over p, q
-  given p, p implies q
-  deduce q
-;
+# These two applications manually prove the theorem
+# apply fn_app_typing
+#   to successor_fn,
+#   zero_in_nat
+#   as one_in_nat
+# ;
+# apply fn_app_typing
+#   to successor_fn,
+#   one_in_nat
+#   as two_in_nat
+# ;
 
-axiom: 0 in Nat;
-axiom: forall n. n in Nat implies S(n) in Nat;
-
-// We could use untyped instantiation, but it would be much less
-// efficient
-axiom: even(0);
-axiom: forall n. n in Nat implies
-  (even(n) implies not even(S(n)));
-axiom: forall n. n in Nat implies
-  (not even(n) implies even(S(n)));
-
-theorem: even(S(S(0)));
+# Automatically prove theorem
+prove_forward: S(S(0)) in Nat;
 ```
 
 We could run the theorem prover:
@@ -88,30 +98,33 @@ We could run the theorem prover:
 And receive a proof:
 
 ```
-(theorem (e (S (S 0))) (rule_application (rule (over p q) (given
-p (implies p q)) q) (premises (theorem (not (e (S 0)))
-(rule_application (rule (over p q) (given p (implies p q)) q)
-(premises (axiom (e 0)) (theorem (implies (e 0) (not (e (S 0))))
-(rule_application (rule (over Domain consequent x y) (given
-(forall x (implies (in x Domain) consequent)) (in y Domain))
-(REPLACE consequent x y)) (premises (axiom (forall n (implies
-(in n Nat) (implies (e n) (not (e (S n))))))) (axiom (in 0 Nat))
-)))))) (theorem (implies (not (e (S 0))) (e (S (S 0))))
-(rule_application (rule (over Domain consequent x y) (given
-(forall x (implies (in x Domain) consequent)) (in y Domain))
-(REPLACE consequent x y)) (premises (axiom (forall n (implies
-(in n Nat) (implies (not (e n)) (e (S n)))))) (theorem (in (S 0)
-Nat) (rule_application (rule (over Domain consequent x y) (given
-(forall x (implies (in x Domain) consequent)) (in y Domain))
-(REPLACE consequent x y)) (premises (axiom (forall n (implies
-(in n Nat) (in (S n) Nat)))) (axiom (in 0 Nat)))))))))))
+(theorem
+  (in (@ S (@ S 0)) Nat)
+  (rule_application
+    (rule fn_app_typing)
+    (premises
+      (axiom (in S (to Nat Nat)))
+      (theorem
+        (in (@ S 0) Nat)
+        (rule_application
+          (rule fn_app_typing)
+          (premises
+            (axiom (in S (to Nat Nat)))
+            (axiom (in 0 Nat))
+          )
+        )
+      )
+    )
+  )
+)
 ```
 
 This proof shows the series of rule applications by which you
 can derive the theorem from axioms. If no proof can be found,
-it will report an error (this does *not* mean that the
-to-be-theorem is false, nor does it mean that it is unprovable
-within the system).
+it will report an error. Be careful: Just because a statement
+does not follow from your rules does not mean it is false! And
+just because verily fails to find entailment does not mean that
+a derivation doesn't exist!
 
 ## Operators and Quantifiers
 

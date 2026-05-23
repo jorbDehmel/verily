@@ -1,5 +1,6 @@
 #include "core.hpp"
 #include "cdcl.hpp"
+#include "hoare.hpp"
 #include "inference.hpp"
 #include <functional>
 #include <stdexcept>
@@ -684,56 +685,6 @@ void Core::process_statement(
     do_file(path);
   }
 
-  // Functions
-  else if (_stmt.text == Token("FUNCTION")) {
-    /*
-    const auto out = ASTNode(Token("FUNCTION"),
-                          {name, args, reqs_and_ens, body});
-    */
-    const ASTNode name = _stmt.children.at(0);
-    const ASTNode args = _stmt.children.at(1);
-    const ASTNode reqs_and_ens = _stmt.children.at(2);
-    const ASTNode body = _stmt.children.at(3);
-
-    // Write the definition as a rule
-
-    ASTSet fvs;
-    std::vector<ASTNode> reqs;
-    std::vector<ASTNode> ens;
-    std::vector<ASTNode> call_args = {name};
-
-    for (const auto &arg : args.children) {
-      // {argname, domain}
-      const ASTNode argname = arg.children.at(0);
-      const ASTNode domain = arg.children.at(1);
-      fvs.insert(argname);
-      call_args.push_back(argname);
-
-      if (domain != "NULL") {
-        reqs.push_back(ASTNode("in", {argname, domain}));
-      }
-    }
-    for (const auto &req_or_ens : reqs_and_ens.children) {
-      if (req_or_ens.text == "requires") {
-        reqs.push_back(req_or_ens.children.at(0));
-      } else {
-        ens.push_back(req_or_ens.children.at(0));
-      }
-    }
-
-    InferenceMaker::InferenceRule r(
-        fvs, reqs,
-        ASTNode("==", {ASTNode("@", call_args), body}));
-    r.name = name.text.text;
-    im.add_rule(r);
-
-    // VC check
-    if (!ens.empty() && !im.quiet) {
-      std::cout
-          << "Function keyword 'ensures' is unimplemented!\n";
-    }
-  }
-
   else if (_stmt.text == Token("SETTING")) {
     const std::string t = _stmt.children.front().text.text;
 
@@ -804,6 +755,48 @@ void Core::process_statement(
 
   else if (_stmt.text == "WTS") {
     im.pending.push_back(_stmt.children.at(0));
+  }
+
+  else if (_stmt.text == "METHOD") {
+    // method fn(...) requires FML ensures FML returns TOK {
+    //   ...
+    // }
+
+    // (METHOD name args requirements ensurements return body)
+    if (_stmt.children.size() != 6) {
+      throw std::runtime_error("Malformed 'METHOD' AST");
+    }
+    const auto name = _stmt.children.at(0);
+    // const auto args = _stmt.children.at(1);
+    const auto requirement = _stmt.children.at(2);
+    const auto ensurement = _stmt.children.at(3);
+    // const auto return_value = _stmt.children.at(4);
+    const auto body = _stmt.children.at(5);
+
+    const auto postcondition =
+        get_postcondition(requirement, body);
+
+    if (debug) {
+      std::cout << "On Hoare-method statement " << _stmt
+                << '\n';
+      std::cout << "For correctness of " << name
+                << ", must prove that " << postcondition
+                << " |- " << ensurement << "\n";
+    }
+
+    im.push();
+    im.add_axiom(postcondition);
+    const auto res = im.prove(ensurement, pass_limit);
+    im.pop();
+
+    if (!res.has_value()) {
+      if (!im.quiet) {
+        std::cout
+            << "ERROR:   Failed to prove Hoare correctness of "
+            << name << "\n";
+      }
+      saw_error = true;
+    }
   }
 
   else if (_stmt.text == "APPLY") {

@@ -1,0 +1,12 @@
+# Tests the basic Hoare logic that verily has built-in
+
+axiom: true;
+rule: over phi given false deduce phi;
+rule: over phi given phi, not phi deduce false;
+
+method foo() requires true ensures true returns x {
+  x = 5;
+  while x < 10 {
+    x = x + 1;
+  }
+}

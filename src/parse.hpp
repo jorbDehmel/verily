@@ -41,4 +41,10 @@ public:
   /// Parse an expression from a list
   ASTNode
   parse_expr_from_list(const std::list<ASTNode> &input_items);
+
+  /// Parses a Hoare method
+  ASTNode parse_method();
+
+  /// Parses a statement within a Hoare method
+  ASTNode parse_method_statement();
 };
