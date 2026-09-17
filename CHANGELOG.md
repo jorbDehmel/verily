@@ -7,3 +7,4 @@
  0.0.8   | 4/26/2026  | Added 'apply', 'wts', reworked pending
  0.0.9   | 4/30/2026  | Implemented 'prove_smt'
  0.0.10  | 5/23/2026  | Added 'method' and Hoare logic
+ 0.0.11  | 9/17/2026  | Improved docs, bug fixes

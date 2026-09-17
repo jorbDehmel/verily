@@ -4,9 +4,6 @@
 
 #include "ast.hpp"
 
-void fancy_print(std::ostream &_strm, const ASTNode &_node,
-                 const uint &_depth = 0);
-
 /// Given some text from some file, lex it
 TokenStream lex_text(const std::string &text,
                      const std::filesystem::path &fp);

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "parse.hpp"
+#include "ast.hpp"
 #include <map>
 
 /// Associates ints in an equivalence relation (efficiently).
@@ -43,7 +43,7 @@ public:
 class CongruenceKeeper {
 protected:
   /// Maps a node to its ID
-  std::list<std::pair<ASTNode, int>> key_to_id;
+  std::map<ASTNode, int> key_to_id;
 
   /// Used to relate IDs of nodes
   UnionFind uf;

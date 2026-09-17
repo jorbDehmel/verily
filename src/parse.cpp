@@ -101,26 +101,6 @@ TokenStream lex_file(const std::filesystem::path &fp) {
   return lex_text(text, fp);
 }
 
-void fancy_print(std::ostream &_strm, const ASTNode &_node,
-                 const uint &_depth) {
-  if (_node.children.empty()) {
-    _strm << _node.text.text;
-  } else {
-    _strm << "(" << _node.text.text << "\n\n";
-    for (const auto &child : _node.children) {
-      for (uint i = 0; i < _depth + 1; ++i) {
-        _strm << ". ";
-      }
-      fancy_print(_strm, child, _depth + 1);
-      _strm << "\n\n";
-    }
-    for (uint i = 0; i < _depth; ++i) {
-      _strm << ". ";
-    }
-    _strm << ")";
-  }
-}
-
 Parser::Parser(const TokenStream &_ts) : ts(_ts) {
   for (uint pos = 0; pos < ts.data.size(); ++pos) {
     const std::string t = ts.data.at(pos).text;

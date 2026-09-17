@@ -71,27 +71,20 @@ void CongruenceKeeper::reset() {
 }
 
 size_t CongruenceKeeper::get_id(const ASTNode &_what) noexcept {
-  for (const auto &p : key_to_id) {
-    if (p.first == _what) {
-      return p.second;
-    }
+  if (key_to_id.contains(_what)) {
+    return key_to_id.at(_what);
   }
-  key_to_id.push_back({_what, key_to_id.size()});
+  key_to_id[_what] = key_to_id.size();
   return key_to_id.size() - 1;
 }
 
 void CongruenceKeeper::relate(const ASTNode &_a,
                               const ASTNode &_b) {
-  // std::cout << "Adding (" << _a << ") equiv (" << _b <<
-  // ")\n";
   uf.relate(get_id(_a), get_id(_b));
 }
 
 bool CongruenceKeeper::are_related(const ASTNode &_a,
                                    const ASTNode &_b) {
-  // std::cout << "Checking if (" << _a << ") equiv (" << _b
-  //           << ")\n";
-
   const int a_id = get_id(_a);
   const int b_id = get_id(_b);
 

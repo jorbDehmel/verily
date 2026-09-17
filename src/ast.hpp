@@ -1,6 +1,7 @@
 /**
  * @brief Abstract syntax trees, tokens, and token streams. This
- * is MIT-licensed copyware. Jordan Dehmel, 2026.
+ * is MIT-licensed copyware. No attribution or citation needed.
+ * Jordan Dehmel, 2026.
  */
 
 #pragma once
@@ -89,11 +90,10 @@ public:
     return out;
   }
 
-  /// Assert that the current token is in 'what' and advance
-  void expect(std::set<std::string> what);
+  /// Assert that the current token is in 'what' and advance.
+  /// Returns which of the expected tokens was matched.
+  Token expect(std::set<std::string> what);
 };
-
-class ASTSet;
 
 /// A single node in an Abstract Syntax Tree (AST)
 struct ASTNode {
@@ -104,7 +104,7 @@ struct ASTNode {
   std::vector<ASTNode> children;
 
   /// Construct with some text and children
-  ASTNode(const Token &_text = "",
+  ASTNode(const Token &_text = Token(),
           const std::vector<ASTNode> &_children = {})
       : text(_text), children(_children) {
     if (text.file == "N/A") {
@@ -119,6 +119,26 @@ struct ASTNode {
     }
   }
 
+  /// Text has higher precedence than number of children which
+  /// has higher precedence than any child. The i-th child has
+  /// precedence over the (i + 1)-th.
+  bool operator<(const ASTNode &_other) const noexcept {
+    if (text.text < _other.text.text) {
+      return true;
+    } else if (children.size() < _other.children.size()) {
+      return true;
+    } else if (children.size() > _other.children.size()) {
+      return false;
+    }
+    for (size_t i = 0; i < children.size(); ++i) {
+      if (children.at(i) < _other.children.at(i)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Return a deep copy of this node
   ASTNode copy() const noexcept {
     ASTNode out;
     out.text = text;
@@ -162,11 +182,26 @@ struct ASTNode {
     return out;
   }
 
+  /// Passthrough to children.empty
+  inline bool empty() const noexcept {
+    return children.empty();
+  }
+
+  /// Passthrough to children.size
+  inline size_t size() const noexcept {
+    return children.size();
+  }
+
+  /// Passthrough to children.at
+  inline ASTNode at(const size_t &_i) const {
+    return children.at(_i);
+  }
+
   /// Returns true iff _to_examine is of the form _form with
-  /// free
-  /// variables _free_variables (whose substitutions are logged
-  /// in _substitutions).
-  bool is_of_form(const ASTNode &_form, ASTSet &_free_variables,
+  /// free variables _free_variables (whose substitutions are
+  /// logged in _substitutions).
+  bool is_of_form(const ASTNode &_form,
+                  std::set<ASTNode> &_free_variables,
                   std::list<std::pair<ASTNode, ASTNode>>
                       &_substitutions) const;
 };
@@ -174,56 +209,3 @@ struct ASTNode {
 /// Prints an AST node as an S-expression
 std::ostream &operator<<(std::ostream &_strm,
                          const ASTNode &_node);
-
-/// A (naive, linear search) set of AST nodes
-class ASTSet {
-public:
-  /// O(n)
-  inline void insert(const ASTNode &_what) noexcept {
-    if (!contains(_what)) {
-      data.push_back(_what);
-    }
-  }
-
-  /// O(n)
-  inline bool contains(const ASTNode &_what) const noexcept {
-    for (const auto &element : data) {
-      if (element == _what) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// O(n)
-  inline void erase(const ASTNode &_what) noexcept {
-    std::erase_if(data, [&](auto cur) -> bool {
-      return cur == _what;
-    });
-  }
-
-  /// O(1)
-  inline std::list<ASTNode>::const_iterator
-  begin() const noexcept {
-    return data.cbegin();
-  }
-
-  /// O(1)
-  inline std::list<ASTNode>::const_iterator
-  end() const noexcept {
-    return data.cend();
-  }
-
-  /// O(1)
-  inline bool empty() const noexcept {
-    return data.empty();
-  }
-
-  /// O(n)
-  inline void clear() noexcept {
-    data.clear();
-  }
-
-protected:
-  std::list<ASTNode> data;
-};

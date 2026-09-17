@@ -2,6 +2,7 @@
 #include "cdcl.hpp"
 #include "hoare.hpp"
 #include "inference.hpp"
+#include "parse.hpp"
 #include <functional>
 #include <stdexcept>
 
@@ -18,9 +19,10 @@ std::string Core::sanitize_name(const std::string &_s) {
 
 /// Prints the rules, axioms, and selected theorems in latex
 /// 'inferrule' notation
-void Core::latex(std::ostream &_strm) const {
+void Core::latex(std::ostream &_strm,
+                 const std::string &_mode) const {
   // Print an AST in latex notation (EG 'and' -> '\land')
-  const std::function<void(const ASTNode &)> print_ast_latex =
+  std::function<void(const ASTNode &)> print_ast_latex =
       [&](const ASTNode &_what) -> void {
     const auto t = _what.text;
 
@@ -231,8 +233,51 @@ void Core::latex(std::ostream &_strm) const {
     }
   };
 
+  std::function<void(const InferenceMaker::Theorem &)>
+      print_fitch_notation_latex =
+          [&](const InferenceMaker::Theorem &_t) -> void {
+    // \have [i] {i} {formula here} \by{Name}{1}
+    const auto name = sanitize_name(
+        _t.name.value_or(std::to_string(_t.index)));
+    const auto fml = _t.thm;
+    const auto rule_index = _t.rule_index;
+    const auto premises = _t.premises;
+
+    // Note: I can't get the custom line numbers to work.
+    if (rule_index < 0) {
+      _strm << "\\have {} {";
+      print_ast_latex(fml);
+      _strm << "} \\by{Axiom}{}\n";
+    } else {
+      const auto rule = im.get_rule(rule_index);
+      const auto rule_name = sanitize_name(
+          rule.name.value_or(std::to_string(rule_index)));
+
+      _strm << "\\have {} {";
+      print_ast_latex(fml);
+      _strm << "} \\by{\\texttt{" << rule_name << "(";
+
+      bool first = true;
+      for (const size_t &premise_index : premises) {
+        if (first) {
+          first = false;
+        } else {
+          _strm << ", ";
+        }
+        const auto premise = im.get_theorem(premise_index);
+        const auto premise_name =
+            sanitize_name(premise.name.value_or(
+                std::to_string(premise_index)));
+        _strm << premise_name;
+      }
+
+      _strm << ")}}{}\n";
+    }
+  };
+
   _strm << "\\documentclass{article}\n"
            "\\usepackage{amsmath}\n"
+           "\\usepackage{fitch}\n"
            "\\usepackage{amssymb}\n"
            "\\usepackage{mathpartir}\n"
            "\\begin{document}\n\n";
@@ -287,6 +332,13 @@ void Core::latex(std::ostream &_strm) const {
     }
   }
 
+  std::list<size_t> axioms;
+  for (const auto &thm : im.known) {
+    if (thm.rule_index < 0) {
+      axioms.push_back(thm.index);
+    }
+  }
+
   if (!axioms.empty()) {
     _strm << "\\textbf{Axioms:}\n\n";
 
@@ -299,9 +351,22 @@ void Core::latex(std::ostream &_strm) const {
                    t.name.value_or(std::to_string(axiom)))
             << "}:\n\n";
 
-      _strm << "\\[\n";
-      print_ast_latex(proof);
-      _strm << "\n\\]\n\n";
+      if (_mode == "list") {
+        // Print in Fitch notation
+        _strm << "\\[\n\\begin{nd}\n";
+        print_fitch_notation_latex(t);
+        _strm << "\\end{nd}\n\\]\n\n";
+      } else {
+        // Print in natural deduction notation
+        if (_mode != "tree") {
+          std::cerr << "Unknown latex mode '" << _mode
+                    << "', defaulting to 'tree'.\n";
+        }
+
+        _strm << "\\[\n";
+        print_ast_latex(proof);
+        _strm << "\n\\]\n\n";
+      }
     }
   }
 
@@ -317,9 +382,22 @@ void Core::latex(std::ostream &_strm) const {
                    t.name.value_or(std::to_string(theorem)))
             << "}:\n\n";
 
-      _strm << "\\[\n";
-      print_ast_latex(proof);
-      _strm << "\n\\]\n\n";
+      if (_mode == "list") {
+        // Print in Fitch notation
+        _strm << "\\[\n\\begin{nd}\n";
+        print_fitch_notation_latex(t);
+        _strm << "\\end{nd}\n\\]\n\n";
+      } else {
+        // Print in natural deduction notation
+        if (_mode != "tree") {
+          std::cerr << "Unknown latex mode '" << _mode
+                    << "', defaulting to 'tree'.\n";
+        }
+
+        _strm << "\\[\n";
+        print_ast_latex(proof);
+        _strm << "\n\\]\n\n";
+      }
     }
   }
 
@@ -411,6 +489,14 @@ void Core::json(std::ostream &_strm) const {
            "  ],\n"
            "  \"axioms\": [\n"
            "    ";
+
+  std::list<size_t> axioms;
+  for (const auto &thm : im.known) {
+    if (thm.rule_index < 0) {
+      axioms.push_back(thm.index);
+    }
+  }
+
   bool first = true;
   for (const auto &axiom : axioms) {
     if (first) {
@@ -458,7 +544,7 @@ void Core::process_statement(
         _stmt.children.at(2).children.front();
     const std::string name = _stmt.children.at(3).text.text;
 
-    ASTSet free_variables;
+    std::set<ASTNode> free_variables;
     std::vector<ASTNode> requirements;
     for (const auto &child : over.children) {
       free_variables.insert(child);
@@ -669,11 +755,10 @@ void Core::process_statement(
     // (AXIOM name a)
     const auto name = _stmt.children.at(0).text.text;
     const auto thm = _stmt.children.at(1);
-    const size_t index = im.add_axiom(thm);
+    im.add_axiom(thm);
     if (!name.empty()) {
       im.name_theorem(thm, name);
     }
-    axioms.insert(index);
   }
 
   // Inclusion
@@ -687,70 +772,7 @@ void Core::process_statement(
 
   else if (_stmt.text == Token("SETTING")) {
     const std::string t = _stmt.children.front().text.text;
-
-    if (t == "debug") {
-      debug = !debug;
-      im.debug = debug;
-    } else if (t == "latex") {
-      print_latex = !print_latex;
-    } else if (t == "json") {
-      print_json = !print_json;
-    } else if (t == "alternate") {
-      im.enable_alternation = !im.enable_alternation;
-    } else if (t == "meta_prove") {
-      im.meta_proving = !im.meta_proving;
-    } else if (t == "time") {
-      time = !time;
-    } else if (t == "quiet") {
-      im.quiet = !im.quiet;
-    }
-
-    else if (t == "debug=true") {
-      debug = true;
-      im.debug = debug;
-    } else if (t == "debug=false") {
-      debug = false;
-      im.debug = debug;
-    } else if (t == "latex=true") {
-      print_latex = true;
-    } else if (t == "latex=false") {
-      print_latex = false;
-    } else if (t == "json=true") {
-      print_json = true;
-    } else if (t == "json=false") {
-      print_json = false;
-    } else if (t == "alternate=true") {
-      im.enable_alternation = true;
-    } else if (t == "alternate=false") {
-      im.enable_alternation = false;
-    } else if (t == "meta_prove=true") {
-      im.meta_proving = true;
-    } else if (t == "meta_prove=false") {
-      im.meta_proving = false;
-    } else if (t == "time=true") {
-      time = true;
-    } else if (t == "time=false") {
-      time = false;
-    } else if (t == "time=quiet") {
-      im.quiet = true;
-    } else if (t == "time=quiet") {
-      im.quiet = false;
-    }
-
-    else if (t.starts_with("pass_limit=")) {
-      const size_t l = std::stoull(t.substr(11));
-      pass_limit = l;
-    } else if (t.starts_with("max_tree_height=")) {
-      const size_t l = std::stoull(t.substr(16));
-      im.max_tree_height = l;
-    } else if (t.starts_with("max_theorems=")) {
-      const size_t l = std::stoull(t.substr(13));
-      im.theorem_limit = l;
-    }
-
-    else if (!im.quiet) {
-      std::cout << "WARNING: Unknown setting " << t << "\n";
-    }
+    handle_setting(*this, t);
   }
 
   else if (_stmt.text == "WTS") {
@@ -832,8 +854,11 @@ void Core::process_statement(
       if (thm_list.children.empty()) {
         if (!result_name.empty()) {
           throw std::runtime_error(
-              "'apply ... as ...' (without 'to' clause) makes "
-              "no sense");
+              "'apply X;' without 'to' clause applies a "
+              "rule as much as possible, which could "
+              "result in multiple theorems. Thus, an 'as' "
+              "clause is not allowed. Did you mean 'lemma " +
+              result_name + ": ...;'?");
         }
 
         const auto before = im.known.size();

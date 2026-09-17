@@ -5,7 +5,7 @@
 
 #include "ast.hpp"
 
-void TokenStream::expect(std::set<std::string> what) {
+Token TokenStream::expect(std::set<std::string> what) {
   const auto cur_tok = cur();
   if (!what.contains(cur_tok.text)) {
     std::stringstream what_ss;
@@ -28,17 +28,16 @@ void TokenStream::expect(std::set<std::string> what) {
         std::to_string(cur_tok.col));
   }
   next();
+  return cur_tok;
 }
 
 bool ASTNode::operator==(const ASTNode &_other) const noexcept {
-  if (text != _other.text) {
-    return false;
-  }
-  if (children.size() != _other.children.size()) {
+  if (text != _other.text ||
+      children.size() != _other.children.size()) {
     return false;
   }
   for (uint i = 0; i < children.size(); ++i) {
-    if (!children[i].operator==(_other.children[i])) {
+    if (children[i] != _other.children[i]) {
       return false;
     }
   }
@@ -46,7 +45,7 @@ bool ASTNode::operator==(const ASTNode &_other) const noexcept {
 }
 
 bool ASTNode::contains(const ASTNode &_what) const noexcept {
-  if (operator==(_what)) {
+  if (*this == _what) {
     return true;
   }
   for (const auto &child : children) {
@@ -73,27 +72,25 @@ bool ASTNode::contains(
 ASTNode
 ASTNode::replace(const ASTNode &_to_replace,
                  const ASTNode &_replace_with) const noexcept {
-  if (operator==(_to_replace)) {
+  if (*this == _to_replace) {
     return _replace_with;
-  } else {
-    ASTNode out(text);
-    for (const auto &child : children) {
-      out.children.push_back(
-          child.replace(_to_replace, _replace_with));
-    }
-    return out;
   }
+  ASTNode out(text);
+  for (const auto &child : children) {
+    out.children.push_back(
+        child.replace(_to_replace, _replace_with));
+  }
+  return out;
 }
 
 ASTNode ASTNode::replace(
     const std::list<std::pair<ASTNode, ASTNode>> &_replacements)
     const noexcept {
   for (const auto &p : _replacements) {
-    if (operator==(p.first)) {
+    if (*this == p.first) {
       return p.second;
     }
   }
-
   ASTNode out(text);
   for (const auto &child : children) {
     out.children.push_back(child.replace(_replacements));
@@ -116,21 +113,19 @@ std::ostream &operator<<(std::ostream &_strm,
 }
 
 bool ASTNode::is_of_form(const ASTNode &_form,
-                         ASTSet &_free_variables,
+                         std::set<ASTNode> &_free_variables,
                          std::list<std::pair<ASTNode, ASTNode>>
                              &_substitutions) const {
   for (const auto &p : _substitutions) {
     if (p.first == _form) {
-      return operator==(p.second);
+      return *this == p.second;
     }
   }
-
   if (_free_variables.contains(_form)) {
     _substitutions.push_back({_form, copy()});
     _free_variables.erase(_form);
     return true;
   }
-
   if (text != _form.text ||
       children.size() != _form.children.size()) {
     return false;

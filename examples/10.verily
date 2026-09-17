@@ -1,0 +1,38 @@
+rule 0_is_even:
+  deduce is_even(0)
+;
+
+rule is_even_ind:
+  over n
+  given is_even(n)
+  deduce is_even(succ(succ(n)))
+;
+
+rule:
+  over a, b
+  given a == b
+  deduce b == a
+;
+
+rule is_even_congr:
+  over a, b
+  given is_even(a), a == b
+  deduce is_even(b)
+;
+
+rule: deduce 1 == succ(0);
+rule: deduce 2 == succ(succ(0));
+rule: deduce 3 == succ(succ(succ(0)));
+rule def_of_4: deduce 4 == succ(succ(succ(succ(0))));
+
+wts is_even(4); {
+  lemma l1: is_even(0);
+  apply is_even_ind to l1 as l2;
+  apply is_even_ind to l2 as l3;
+  lemma l4: succ(succ(succ(succ(0)))) == 4;
+
+  apply is_even_congr
+    to l3, l4
+    as target
+  ;
+}

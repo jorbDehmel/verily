@@ -1,3 +1,5 @@
+option "latex_mode=list";
+
 axiom zero_nat: 0 in Nat;
 axiom succ: S in Nat to Nat;
 

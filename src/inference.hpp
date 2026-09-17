@@ -14,22 +14,6 @@
 /// theorems
 class InferenceMaker {
 public:
-  /// If true, prints some extra info
-  bool debug = false;
-
-  /// If true, suppresses warning and error messages
-  bool quiet = false;
-
-  /// If true, forward_prove and backward_prove can call each
-  /// other.
-  bool enable_alternation = false;
-
-  /// If true, attempts to use metalogical techniques.
-  bool meta_proving = true;
-
-  /// Don't mess with. Internally used during alternation.
-  bool cur_alternation_is_forward = false;
-
   /// A statement, along with proof that it is a theorem
   struct Theorem {
     /// If given, the name of the theorem.
@@ -57,13 +41,13 @@ public:
     std::optional<std::string> name;
 
     /// Construct an inference rule
-    InferenceRule(const ASTSet &_fv,
+    InferenceRule(const std::set<ASTNode> &_fv,
                   const std::vector<ASTNode> &_req,
                   const ASTNode &_cons);
 
     /// The free variables over both the requirements and the
     /// consequence
-    ASTSet free_variables;
+    std::set<ASTNode> free_variables;
 
     /// The things which must be known theorems
     std::vector<ASTNode> requirements;
@@ -161,21 +145,17 @@ public:
                 const size_t &_first_n_thms,
                 const std::vector<size_t> &_cur_indices = {});
 
-  /// Statements which are known to be true
-  std::vector<Theorem> known;
-
-  /// Statements currently being proven
-  std::vector<ASTNode> pending;
-
-  /// Inference rules
-  std::vector<InferenceRule> rules;
-
+  /// All the information needed to push or pop a snapshot
   struct BackupFrame {
+    /// The known theorems at the time
     std::vector<Theorem> theorems;
+
+    /// The known pending theorems at the time
     std::vector<ASTNode> pending;
+
+    /// The known rules at the time
     std::vector<InferenceRule> rules;
   };
-  std::list<BackupFrame> backup_frames;
 
   /// Push a frame such that any theorems will not be saved
   /// after popping
@@ -210,6 +190,35 @@ public:
     }
     return false;
   }
+
+  /// Statements which are known to be true
+  std::vector<Theorem> known;
+
+  /// Statements currently being proven
+  std::vector<ASTNode> pending;
+
+  /// Inference rules
+  std::vector<InferenceRule> rules;
+
+  /// Backup frames, used by push and pop
+  std::list<BackupFrame> backup_frames;
+
+  /// If true, prints some extra info
+  bool debug = false;
+
+  /// If true, suppresses warning and error messages
+  bool quiet = false;
+
+  /// If true, forward_prove and backward_prove can call each
+  /// other.
+  bool enable_alternation = false;
+
+  /// If true, attempts to use metalogical techniques like the
+  /// deduction theorem.
+  bool meta_proving = true;
+
+  /// Don't mess with. Internally used during alternation.
+  bool cur_alternation_is_forward = false;
 
   /// The max number of theorems to allow before emergency stop
   uintmax_t theorem_limit = 10'000;

@@ -167,8 +167,8 @@ void InferenceMaker::add_rule(const InferenceRule &_rule) {
 }
 
 InferenceMaker::InferenceRule::InferenceRule(
-    const ASTSet &_fv, const std::vector<ASTNode> &_req,
-    const ASTNode &_cons)
+    const std::set<ASTNode> &_fv,
+    const std::vector<ASTNode> &_req, const ASTNode &_cons)
     : free_variables(_fv), requirements(_req),
       consequence(_cons) {
   bool has_fvs_in_cons = true;
@@ -385,7 +385,7 @@ void InferenceMaker::name_theorem(const ASTNode &_what,
 ASTNode InferenceMaker::InferenceRule::apply(
     const std::vector<InferenceMaker::Theorem> &_premises,
     const size_t &_fresh_num) const {
-  ASTSet fv = free_variables;
+  std::set<ASTNode> fv = free_variables;
   std::list<std::pair<ASTNode, ASTNode>> substitutions;
   for (size_t i = 0; i < _premises.size(); ++i) {
     const auto corresponding_requirement = requirements.at(i);

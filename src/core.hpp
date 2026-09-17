@@ -2,6 +2,7 @@
 
 #include "inference.hpp"
 #include <cstdint>
+#include <functional>
 #include <iostream>
 
 /// A filepath used when none is provided
@@ -16,7 +17,8 @@ public:
 
   /// Prints the rules, axioms, and selected theorems in latex
   /// 'inferrule' notation
-  void latex(std::ostream &_strm) const;
+  void latex(std::ostream &_strm,
+             const std::string &_mode = "tree") const;
 
   /// Prints the rules, axioms, and selected theorems in JSON
   /// encoding
@@ -33,14 +35,26 @@ public:
   /// List all rules and theorems
   void ls() const noexcept;
 
+  /// Manages known information
   InferenceMaker im;
 
+  /// True iff an error occurred
   bool saw_error = false;
+
+  /// If true, prints some extra info
   bool debug = false;
-  bool time = false;
-  bool print_latex = false;
-  bool print_json = false;
+
+  /// The max number of passes before abandoning
   uintmax_t pass_limit = 64;
-  std::set<size_t> axioms;
+
+  /// The theorems which were explicitly requested
   std::set<size_t> proven_theorems;
+
+  /// Called by 'setting' / 'option' statements. This is for
+  /// the CLI to handle.
+  std::function<void(Core &, const std::string &)>
+      handle_setting =
+          [](Core &, const std::string &_s) -> void {
+    std::cout << "Unhandled setting: " << _s << "\n";
+  };
 };

@@ -45,30 +45,8 @@ public:
   std::vector<CNFClause> clauses;
 };
 
-/// Returns 0 if impossible
-int resolvent_pivot(const CNF::CNFClause &_l,
-                    const CNF::CNFClause &_r) noexcept;
-
-/// Return the resolvent, throwing if impossible
-CNF::CNFClause resolve(const CNF::CNFClause &_l,
-                       const CNF::CNFClause &_r,
-                       const int &_pivot) noexcept;
-
+/// Prints a CNF formula
 std::ostream &operator<<(std::ostream &_into, const CNF &_what);
-
-/// Assert that no assignment exists satisfying phi by brute
-/// force. If the number of variables is above max_vars (50 by
-/// default), this will balk without checking (since the
-/// expected running time is likely longer than a lifetime).
-void ensure_unsat(CNF phi, uint max_vars = 50);
-
-/// Detects the first unit literal and eliminates it from any
-/// clauses. More unit literals may remain after this. This
-/// REMOVES the unit clause.
-/// :param s: The CNF formula to operate on
-/// :returns: The modified formula
-std::vector<CNF::CNFClause>
-unit_propagate(std::vector<CNF::CNFClause> s);
 
 /**
  * @brief A CDCL solver with hooks for SMT. The only thing
