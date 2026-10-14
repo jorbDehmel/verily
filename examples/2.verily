@@ -1,18 +1,23 @@
-rule mp:
-  over p, q
-  given p, p implies q
-  deduce q
+include "std.verily";
+
+axiom 0_is_even:
+  deduce is_even 0
 ;
 
-rule double_negation_introduction:
-  over p
-  given p
-  deduce not not p
+axiom plus_2_is_even:
+  over n
+  given is_even n
+  deduce is_even (S (S n))
 ;
 
-axiom: is_raining;
-axiom: is_raining implies not is_sunny;
-
-prove_forward: not is_sunny;
-
-prove_backward: not not not is_sunny;
+theorem 4_is_even:
+  deduce is_even (S (S (S (S 0))))
+by {
+  ls
+  fw 0_is_even as 0_is_even_thm
+  ls
+  bw plus_2_is_even
+  ls
+  fw plus_2_is_even on 0_is_even_thm as 2_is_even
+  ls
+}

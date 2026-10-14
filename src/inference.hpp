@@ -1,13 +1,11 @@
 /**
- * @brief
+ * @brief Stack management, mostly for goals / tactics
  */
 
 #pragma once
 
 #include "ast.hpp"
-#include "congruence.hpp"
 #include <cstdint>
-#include <map>
 #include <optional>
 
 /// A maker of inferences. It takes rules and axioms and deduces
@@ -67,15 +65,12 @@ public:
     /// The type of this rule
     Type type = BACKWARD_ONLY;
 
-    /// Substitute the given node for the first requirement and
-    /// return the result
-    std::optional<InferenceRule>
-    remove_first_req(const ASTNode &_sub) const noexcept;
-
     /// Throws on failure
-    ASTNode apply(const std::vector<Theorem> &_premises,
-                  const uintmax_t &_fresh_num) const;
+    ASTNode apply(const std::vector<Theorem> &_premises) const;
   };
+
+  void backward_apply(const InferenceRule &_rule,
+                      const ASTNode &_goal);
 
   ASTNode proof_to_ast(const size_t &_thm_index) const;
 
@@ -91,25 +86,6 @@ public:
   /// theorem.
   int has(const ASTNode &_what) const noexcept;
 
-  /// Attempt to prove the given statement backwards (EG from
-  /// implication to implicate-ee). This is NOT necessarily a
-  /// decision procedure! Will halt after depth reaches _passes.
-  std::optional<Theorem> backward_prove(const ASTNode &_what,
-                                        const int &_passes);
-
-  /// Attempt to prove the given statement forwards (EG from
-  /// requirements to implication). This is NOT necessarily a
-  /// decision procedure! Will try each forward-derivable rule
-  /// in a round-robin manner until either _what is proven or
-  /// _passes applications of each rule have occurred. There is
-  /// no direction here!
-  std::optional<Theorem> forward_prove(const ASTNode &_what,
-                                       const int &_passes);
-
-  /// Prove using settings. This is the one you should call.
-  std::optional<Theorem> prove(const ASTNode &_theorem,
-                               const int &_passes);
-
   /// Adds an axiom and returns its index
   size_t add_axiom(const ASTNode &_what) noexcept;
 
@@ -119,10 +95,6 @@ public:
   /// Gets a rule by name
   const InferenceRule get_rule(const std::string &_name,
                                size_t &_index) const;
-
-  /// Find the given theorem and name it
-  void name_theorem(const ASTNode &_what,
-                    const std::string &_name);
 
   /// Gets a theorem by internal index
   const Theorem get_theorem(const uint &_index) const;
@@ -137,13 +109,6 @@ public:
               const size_t &_rule_index,
               const std::vector<size_t> &_premises,
               bool &_actually_added);
-
-  /// Iterates through all possible theorem choices and
-  /// instantiates wherever possible. Note that this only looks
-  /// at theorems from the first n of them.
-  void inst_all(const size_t &_rule_index,
-                const size_t &_first_n_thms,
-                const std::vector<size_t> &_cur_indices = {});
 
   /// All the information needed to push or pop a snapshot
   struct BackupFrame {
@@ -160,14 +125,14 @@ public:
   /// Push a frame such that any theorems will not be saved
   /// after popping
   inline void push() noexcept {
-    backup_frames.push_back(BackupFrame(known, pending, rules));
+    backup_frames.push_back(BackupFrame(facts, goals, rules));
   }
 
   /// Pop the most recent frame (if there is one)
   inline void pop() noexcept {
     if (!backup_frames.empty()) {
-      known = backup_frames.back().theorems;
-      pending = backup_frames.back().pending;
+      facts = backup_frames.back().theorems;
+      goals = backup_frames.back().pending;
       rules = backup_frames.back().rules;
       backup_frames.pop_back();
     }
@@ -175,14 +140,14 @@ public:
 
   /// Pop the given item, warning if it is not the current back
   inline void pop_pending(const ASTNode &_expected_back) {
-    std::erase_if(pending, [&](const ASTNode &_item) -> bool {
+    std::erase_if(goals, [&](const ASTNode &_item) -> bool {
       return _item == _expected_back;
     });
   }
 
   /// Returns true iff the given theorem is currently pending
   inline bool is_pending(const ASTNode &_thm) {
-    for (auto rit = pending.rbegin(); rit != pending.rend();
+    for (auto rit = goals.rbegin(); rit != goals.rend();
          ++rit) {
       if (*rit == _thm) {
         return true;
@@ -191,11 +156,16 @@ public:
     return false;
   }
 
+  /// Checks a proof, obviously. It recurses and logs its
+  /// successes as needed
+  void check_proof(const ASTNode &_goal, const ASTNode &_proof,
+                   const std::string &_name);
+
   /// Statements which are known to be true
-  std::vector<Theorem> known;
+  std::vector<Theorem> facts;
 
   /// Statements currently being proven
-  std::vector<ASTNode> pending;
+  std::vector<ASTNode> goals;
 
   /// Inference rules
   std::vector<InferenceRule> rules;
@@ -208,30 +178,6 @@ public:
 
   /// If true, suppresses warning and error messages
   bool quiet = false;
-
-  /// If true, forward_prove and backward_prove can call each
-  /// other.
-  bool enable_alternation = false;
-
-  /// If true, attempts to use metalogical techniques like the
-  /// deduction theorem.
-  bool meta_proving = true;
-
-  /// Don't mess with. Internally used during alternation.
-  bool cur_alternation_is_forward = false;
-
-  /// The max number of theorems to allow before emergency stop
-  uintmax_t theorem_limit = 10'000;
-
-  /// The highest tree height that is allowed to be checked
-  uintmax_t max_tree_height = 128;
-
-  /// Maps theorem IDs to custom proofs (EG metalogical ones)
-  std::map<int, ASTNode> special_proofs;
-
-  /// Used to keep track of congruence classes if metalogical
-  /// proofs are enabled.
-  CongruenceKeeper congruences;
 };
 
 /// Print a rule

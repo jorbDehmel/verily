@@ -1,5 +1,5 @@
 
-# Verily: A toy inductive proof system
+# Verily: A Dogmatic Theorem Prover
 
 Jordan Dehmel, 2025-2026
 
@@ -11,7 +11,7 @@ aren't smart about it. A poor choice of rules can make proving
 "2 is a natural number" take seconds, or not verify at all!
 Tread with care!
 
-Verily is a theorem prover based on AST-rewriting-rules.
+Verily is a theorem prover based on term rewriting rules.
 It is *not* based on the Curry-Howard isomorphism. An axiom is a
 syntax tree which is taken to be a theorem without proof, and a
 theorem is a syntax tree which is derived from known theorems
@@ -347,6 +347,8 @@ theorems.
 
 ### Alternation
 
+FVs are Free Variables, EG the `over ...` clause.
+
  FVs in antecedents | FVs in consequence | Notes
 --------------------|--------------------|----------------------
  Not all            | Not all            | Neither method works
@@ -360,33 +362,141 @@ can go no further. Then, it will try forward deduction until
 that can go no further. This will continue until the theorem is
 proven or the number of allotted deduction passes is exhausted.
 
-## Lemmas, Efficiency, and a Silly Analogy
+# Future
 
-Think of the known truths as one point $A$ in space and the
-desired theorem as another point $B$. If we use forward
-derivation, think of circles emanating from $A$: In order for
-$B$ to be proven, the circles must reach it.
+I intend to make some major revisions to Verily, now that I'm
+more familiar with modern interactive theorem provers.
 
-In alternating mode, circles are emitted from both $A$ and $B$,
-and they only have to touch in order to prove the theorem. The
-expected cumulative area (number of potential theorems examined)
-of the circles is much smaller!
+Revisions:
+- [X] Theorems should take rule form (EG
+  `given ... deduce ... by`)
+- [X] Goals and tactics
+- [X] All rules should be considered axioms
+- [X] No unicode, and no abbreviated keywords! Make this dogma!
+- [X] Extensible parsing is needed (IE lean's `notation`
+  keyword)
+- [X] Move from $f(x, y)$ syntax to $f x y$ syntax (follows from
+  extensible parsing)
+- [X] Remove CDCL and congruence: This should be completely
+  generic. No extensions! That's dogma!
 
-Now imagine we put a third point $C$ directly in between $A$ and
-$B$: This is a well-designed lemma. Now we have circles going
-out from all three points, and we only need $A$ and $C$ to touch
-and $C$ and $B$ to touch. The expected cumulative area of the
-circles is even smaller!
+The major difference is that `verily` is based on term rewriting
+rules, where `lean` and `coc/coq/roq` are based on the
+Curry-Howard isomorphism. Theoretically, `verily` should be
+better at backward deduction. Unlike `lean`, `verily` has no
+objects: Only rules. If you want to alias something, you do it
+through rules.
 
-Note that the solver could give up due to resource constraints
-without a lemma but quickly find a proof with a lemma. However,
-a bad lemma could lie completely off the path between the known
-truth and the would-be theorem, in which case it will only waste
-solver time. In general, designing good lemmas is about as hard
-as finding a proof. However, if you already have a proof in
-mind, a good lemma can help the solver connect the dots.
+## Examples of revised verily:
 
-Technically speaking, backwards proof search is more like bolts
-of lightning shooting off the point in random directions, hoping
-to touch the known truth. This is because forwards proof search
-is breadth-first while backwards proof search is depth-first.
+```verily
+-- Axioms and rules are the same thing now
+axiom LEM:
+  over x
+  given x : Bool
+  deduce x or not x
+;
+
+axiom EqualDef:
+  over phi, A, B
+  given A = B
+  deduce phi[a := B]
+;
+
+-- fizz reduces to buzz, buzz reduces to fizz
+bidirectional axiom:
+  over foo
+  given fizz
+  deduce buzz
+;
+
+-- Updated theorem syntax
+theorem foo
+  over A, B, C
+  given a, b, c
+  deduce conclusion_goes_here
+by {
+  step_1
+  step_2
+  step_3
+}
+
+-- Updated function call parsing
+axiom:
+  over f, x, A, B
+  given f : A -> B, x : A
+  deduce (f x) : B
+;
+
+-- A non-axiom special form of rule
+let foo := value;
+```
+
+Lean's `have` would be forwards rule applications, and its
+`apply` would be backwards rule applications.
+
+```verily
+theorem:
+  over m, n
+  given
+    -- Reserved notation for naming hypotheses
+    h1 := m : Nat,
+    h2 := n : Nat
+  deduce m + n : Nat
+by {
+  ls
+  -- h1 := m : Nat, h2 := n : Nat |- m + n : Nat
+  forward nat_add_is_nat as h3
+  ls
+  -- ..., h3 := m + n : Nat |- m +  n : Nat
+  h3
+}
+```
+
+Perhaps `apply ... to goal` (backward) vs `apply ...`
+(implicitly forward)? And/or `forward ...` vs `backward ...`.
+All rules have one conclusion, so we will never
+split when going forward, but we may introduce goals when going
+backward. The theorem will only exit without error if all goals
+have been proven. We will introduce `wts` (or maybe `focus`?)
+to focus on a specific goal. `lemma` will create a temporary
+goal, inheriting all presuppositions, then add it as a fact
+once proven.
+
+We could have the keywords `push forward` / `push backward` /
+`alternate`, though we should discourage their use in actual
+proofs. Maybe by marking them with ending question marks.
+
+```
+theorem foo
+  deduces conclusion
+by {
+  forward rule_1  -- alt "fw"
+  backward rule_2 -- alt "bw"
+  wts antecedent_1 {
+    alternate
+  }
+  wts antecedent_2 {
+    forward rule_3
+    lemma temp_goal {
+      alternate
+    }
+  }
+}
+```
+
+`forward` will get some special notation, since we may have
+ambiguous applications and we may want to name the result.
+The extended notation will be `forward ... on ... as ...`.
+
+TODO:
+- Rewrite this document
+- Add support for subexpression rewrites
+
+## Dogma
+
+1. Thou shalt not interpret thy functions
+2. Thou shalt not extend this theorem prover
+3. Thou shalt use only ASCII
+4. Thou shalt not contribute to this prover with AI
+5. Thou shalt not abbreviate thy keywords

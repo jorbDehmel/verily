@@ -20,6 +20,10 @@ public:
   /// The token stream we are looking at
   TokenStream ts;
 
+  /// Implicit constructor
+  Parser() {
+  }
+
   /// Construct from a given token stream
   Parser(const TokenStream &_ts);
 
@@ -35,13 +39,25 @@ public:
   /// parser all of its own.
   ASTNode parse_expr();
 
+  /// Parse a proof, EG after 'by' in a theorem statement
+  ASTNode parse_proof();
+
   /// Parse an expression from a list
   ASTNode
   parse_expr_from_list(const std::list<ASTNode> &input_items);
 
-  /// Parses a Hoare method
-  ASTNode parse_method();
+  /// Enough information to parse an operator
+  struct OperationInfo {
+    enum {
+      PREFIX,
+      INFIX, // INFIX is only allowed for binary
+      POSTFIX,
+    } mode = PREFIX;
+    int arity = 1;
+    std::string tok = "";
+    std::string label = "";
+  };
 
-  /// Parses a statement within a Hoare method
-  ASTNode parse_method_statement();
+  /// The order of operations (if you can believe it)
+  std::list<OperationInfo> order_of_operations = {};
 };

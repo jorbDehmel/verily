@@ -1,0 +1,19 @@
+# Equality axioms for verily
+include "std.verily";
+
+axiom eq_refl:
+  over A
+  deduce A == A
+;
+
+axiom eq_symm:
+  over A, B
+  given A == B
+  deduce B == A
+;
+
+axiom eq_trans:
+  over A, B, C
+  given A == B, B == C
+  deduce A == C
+;

@@ -1,6 +1,4 @@
 #include "core.hpp"
-#include "cdcl.hpp"
-#include "hoare.hpp"
 #include "inference.hpp"
 #include "parse.hpp"
 #include <functional>
@@ -15,393 +13,6 @@ std::string Core::sanitize_name(const std::string &_s) {
     out.push_back(c);
   }
   return out;
-}
-
-/// Prints the rules, axioms, and selected theorems in latex
-/// 'inferrule' notation
-void Core::latex(std::ostream &_strm,
-                 const std::string &_mode) const {
-  // Print an AST in latex notation (EG 'and' -> '\land')
-  std::function<void(const ASTNode &)> print_ast_latex =
-      [&](const ASTNode &_what) -> void {
-    const auto t = _what.text;
-
-    // Normal PL stuff
-    if (t == "and") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\land ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "or") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\lor ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "not") {
-      _strm << " \\lnot ";
-      print_ast_latex(_what.children.at(0));
-    } else if (t == "implies") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\implies ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "iff") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\iff ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "in") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\in ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "::") {
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\texttt{::}";
-      print_ast_latex(_what.children.at(1));
-    } else if (t == "to") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\to ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "==") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " = ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "prime") {
-      print_ast_latex(_what.children.at(0));
-      _strm << "' ";
-    } else if (t == "derives") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\vdash ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    } else if (t == "models") {
-      _strm << "(";
-      print_ast_latex(_what.children.at(0));
-      _strm << " \\models ";
-      print_ast_latex(_what.children.at(1));
-      _strm << ")";
-    }
-
-    // Math
-    else if (t == "^") {
-      _strm << "{";
-      print_ast_latex(_what.children.at(0));
-      _strm << "}^{";
-      print_ast_latex(_what.children.at(1));
-      _strm << "}";
-    }
-
-    // Quantification
-    else if (t == "forall") {
-      _strm << "( \\forall ";
-      print_ast_latex(_what.children.at(0));
-      _strm << " . ";
-      print_ast_latex(_what.children.at(1));
-      _strm << " )";
-    } else if (t == "exists") {
-      _strm << "( \\exists ";
-      print_ast_latex(_what.children.at(0));
-      _strm << " . ";
-      print_ast_latex(_what.children.at(1));
-      _strm << " )";
-    } else if (t == "lambda") {
-      _strm << "( \\lambda ";
-      print_ast_latex(_what.children.at(0));
-      _strm << " . ";
-      print_ast_latex(_what.children.at(1));
-      _strm << " )";
-    } else if (t == "REPLACE") {
-      print_ast_latex(_what.children.at(0));
-      _strm << " [ ";
-      print_ast_latex(_what.children.at(1));
-      _strm << " := ";
-      print_ast_latex(_what.children.at(2));
-      _strm << " ]";
-    }
-
-    // Proof stuff
-    else if (t == "axiom") {
-      const auto axiom = _what.children.at(0);
-      _strm << "\\inferrule*[right=axiom]{\\,}{\n";
-      print_ast_latex(axiom);
-      _strm << "\n}";
-    } else if (t == "assumption") {
-      const auto axiom = _what.children.at(0);
-      _strm << "\\inferrule*[right=assumption]{\\,}{\n";
-      print_ast_latex(axiom);
-      _strm << "\n}";
-    } else if (t == "meta") {
-      _strm << "\\inferrule*[right=meta]{\\left[";
-
-      bool first = true;
-      for (uint index = 0; index + 1 < _what.children.size();
-           ++index) {
-        const ASTNode premise = _what.children.at(index);
-        if (first) {
-          first = false;
-        } else {
-          _strm << "\n";
-        }
-        print_ast_latex(premise);
-      }
-
-      _strm << "\\right]}{\n";
-      const auto consequent = _what.children.back();
-      print_ast_latex(consequent);
-      _strm << "\n}";
-    } else if (t == "theorem") {
-      const auto thm = _what.children.at(0);
-      const auto rule_app = _what.children.at(1);
-      const std::string rule_name =
-          rule_app.children.at(0).children.at(0).text.text;
-      const auto premises = rule_app.children.at(1);
-
-      _strm << "\\inferrule*[right=" << sanitize_name(rule_name)
-            << "]{";
-      bool first = true;
-      for (const auto &premise : premises.children) {
-        if (first) {
-          first = false;
-        } else {
-          _strm << "\n";
-        }
-        print_ast_latex(premise);
-      }
-      if (first) {
-        _strm << "\\,";
-      }
-      _strm << "}{\n";
-      print_ast_latex(thm);
-      _strm << "\n}";
-    }
-
-    else if (t == "_") {
-      // List
-      _strm << "(";
-      bool first = true;
-      for (const auto &child : _what.children) {
-        if (first) {
-          first = false;
-        } else {
-          _strm << ", ";
-        }
-        print_ast_latex(child);
-      }
-      _strm << ")";
-    } else if (t == "@") {
-      // Fn call
-      print_ast_latex(_what.children.front());
-      _strm << "(";
-      uint index = 0;
-      for (const auto &child : _what.children) {
-        switch (index) {
-        default:
-          _strm << ", ";
-        case 1:
-          print_ast_latex(child);
-        case 0:
-          break;
-        }
-        ++index;
-      }
-      _strm << ")";
-    } else if (_what.children.empty()) {
-      _strm << "\\texttt{" << sanitize_name(t.text) << "}";
-    } else {
-      _strm << "\\texttt{" << sanitize_name(t.text) << "}(";
-      bool first = true;
-      for (const auto &child : _what.children) {
-        if (first) {
-          first = false;
-        } else {
-          _strm << ", ";
-        }
-        print_ast_latex(child);
-      }
-      _strm << ")";
-    }
-  };
-
-  std::function<void(const InferenceMaker::Theorem &)>
-      print_fitch_notation_latex =
-          [&](const InferenceMaker::Theorem &_t) -> void {
-    // \have [i] {i} {formula here} \by{Name}{1}
-    const auto name = sanitize_name(
-        _t.name.value_or(std::to_string(_t.index)));
-    const auto fml = _t.thm;
-    const auto rule_index = _t.rule_index;
-    const auto premises = _t.premises;
-
-    // Note: I can't get the custom line numbers to work.
-    if (rule_index < 0) {
-      _strm << "\\have {} {";
-      print_ast_latex(fml);
-      _strm << "} \\by{Axiom}{}\n";
-    } else {
-      const auto rule = im.get_rule(rule_index);
-      const auto rule_name = sanitize_name(
-          rule.name.value_or(std::to_string(rule_index)));
-
-      _strm << "\\have {} {";
-      print_ast_latex(fml);
-      _strm << "} \\by{\\texttt{" << rule_name << "(";
-
-      bool first = true;
-      for (const size_t &premise_index : premises) {
-        if (first) {
-          first = false;
-        } else {
-          _strm << ", ";
-        }
-        const auto premise = im.get_theorem(premise_index);
-        const auto premise_name =
-            sanitize_name(premise.name.value_or(
-                std::to_string(premise_index)));
-        _strm << premise_name;
-      }
-
-      _strm << ")}}{}\n";
-    }
-  };
-
-  _strm << "\\documentclass{article}\n"
-           "\\usepackage{amsmath}\n"
-           "\\usepackage{fitch}\n"
-           "\\usepackage{amssymb}\n"
-           "\\usepackage{mathpartir}\n"
-           "\\begin{document}\n\n";
-
-  if (!im.rules.empty()) {
-    _strm << "\\textbf{Rules:}\n\n";
-
-    size_t rule_index = 0;
-    for (const auto &rule : im.rules) {
-      if (!rule.free_variables.empty()) {
-        _strm << "For generic";
-        bool first = true;
-        for (const auto &fv : rule.free_variables) {
-          if (first) {
-            first = false;
-          } else {
-            _strm << ",";
-          }
-          _strm << " \\texttt{" << fv << "}";
-        }
-        _strm << ":\n\n";
-      }
-
-      const std::string rule_name =
-          rule.name.value_or(std::to_string(rule_index));
-      ++rule_index;
-      _strm << "\\[\n"
-               "\\inferrule*[right="
-            << sanitize_name(rule_name) << "]{";
-
-      // Premises
-      bool first = true;
-      for (const auto &premise : rule.requirements) {
-        if (first) {
-          first = false;
-        } else {
-          _strm << "\n\\\\\n";
-        }
-        print_ast_latex(premise);
-      }
-      if (first) {
-        _strm << "\\,";
-      }
-
-      _strm << "}{\n";
-
-      // Consequence
-      print_ast_latex(rule.consequence);
-
-      _strm << "  }\n"
-               "\\]\n\n";
-    }
-  }
-
-  std::list<size_t> axioms;
-  for (const auto &thm : im.known) {
-    if (thm.rule_index < 0) {
-      axioms.push_back(thm.index);
-    }
-  }
-
-  if (!axioms.empty()) {
-    _strm << "\\textbf{Axioms:}\n\n";
-
-    for (const auto &axiom : axioms) {
-      const auto t = im.get_theorem(axiom);
-      const auto proof = im.proof_to_ast(axiom);
-
-      _strm << "\\texttt{"
-            << sanitize_name(
-                   t.name.value_or(std::to_string(axiom)))
-            << "}:\n\n";
-
-      if (_mode == "list") {
-        // Print in Fitch notation
-        _strm << "\\[\n\\begin{nd}\n";
-        print_fitch_notation_latex(t);
-        _strm << "\\end{nd}\n\\]\n\n";
-      } else {
-        // Print in natural deduction notation
-        if (_mode != "tree") {
-          std::cerr << "Unknown latex mode '" << _mode
-                    << "', defaulting to 'tree'.\n";
-        }
-
-        _strm << "\\[\n";
-        print_ast_latex(proof);
-        _strm << "\n\\]\n\n";
-      }
-    }
-  }
-
-  if (!proven_theorems.empty()) {
-    _strm << "\\textbf{Selected Theorems:}\n\n";
-
-    for (const auto &theorem : proven_theorems) {
-      const auto t = im.get_theorem(theorem);
-      const auto proof = im.proof_to_ast(theorem);
-
-      _strm << "\\texttt{"
-            << sanitize_name(
-                   t.name.value_or(std::to_string(theorem)))
-            << "}:\n\n";
-
-      if (_mode == "list") {
-        // Print in Fitch notation
-        _strm << "\\[\n\\begin{nd}\n";
-        print_fitch_notation_latex(t);
-        _strm << "\\end{nd}\n\\]\n\n";
-      } else {
-        // Print in natural deduction notation
-        if (_mode != "tree") {
-          std::cerr << "Unknown latex mode '" << _mode
-                    << "', defaulting to 'tree'.\n";
-        }
-
-        _strm << "\\[\n";
-        print_ast_latex(proof);
-        _strm << "\n\\]\n\n";
-      }
-    }
-  }
-
-  _strm << "\\end{document}\n";
 }
 
 void Core::json(std::ostream &_strm) const {
@@ -431,7 +42,6 @@ void Core::json(std::ostream &_strm) const {
       _strm << "]";
     }
   };
-
   _strm << "{\n"
            "  \"rules\": [\n"
            "    ";
@@ -484,19 +94,16 @@ void Core::json(std::ostream &_strm) const {
     _strm << "\n"
              "    }";
   }
-
   _strm << "\n"
            "  ],\n"
            "  \"axioms\": [\n"
            "    ";
-
   std::list<size_t> axioms;
-  for (const auto &thm : im.known) {
+  for (const auto &thm : im.facts) {
     if (thm.rule_index < 0) {
       axioms.push_back(thm.index);
     }
   }
-
   bool first = true;
   for (const auto &axiom : axioms) {
     if (first) {
@@ -507,7 +114,6 @@ void Core::json(std::ostream &_strm) const {
     }
     print_ast_json(im.proof_to_ast(axiom));
   }
-
   _strm << "\n"
            "  ],\n"
            "  \"selected-theorems\": [\n"
@@ -531,12 +137,11 @@ void Core::process_statement(
     const ASTNode &_stmt,
     const std::filesystem::path &_cur_path) {
   if (debug) {
-    std::cout << "On stmt " << _stmt << "\n\n";
+    std::cout << "On stmt " << _stmt << "\n";
   }
 
-  // Rule
-  if (_stmt.text == Token("RULE")) {
-    // (RULE (OVER x y z) (GIVEN fee fi fo) (DEDUCE
+  if (_stmt.text == Token("AXIOM")) {
+    // (AXIOM (OVER x y z) (GIVEN fee fi fo) (DEDUCE
     // fum fli foo flib))
     const auto over = _stmt.children.at(0);
     const auto given = _stmt.children.at(1);
@@ -562,6 +167,21 @@ void Core::process_statement(
     im.add_rule(ir);
   }
 
+  else if (_stmt.text == "THEOREM") {
+    const auto over = _stmt.at(0);
+    const auto given = _stmt.at(1);
+    const auto deduce = _stmt.at(2);
+    const auto proof = _stmt.at(3);
+    const auto name = _stmt.at(4).text.text;
+
+    im.push();
+    for (const auto &assumption : given.children) {
+      im.add_axiom(assumption);
+    }
+    im.check_proof(deduce.at(0), proof, name);
+    im.pop();
+  }
+
   else if (_stmt.text == Token("NULL")) {
     return;
   }
@@ -572,193 +192,8 @@ void Core::process_statement(
     }
   }
 
-  // Thing to prove
-  else if (_stmt.text == Token("PROVE_FORWARD")) {
-    // (THEOREM name to_prove)
-    const auto name = _stmt.children.at(0).text.text;
-    const auto thm = _stmt.children.at(1);
-    const auto res = im.forward_prove(thm, pass_limit);
-    if (res.has_value()) {
-      proven_theorems.insert(res.value().index);
-      if (!name.empty()) {
-        im.name_theorem(thm, name);
-      }
-    } else {
-      saw_error = true;
-      if (!im.quiet) {
-        std::cout << "ERROR:   Failed to prove " << thm << "\n";
-      }
-    }
-  }
-
-  else if (_stmt.text == Token("PROVE_SMT")) {
-    // Takes in a single CNF formula, automatically deduces the
-    // leaves, and runs it through a naive SMT solver. This is
-    // a baby parser of its own.
-
-    const auto name = _stmt.children.at(0).text.text;
-    const auto to_prove = _stmt.children.at(1);
-
-    // Deconstruct CNF statement and handle symbols
-    CNF phi;
-    std::vector<ASTNode> atoms;
-    atoms.push_back(ASTNode("NULL"));
-
-    std::function<int(const ASTNode &)> process_atom =
-        [&](auto _t) {
-          if (_t.text.text == "not") {
-            return -process_atom(_t.children.front());
-          }
-
-          for (size_t i = 0; i < atoms.size(); ++i) {
-            if (atoms[i] == _t) {
-              return (int)i;
-            }
-          }
-
-          atoms.push_back(_t);
-          return (int)(atoms.size() - 1);
-        };
-
-    // 'or' clauses return nonempty sets, 'and' clauses return
-    // empty sets, atoms return single-element sets (but that's
-    // a special case of 'or', anyway).
-    std::function<std::set<int>(const ASTNode &)> process_node =
-        [&](auto _t) {
-          if (_t.text.text == "and") {
-            for (const auto &child : _t.children) {
-              const auto res = process_node(child);
-              if (!res.empty()) {
-                // Child was an 'or' clause
-                phi.clauses.push_back(res);
-              }
-            }
-            return std::set<int>{};
-          } else if (_t.text.text == "or") {
-            std::set<int> out;
-            for (const auto &child : _t.children) {
-              if (child.text.text == "and") {
-                // Special case: Recursion can't be trusted here
-                out.insert(process_atom(child));
-              } else {
-                const auto res = process_node(child);
-                for (const auto &element : res) {
-                  out.insert(element);
-                }
-              }
-            }
-            return out;
-          } else {
-            return std::set<int>{process_atom(_t)};
-          }
-        };
-
-    const auto res = process_node(to_prove);
-    if (!res.empty()) {
-      phi.clauses.push_back(res);
-    }
-
-    // Process, including basic theory checks
-    CDCL c(phi);
-    c.theory_check = [&](const std::set<int> &_solution)
-        -> std::optional<std::set<int>> {
-      // If the given solution is not provably true, return a
-      // (naive) conflict.
-
-      for (const auto &asserted_value : _solution) {
-        bool clause_error = false;
-        if (asserted_value > 0) {
-          // Positive assertion: Make sure it is provable
-          if (!im.prove(atoms.at(asserted_value), pass_limit)) {
-            clause_error = true;
-          }
-        } else {
-          // Negative assertion: Make sure it's negation is
-          // provable
-          if (!im.prove(
-                  ASTNode("not", {atoms.at(-asserted_value)}),
-                  pass_limit)) {
-            clause_error = true;
-          }
-        }
-        if (clause_error) {
-          return std::set<int>{-asserted_value};
-        }
-      }
-
-      return {};
-    };
-
-    const auto result = c.go();
-
-    if (result.has_value()) {
-      // The result has already passed the theory check, meaning
-      // every asserted clause is provable. Therefore, the
-      // result is tautologically true: Add it as a theorem.
-
-      ASTNode smt_proof("SMT");
-      for (const auto &thm : result.value()) {
-        if (thm < 0) {
-          smt_proof.children.push_back(im.theorem_to_proof(
-              ASTNode("not", {atoms.at(-thm)})));
-        } else {
-          smt_proof.children.push_back(
-              im.theorem_to_proof(atoms.at(thm)));
-        }
-      }
-
-      const int out_ind = im.add_axiom(to_prove);
-      im.special_proofs[out_ind] =
-          ASTNode("meta", {smt_proof, to_prove});
-
-      if (!name.empty()) {
-        im.name_theorem(to_prove, name);
-      }
-
-      proven_theorems.insert(out_ind);
-    } else {
-      if (!im.quiet) {
-        std::cout << "ERROR:   Failed to SMT prove "
-                  << _stmt.children.front() << "\n";
-      }
-      saw_error = true;
-    }
-  }
-
-  else if (_stmt.text == Token("PROVE_BACKWARD") ||
-           _stmt.text == Token("THEOREM")) {
-    // (THEOREM to_prove)
-    const auto name = _stmt.children.at(0).text.text;
-    const auto theorem = _stmt.children.at(1);
-
-    const auto res = im.prove(theorem, pass_limit);
-    if (!res.has_value()) {
-      if (!im.quiet) {
-        std::cout << "ERROR:   Failed to prove " << theorem
-                  << "\n";
-      }
-      saw_error = true;
-    } else {
-      proven_theorems.insert(res.value().index);
-      if (!name.empty()) {
-        im.name_theorem(theorem, name);
-      }
-    }
-  }
-
   else if (_stmt.text == "LS") {
     ls();
-  }
-
-  // Axiom
-  else if (_stmt.text == Token("AXIOM")) {
-    // (AXIOM name a)
-    const auto name = _stmt.children.at(0).text.text;
-    const auto thm = _stmt.children.at(1);
-    im.add_axiom(thm);
-    if (!name.empty()) {
-      im.name_theorem(thm, name);
-    }
   }
 
   // Inclusion
@@ -775,142 +210,43 @@ void Core::process_statement(
     handle_setting(*this, t);
   }
 
-  else if (_stmt.text == "WTS") {
-    im.pending.push_back(_stmt.children.at(0));
-  }
+  else if (_stmt.text == "NOTATION") {
+    const auto name = _stmt.at(0).text.text;
+    const auto fixedness = _stmt.at(1).text.text;
+    const auto tok = _stmt.at(2).text.text;
+    const auto before = _stmt.at(3);
+    const auto arity = std::stoull(_stmt.at(4).text.text);
 
-  else if (_stmt.text == "METHOD") {
-    // method fn(...) requires FML ensures FML returns TOK {
-    //   ...
-    // }
-
-    // (METHOD name args requirements ensurements return body)
-    if (_stmt.children.size() != 6) {
-      throw std::runtime_error("Malformed 'METHOD' AST");
-    }
-    const auto name = _stmt.children.at(0);
-    // const auto args = _stmt.children.at(1);
-    const auto requirement = _stmt.children.at(2);
-    const auto ensurement = _stmt.children.at(3);
-    // const auto return_value = _stmt.children.at(4);
-    const auto body = _stmt.children.at(5);
-
-    const auto postcondition =
-        get_postcondition(requirement, body);
-
-    if (debug) {
-      std::cout << "On Hoare-method statement " << _stmt
-                << '\n';
-      std::cout << "For correctness of " << name
-                << ", must prove that " << postcondition
-                << " |- " << ensurement << "\n";
+    if (tok.size() < 3 || !tok.starts_with('"') ||
+        !tok.ends_with('"')) {
+      throw std::runtime_error("Invalid notation token '" +
+                               tok + "'");
     }
 
-    im.push();
-    im.add_axiom(postcondition);
-    const auto res = im.prove(ensurement, pass_limit);
-    im.pop();
+    Parser::OperationInfo info;
+    info.arity = arity;
+    info.label = name;
+    info.mode =
+        (fixedness == "infix" ? Parser::OperationInfo::INFIX
+         : fixedness == "prefix"
+             ? Parser::OperationInfo::PREFIX
+             : Parser::OperationInfo::POSTFIX);
+    info.tok = tok.substr(1, tok.size() - 2);
 
-    if (!res.has_value()) {
-      if (!im.quiet) {
-        std::cout
-            << "ERROR:   Failed to prove Hoare correctness of "
-            << name << "\n";
-      }
-      saw_error = true;
-    }
-  }
+    // Find where to put it
+    auto pos = parser.order_of_operations.end();
 
-  else if (_stmt.text == "APPLY") {
-    // apply X to Y, Z, A;
-    // apply all;
-    // apply X;
-
-    // (APPLY rule_name argument_list)
-    const std::string rule_name =
-        _stmt.children.at(0).text.text;
-    const ASTNode thm_list = _stmt.children.at(1);
-    const std::string result_name =
-        _stmt.children.at(2).text.text;
-
-    if (rule_name == "all") {
-      if (!result_name.empty()) {
-        throw std::runtime_error(
-            "'apply all as ...' makes no sense");
-      }
-      const auto first_n = im.known.size();
-      for (size_t rule_index = 0; rule_index < im.rules.size();
-           ++rule_index) {
-        im.inst_all(rule_index, first_n);
-      }
-      if (first_n == im.known.size()) {
-        throw std::runtime_error("No rules could be applied");
-      }
-    } else {
-      // Find and verify rule
-      size_t rule_index = 0;
-      const auto rule = im.get_rule(rule_name, rule_index);
-
-      if (thm_list.children.empty()) {
-        if (!result_name.empty()) {
-          throw std::runtime_error(
-              "'apply X;' without 'to' clause applies a "
-              "rule as much as possible, which could "
-              "result in multiple theorems. Thus, an 'as' "
-              "clause is not allowed. Did you mean 'lemma " +
-              result_name + ": ...;'?");
-        }
-
-        const auto before = im.known.size();
-        im.inst_all(rule_index, before);
-
-        if (before == im.known.size()) {
-          throw std::runtime_error("Rule " + rule_name +
-                                   " could not be applied");
-        }
-      } else {
-        if (rule.requirements.size() !=
-            thm_list.children.size()) {
-          std::cerr << "Rule " << rule << " requires "
-                    << rule.requirements.size()
-                    << " arguments (";
-          bool first = true;
-          for (const auto &req : rule.requirements) {
-            if (first) {
-              first = false;
-            } else {
-              std::cerr << ' ';
-            }
-            std::cerr << req;
-          }
-          std::cerr << "), but " << thm_list.children.size()
-                    << " were provided " << thm_list << '\n';
-          throw std::runtime_error("Rule application mismatch");
-        }
-
-        // Find theorems
-        std::vector<InferenceMaker::Theorem> thms;
-        std::vector<size_t> premise_indices;
-        for (const auto &t : thm_list.children) {
-          const auto thm = im.get_theorem(t.text.text);
-          thms.push_back(thm);
-          premise_indices.push_back(thm.index);
-        }
-
-        // Try to apply
-        const auto res = rule.apply(thms, im.known.size());
-
-        bool trash = false;
-        std::optional<std::string> n = {};
-        if (!result_name.empty()) {
-          n = result_name;
-        }
-        const auto thm_add_res =
-            im.add_theorem(res, result_name, rule_index,
-                           premise_indices, trash);
-        proven_theorems.insert(thm_add_res.index);
+    if (!before.empty()) {
+      const auto b = before.at(0).text.text;
+      pos = parser.order_of_operations.begin();
+      while (pos != parser.order_of_operations.end() &&
+             pos->label != b) {
+        ++pos;
       }
     }
+
+    // Insert it
+    parser.order_of_operations.insert(pos, info);
   }
 
   else if (!im.quiet) {
@@ -920,16 +256,17 @@ void Core::process_statement(
 }
 
 void Core::do_file(const std::filesystem::path &_fp) {
-  Parser p(lex_file(_fp));
-  p.debug = debug;
-  const auto root = p.parse();
-
+  const auto ts = lex_file(_fp);
   if (debug) {
-    std::cout << "Root: " << root << "\n\n";
+    std::cout << "Prepending file ts:";
+    for (const auto &tok : ts.data) {
+      std::cout << ' ' << tok.text;
+    }
+    std::cout << '\n';
   }
-
-  for (const auto &stmt : root.children) {
-    process_statement(stmt, _fp);
+  parser.ts.prepend(ts.data);
+  while (!parser.ts.done()) {
+    parse_and_process(_fp);
   }
 }
 
@@ -940,14 +277,14 @@ void Core::ls() const noexcept {
     std::cout << " " << r.name.value_or(std::to_string(i))
               << " " << r << '\n';
   }
-  std::cout << "\nAll " << im.known.size() << " theorems:\n";
-  for (uint i = 0; i < im.known.size(); ++i) {
-    const auto t = im.known.at(i);
+  std::cout << "\nAll " << im.facts.size() << " theorems:\n";
+  for (uint i = 0; i < im.facts.size(); ++i) {
+    const auto t = im.facts.at(i);
     std::cout << " " << t.name.value_or(std::to_string(i))
               << " " << t << '\n';
   }
-  std::cout << "\nAll " << im.pending.size() << " pending:\n";
-  for (const auto &p : im.pending) {
+  std::cout << "\nAll " << im.goals.size() << " pending:\n";
+  for (const auto &p : im.goals) {
     std::cout << " " << p << '\n';
   }
 }

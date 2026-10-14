@@ -1,4 +1,5 @@
 #include "parse.hpp"
+#include "ast.hpp"
 #include <fstream>
 #include <initializer_list>
 #include <iostream>
@@ -39,22 +40,11 @@ TokenStream lex_text(const std::string &text,
 
     // Singletons
     else if (std::set<char>({';', '(', ')', '{', '}', '.', ',',
-                             '[', ']', '\'', '^'})
+                             '[', ']', '\'', '^', ':'})
                  .contains(c)) {
       add_tok();
       cur = c;
       add_tok();
-    }
-
-    // typing or member access
-    else if (c == ':') {
-      if (cur == ":") {
-        cur.push_back(c);
-        add_tok();
-      } else {
-        add_tok();
-        cur = c;
-      }
     }
 
     else if (c == '#') {
@@ -121,18 +111,22 @@ ASTNode Parser::parse_statement() {
   const Token tok = ts.cur_next();
   const std::string t = tok.text;
 
+  if (debug) {
+    std::cout << "parse_statement at " << t << '\n';
+  }
+
   if (t == ";") {
-    return ASTNode("NULL");
+    return ASTNode(Token(tok, "NULL"));
   } else if (t == "ls") {
-    return ASTNode("LS");
+    return ASTNode(Token(tok, "LS"));
   } else if (t == "quit") {
-    return ASTNode("QUIT");
+    return ASTNode(Token(tok, "QUIT"));
   } else if (t == "help") {
-    return ASTNode("HELP");
+    return ASTNode(Token(tok, "HELP"));
   }
 
   else if (t == "{") {
-    ASTNode out("SCOPE");
+    ASTNode out(Token(tok, "SCOPE"));
     while (!ts.done() && ts.cur().text != "}") {
       out.children.push_back(parse_statement());
     }
@@ -140,93 +134,36 @@ ASTNode Parser::parse_statement() {
     return out;
   }
 
-  else if (t == "wts") {
-    return ASTNode(Token("WTS"), {parse_expr()});
-  }
-
   else if (t == "include" || t == "import") {
     const auto written = ts.cur_next().text;
     return ASTNode(
-        Token("INCLUDE"),
+        Token(Token(tok, "INCLUDE")),
         {Token(written.substr(1, written.size() - 2))});
   } else if (t == "setting" || t == "option") {
     const auto written = ts.cur_next().text;
     return ASTNode(
-        Token("SETTING"),
+        Token(Token(tok, "SETTING")),
         {Token(written.substr(1, written.size() - 2))});
   }
 
-  else if (t == "prove_forward") {
-    std::string name = "";
-    if (ts.cur().text != ":") {
-      name = ts.cur().text;
-      ts.next();
-    }
+  else if (t == "notation") {
+    const auto name = ts.cur_next();
     ts.expect({":"});
-    return ASTNode(Token("PROVE_FORWARD"),
-                   {ASTNode(name), parse_expr()});
-  } else if (t == "prove_backward") {
-    std::string name = "";
-    if (ts.cur().text != ":") {
-      name = ts.cur().text;
+    const auto fixedness =
+        ts.expect({"prefix", "infix", "postfix"});
+    const auto tok = ts.cur_next();
+    ASTNode before("BEFORE");
+    if (ts.cur() == "before") {
       ts.next();
+      before.children.push_back(ts.cur_next());
     }
-    ts.expect({":"});
-    return ASTNode(Token("PROVE_BACKWARD"),
-                   {ASTNode(name), parse_expr()});
-  } else if (t == "prove_smt") {
-    std::string name = "";
-    if (ts.cur().text != ":") {
-      name = ts.cur().text;
-      ts.next();
-    }
-    ts.expect({":"});
-    return ASTNode(Token("PROVE_SMT"),
-                   {ASTNode(name), parse_expr()});
-  } else if (t == "theorem" || t == "lemma" || t == "deduce" ||
-             t == "prove" || t == "assert") {
-    std::string name = "";
-    if (ts.cur().text != ":") {
-      name = ts.cur().text;
-      ts.next();
-    }
-    ts.expect({":"});
-    return ASTNode(Token("THEOREM"),
-                   {ASTNode(name), parse_expr()});
+    return ASTNode(
+        "NOTATION",
+        {name, fixedness, tok, before,
+         (fixedness == "infix" ? Token("2") : Token("1"))});
   }
 
-  else if (t == "apply") {
-    // apply X;
-    // apply X to Y, Z, A, B;
-    const auto rule_name = ts.cur_next();
-    ASTNode arguments("_");
-    if (ts.cur().text == "to") {
-      ts.next();
-      arguments.children.push_back(ts.cur_next());
-      while (ts.cur().text == ",") {
-        ts.next();
-        arguments.children.push_back(ts.cur_next());
-      }
-    }
-    std::string result_name = "";
-    if (ts.cur().text == "as") {
-      ts.next();
-      result_name = ts.cur_next().text;
-    }
-    return ASTNode(Token("APPLY"), {rule_name, arguments,
-                                    ASTNode(result_name)});
-  }
-
-  else if (t == "axiom" || t == "assume") {
-    std::string name = "";
-    if (ts.cur().text != ":") {
-      name = ts.cur().text;
-      ts.next();
-    }
-    ts.expect({":"});
-    return ASTNode(Token("AXIOM"),
-                   {ASTNode(name), parse_expr()});
-  } else if (t == "rule") {
+  else if (t == "axiom") {
     std::string name = "NULL";
     if (ts.cur().text != ":") {
       name = ts.cur().text;
@@ -259,11 +196,52 @@ ASTNode Parser::parse_statement() {
     ts.expect({"deduce"});
     ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
     return ASTNode(
-        Token("RULE"),
+        Token(Token(tok, "AXIOM")),
         {over_block, given_block, deduce_block, ASTNode(name)});
-  } else if (t == "method") {
-    return parse_method();
-  } else {
+  }
+
+  else if (t == "theorem") {
+    std::string name = "NULL";
+    if (ts.cur().text != ":") {
+      name = ts.cur().text;
+      ts.next();
+    }
+    ts.expect({":"});
+    ASTNode over_block(Token("OVER"));
+    if (ts.cur().text == "over") {
+      ts.next();
+      while (!ts.done() && ts.cur().text != "given" &&
+             ts.cur().text != "deduce") {
+        over_block.children.push_back(parse_expr());
+        while (ts.cur().text == ",") {
+          ts.next();
+        }
+      }
+    }
+
+    ASTNode given_block(Token("GIVEN"));
+    if (ts.cur().text == "given") {
+      ts.next();
+      while (!ts.done() && ts.cur().text != "deduce") {
+        given_block.children.push_back(parse_expr());
+        while (ts.cur().text == ",") {
+          ts.next();
+        }
+      }
+    }
+
+    ts.expect({"deduce"});
+    const ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
+
+    ts.expect({"by"});
+    const auto proof = parse_proof();
+
+    return ASTNode(Token(Token(tok, "THEOREM")),
+                   {over_block, given_block, deduce_block,
+                    proof, ASTNode(name)});
+  }
+
+  else {
     throw std::runtime_error(
         "At " + tok.file.string() + ":" +
         std::to_string(tok.line) + "." +
@@ -296,21 +274,14 @@ ASTNode Parser::parse() {
   return out;
 }
 
-const static std::initializer_list<std::string>
-    order_of_operations = {
-        "'",     "^",       "*",       "/",      "%",  "+",
-        "-",     "<",       ">",       "<=",     ">=", "==",
-        "cross", "to",      "in",      "not",    "or", "and",
-        "iff",   "implies", "derives", "models",
-};
-const static std::set<std::string> keywords =
-    order_of_operations;
-
 const static std::set<std::string> expression_terminators = {
-    ",",      ";", "requires", "ensures", "given", "returns",
-    "deduce", "{", "}",        "=",       "]"};
+    ",", ";", "given", "deduce", "{", "}", "by", "wts"};
 
 ASTNode Parser::parse_expr() {
+  if (debug) {
+    std::cout << "parse_expr at " << ts.cur() << '\n';
+  }
+
   std::list<ASTNode> items;
   try {
     while (!ts.done() &&
@@ -322,106 +293,17 @@ ASTNode Parser::parse_expr() {
       const auto cur = ts.cur_next();
 
       if (cur.text == "(") {
-        if (!items.empty() &&
-            !keywords.contains(items.back().text.text)) {
-          // Parse call
-          if (items.empty()) {
-            throw std::runtime_error("Malformed expression");
-          }
-
-          ASTNode call("@", {items.back()});
-          items.pop_back();
-          while (!ts.done() && ts.cur().text != ")") {
-            call.children.push_back(parse_expr());
-            while (ts.cur().text == ",") {
-              ts.next();
-            }
-          }
-          ts.expect({")"});
-          items.push_back(call);
-        } else {
-          // Special case: Unit tuple ()
-          if (ts.cur().text == ")") {
-            items.push_back(ASTNode("_", {}));
-            ts.next();
-          } else {
-            // Parse parentheses
-            items.push_back(parse_expr());
-
-            if (ts.cur().text == ",") {
-              // Actually a tuple / list
-              ASTNode tuple = ASTNode("_", {items.back()});
-              items.pop_back();
-
-              // Parse any number of statements, then close
-              while (ts.cur().text != ")") {
-                while (ts.cur().text == ",") {
-                  ts.next();
-                }
-                if (ts.cur().text == ")") {
-                  break;
-                }
-
-                tuple.children.push_back(parse_expr());
-              }
-
-              // Append tuple to items
-              items.push_back(tuple);
-            }
-
-            ts.expect({")"});
-          }
+        std::list<ASTNode> l;
+        while (!ts.done() && ts.cur().text != ")") {
+          l.push_back(parse_expr());
         }
-      } else if (cur.text == "[") {
-        // Replacement notation
-        // A[x = B] means "replace x in A with B"
-        if (items.empty()) {
-          throw std::runtime_error(
-              "Malformed expression: replacement operator '[' "
-              "must act upon an expression");
-        }
-
-        // Pop A
-        const auto A = items.back();
-        items.pop_back();
-
-        // Parse x
-        const auto x = parse_expr();
-
-        ts.expect({"="});
-
-        // Parse B
-        const auto B = parse_expr();
-        ts.expect({"]"});
-
-        // Push replacement expression
-        items.push_back(ASTNode("REPLACE", {A, x, B}));
-      } else if (cur.text == "::") {
-        // Member access
-        if (items.empty()) {
-          throw std::runtime_error(
-              "Malformed expression: access operator '::' "
-              "must act upon an expression");
-        }
-
-        // Pop A
-        const auto A = items.back();
-        items.pop_back();
-
-        // Get B (NOT parsing an expression)
-        const auto B = ts.cur_next();
-
-        // Push replacement expression
-        items.push_back(ASTNode("::", {A, B}));
+        ts.expect({")"});
+        items.push_back(parse_expr_from_list(l));
       }
 
       // Non-parentheses case
       else {
-        if (cur == ":") {
-          items.push_back(ASTNode("in"));
-        } else {
-          items.push_back(cur);
-        }
+        items.push_back(cur);
       }
     }
     if (ts.done()) {
@@ -464,39 +346,60 @@ ASTNode Parser::parse_expr_from_list(
   }
 
   // Do non-quant operators
-  for (const auto &op : order_of_operations) {
+  for (const auto &op_info : order_of_operations) {
+    const auto op = op_info.tok;
+    const auto label = op_info.label;
+    const auto arity = op_info.arity;
+    const auto fixedness = op_info.mode;
+
     std::list<ASTNode> next_items;
 
-    // Unary prefix operations (just not, for now)
-    if (op == "not") {
+    // Unary prefix operations
+    if (fixedness == OperationInfo::PREFIX) {
+      if (arity != 1) {
+        throw std::runtime_error(
+            "Non-unary prefix operators are not yet supported "
+            "(offender: '" +
+            label + "')");
+      }
+
       for (auto rit = items.rbegin(); rit != items.rend();
            ++rit) {
-        if (rit->text == "not" && rit->children.empty()) {
+        if (rit->text == op && rit->children.empty()) {
           if (next_items.empty()) {
-            throw std::runtime_error(
-                "Malformed expression: 'not' does not act on "
-                "anything");
+            throw std::runtime_error("Malformed expression: '" +
+                                     label +
+                                     "' does not act on "
+                                     "anything");
           }
           next_items.front() =
-              ASTNode("not", {next_items.front()});
+              ASTNode(label, {next_items.front()});
         } else {
           next_items.push_front(*rit);
         }
       }
     }
 
-    // Unary suffix: Just prime, for now
-    else if (op == "'") {
+    // Unary suffix
+    else if (fixedness == OperationInfo::POSTFIX) {
+      if (arity != 1) {
+        throw std::runtime_error(
+            "Non-unary postfix operators are not yet supported "
+            "(offender: '" +
+            label + "')");
+      }
+
       for (const auto &item : items) {
-        if (item == "'") {
+        if (item == op) {
           if (next_items.empty()) {
-            throw std::runtime_error(
-                "Malformed expression: 'prime' does not act on "
-                "anything");
+            throw std::runtime_error("Malformed expression: '" +
+                                     label +
+                                     "' does not act on "
+                                     "anything");
           }
           const auto upon = next_items.back();
           next_items.pop_back();
-          next_items.push_back(ASTNode("prime", {upon}));
+          next_items.push_back(ASTNode(label, {upon}));
         } else {
           next_items.push_back(item);
         }
@@ -505,18 +408,25 @@ ASTNode Parser::parse_expr_from_list(
 
     // Binary operations
     else {
+      if (arity != 2) {
+        throw std::runtime_error(
+            "Non-binary infix operators are not yet supported "
+            "(offender: '" +
+            label + "')");
+      }
+
       bool pending = false;
       for (const auto &item : items) {
         if (pending) {
           const auto popped = next_items.back();
           next_items.pop_back();
           next_items.push_back(
-              ASTNode(Token(op), {popped, item}));
+              ASTNode(Token(label), {popped, item}));
           pending = false;
         } else if (item == op && item.children.empty()) {
           if (next_items.empty()) {
-            throw std::runtime_error(
-                "Malformed expression: " + op + " has no LHS");
+            throw std::runtime_error("Malformed expression: " +
+                                     label + " has no LHS");
           }
           pending = true;
         } else {
@@ -531,7 +441,7 @@ ASTNode Parser::parse_expr_from_list(
     items = next_items;
 
     if (debug) {
-      std::cout << "After " << op << ": [";
+      std::cout << "After " << label << ": [";
       for (const auto &item : items) {
         std::cout << item << ' ';
       }
@@ -586,66 +496,61 @@ ASTNode Parser::parse_expr_from_list(
   }
 
   if (output_items.size() != 1) {
-    throw std::runtime_error(
-        "Malformed expression: Failed to produce single tree. "
-        "Instead, " +
-        std::to_string(output_items.size()));
+    std::vector<ASTNode> items;
+    items.assign(output_items.begin(), output_items.end());
+    return ASTNode("_", items);
   }
   return *output_items.begin();
 }
 
-ASTNode Parser::parse_method() {
-  const auto name = ts.cur_next();
-  ts.expect({"("});
-  ASTNode args("_");
-  while (ts.cur() != ")") {
-    args.children.push_back(ts.cur_next());
-    while (ts.cur() == ",") {
-      ts.next();
+ASTNode Parser::parse_proof() {
+  ASTNode pf("PROOF");
+  ts.expect({"{"});
+  while (!ts.done() && ts.cur() != "}") {
+    const auto tok = ts.cur_next();
+    const auto t = tok.text;
+
+    if (t == "forward" || t == "fw") {
+      const auto name = ts.cur_next();
+
+      ASTNode on("ON");
+      ASTNode as("AS");
+      if (ts.cur() == "on") {
+        ts.next();
+        do {
+          while (!ts.done() && ts.cur() == ",") {
+            ts.next();
+          }
+          on.children.push_back(ts.cur_next());
+        } while (!ts.done() && ts.cur() == ",");
+      }
+      if (ts.cur() == "as") {
+        ts.expect({"as"});
+        as.children.push_back(ts.cur_next());
+      }
+
+      pf.children.push_back(
+          ASTNode(Token(tok, "FORWARD"), {name, on, as}));
+    } else if (t == "backward" || t == "bw") {
+      const auto name = ts.cur_next();
+      pf.children.push_back(
+          ASTNode(Token(tok, "BACKWARD"), {name}));
+    } else if (t == "wts") {
+      const auto goal = parse_expr();
+      const auto proof = parse_proof();
+      pf.children.push_back(
+          ASTNode(Token(tok, "WTS"), {goal, proof}));
+    }
+
+    else if (t == "ls") {
+      pf.children.push_back(ASTNode(Token(tok, "LS")));
+    }
+
+    else {
+      throw std::runtime_error(
+          "Invalid proof statement start token '" + t + "'");
     }
   }
-  ts.expect({")"});
-
-  ts.expect({"requires"});
-  const auto requirement = parse_expr();
-  ts.expect({"ensures"});
-  const auto ensurement = parse_expr();
-  ts.expect({"returns"});
-  const auto return_val = ts.cur_next();
-
-  const auto body = parse_method_statement();
-
-  return ASTNode("METHOD", {name, args, requirement, ensurement,
-                            return_val, body});
-}
-
-ASTNode Parser::parse_method_statement() {
-  const auto t = ts.cur_next();
-  if (t == "{") {
-    ASTNode out("_");
-    while (ts.cur() != "}") {
-      out.children.push_back(parse_method_statement());
-    }
-    ts.expect({"}"});
-    return out;
-  } else if (t == "if") {
-    ASTNode out("ITE");
-    out.children.push_back(parse_expr());
-    out.children.push_back(parse_method_statement());
-    ts.expect({"else"});
-    out.children.push_back(parse_method_statement());
-    return out;
-  } else if (t == "while") {
-    ASTNode out("WHILE");
-    out.children.push_back(parse_expr());
-    out.children.push_back(parse_method_statement());
-    return out;
-  } else if (t == ";") {
-    return ASTNode("_");
-  } else {
-    ASTNode out("SET", {t});
-    ts.expect({"="});
-    out.children.push_back(parse_expr());
-    return out;
-  }
+  ts.expect({"}"});
+  return pf;
 }

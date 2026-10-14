@@ -1,86 +1,83 @@
-# Regular ol' sequent calculus. See `isc.verily` for the
-# intuitionist version.
+# Gentzen-style (intuitionist) sequent calculus
+include "std.verily";
 
-# Also taken from "Lectures on the Curry-Howard Isomorphism"
+# Lists
+notation append: infix "++" before in;
+axiom singleton_list: over A deduce A in A;
+axiom cons_list_l: over A, B given A in B deduce A in B ++ C;
+axiom cons_list_r: over A, B, C given A in C deduce A in B ++ C;
+axiom in_empty_set: over A given A in empty_set deduce false;
 
-include "tuple_rules.verily";
-setting "meta_prove=false";
-
-rule axiom_schema:
-  over Gamma, Delta, phi
-  deduce (Gamma, phi) derives (phi, Delta)
+axiom derives_intro:
+  over A
+  given A
+  deduce empty_set derives A
 ;
 
-rule left_and_1:
-  over Gamma, phi, psi, Sigma
-  given (Gamma, phi) derives Sigma
-  deduce (Gamma, phi and psi) derives Sigma
+axiom derives_elim:
+  over A
+  given empty_set derives A
+  deduce A
 ;
 
-rule left_and_2:
-  over Gamma, phi, psi, Sigma
-  given (Gamma, psi) derives Sigma
-  deduce (Gamma, phi and psi) derives Sigma
+# Actual ISC rules
+axiom sc_assumption:
+  over A, B
+  given A in B
+  deduce B derives A
 ;
-
-rule right_and:
-  over Gamma, phi, psi, Delta
+axiom sc_and_intro:
+  over G, A, B
+  given G derives A, G derives B
+  deduce G derives A and B
+;
+axiom sc_or_intro_l:
+  over G, A, B
+  given G ++ B derives A
+  deduce G derives A or B
+;
+axiom sc_or_intro_r:
+  over G, A, B
+  given G ++ A derives B
+  deduce G derives A or B
+;
+axiom sc_implies_intro:
+  over G, A, B
+  given G ++ A derives B
+  deduce G derives A implies B
+;
+axiom sc_left_and_1:
+  over G, A, B, C
+  given G ++ A derives C
+  deduce G ++ (A and B) derives C
+;
+axiom sc_left_and_2:
+  over G, A, B, C
+  given G ++ B derives C
+  deduce G ++ (A and B) derives C
+;
+axiom sc_left_or:
+  over G, A, B, C
   given
-    Gamma derives (phi, Delta),
-    Gamma derives (psi, Delta)
-  deduce Gamma derives (phi and psi, Delta)
+    G ++ A derives C,
+    G ++ B derives C
+  deduce G ++ (A or B) derives C
 ;
-
-rule left_or:
-  over Gamma, phi, Sigma, psi
+axiom sc_left_implies:
+  over G, A, B, C
   given
-    (Gamma, phi) derives Sigma,
-    (Gamma, psi) derives Sigma
-  deduce (Gamma, phi or psi) derives Sigma
+    G derives A,
+    G ++ B derives C
+  deduce G ++ (A implies B) derives C
 ;
-
-rule right_or_1:
-  over Gamma, phi, Delta, psi
-  given Gamma derives (phi, Delta)
-  deduce Gamma derives (phi and psi, Delta)
+axiom sc_left_false:
+  over G, C
+  deduce G ++ false derives C
 ;
-
-rule right_or_2:
-  over Gamma, phi, Delta, psi
-  given Gamma derives (psi, Delta)
-  deduce Gamma derives (phi or psi, Delta)
-;
-
-rule left_implies:
-  over Gamma, phi, Delta, Sigma
+axiom sc_cut:
+  over G, A, B
   given
-    Gamma derives (phi, Delta),
-    (Gamma, psi) derives Sigma
-  deduce (Gamma, phi implies psi) derives (Delta, Sigma)
+    G derives A implies B,
+    G derives A
+  deduce G derives B
 ;
-
-rule right_implies:
-  over Gamma, phi, psi, Delta
-  given (Gamma, phi) derives (psi, Delta)
-  deduce Gamma derives (phi implies psi, Delta)
-;
-
-rule left_false:
-  over Gamma, Sigma
-  deduce (Gamma, false) derives Sigma
-;
-
-rule cut:
-  over Gamma, phi, Delta, Sigma
-  given
-    Gamma derives (phi, Delta),
-    (Gamma, phi) derives Sigma
-  deduce Gamma derives (Delta, Sigma)
-;
-
-rule axiom_schema_simple:
-  over phi
-  deduce (phi,) derives (phi,)
-;
-
-theorem: () derives (psi implies (phi implies psi),);

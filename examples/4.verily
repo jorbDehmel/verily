@@ -1,10 +1,54 @@
-include "pl_rules.verily";
+include "std.verily";
+include "eq.verily";
 
-rule def_of_f:
-  over x
-  deduce f(x) == x^2
+axiom a1: deduce a == b;
+axiom a2: deduce b == c;
+
+theorem:
+  deduce a == c
+by {
+  fw a1 as 1
+  fw a2 as 2
+  fw eq_trans on 1, 2
+}
+
+axiom or_intro_l:
+  over A, B
+  given A
+  deduce A or B
 ;
 
-theorem: f(y) == y^2;
-theorem: f(f(y)) == f(y)^2;
-theorem: (y in Nat) implies (f(y) == y^2);
+axiom or_intro_r:
+  over A, B
+  given B
+  deduce A or B
+;
+
+axiom or_deduction:
+  over A, B, C
+  given
+    A implies C,
+    B implies C,
+    A or B
+  deduce A implies C
+;
+
+include "sequent_calc.verily";
+
+theorem:
+  given
+    d == e or d == f,
+    e == f,
+    f == g
+  deduce d == g
+by {
+  ls
+  fw eq_trans on 1, 2
+  ls
+  fw derives_intro on 0
+  ls
+  bw derives_elim
+  ls
+  bw sc_left_or
+  ls
+}

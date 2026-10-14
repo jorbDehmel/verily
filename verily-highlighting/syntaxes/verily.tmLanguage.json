@@ -46,28 +46,16 @@
 		"keywords": {
 			"patterns": [
 				{
-					"match": "\\b(while|returns|if|else|option|as|ls|help|quit|wts|apply|to|derives|models|lemma|fn|fresh|setting|axiom|function|include|method|annotation|exists|forall|lambda|implies|iff|st|requires|ensures|bind|symbol|rule|over|given|deduce|theorem|prove[_a-zA-Z]*)\\b",
+					"match": "\\b(on|by|forward|fw|backward|bw|wts|notation|infix|prefix|postfix|before|option|as|ls|help|quit|setting|axiom|include|exists|forall|lambda|over|given|deduce|theorem)\\b",
 					"name": "keyword.control.verily"
-				},
-				{
-					"match": "\\b(true|false|in|and|or|not|to|cross)\\b",
-					"name": "keyword.other.verily"
 				}
 			]
 		},
 		"storage": {
 			"patterns": [
 				{
-					"match": "\\b[A-Z][A-Z0-9]+",
-					"name": "entity.name.class.verily"
-				},
-				{
-					"match": "\\b[a-z0-9_]+\\b",
-					"name": "variable.name.verily"
-				},
-				{
 					"match": "\\b[a-zA-Z0-9_]+(?=(<.*>)?\\()\\b",
-					"name": "entity.name.function"
+					"name": "variable.name.verily"
 				},
 				{
 					"match": "\\b(\\.|:|;|,|==|')\\b",

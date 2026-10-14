@@ -1,0 +1,23 @@
+# Standard notation
+notation cross: infix "cross"
+notation to: infix "->"
+notation in: infix "in"
+notation prime: postfix "'"
+notation pow: infix "^"
+notation mul: infix "*"
+notation div: infix "/"
+notation add: infix "+"
+notation sub: infix "-"
+notation lt: infix "<"
+notation le: infix "<="
+notation gt: infix ">"
+notation ge: infix ">="
+notation eq: infix "=="
+notation neq: infix "!="
+notation not: prefix "not";
+notation and: infix "and"
+notation or: infix "or"
+notation implies: infix "implies"
+notation derives: infix "derives"
+
+axiom intro_false: over A given A, not A, deduce false;

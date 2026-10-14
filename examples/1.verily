@@ -1,35 +1,32 @@
-// A toy demonstration of the inductive system
+include "std.verily";
 
-// Typed instantiation (much more efficient)
-rule typed_instantiation:
-  over Domain, consequent, x, y
-  given
-    forall x. x in Domain implies consequent,
-    y in Domain
-  deduce consequent[x = y]
-;
-
-// Generalization
-rule generalization:
-  over Domain, consequent, x
-  given exists x. consequent
-  deduce consequent[x = fresh(x)]
-;
-
-// Modus ponens / uninterpreted implication
-rule modus_ponens:
+axiom mp:
   over p, q
   given p, p implies q
   deduce q
 ;
 
-axiom: 0 in Nat;
-axiom: forall n. n in Nat implies S(n) in Nat;
+axiom double_negation_introduction:
+  over p
+  given p
+  deduce not not p
+;
 
-prove_forward: S(S(S(S(0)))) in Nat;
+axiom: deduce is_raining;
+axiom: deduce is_raining implies not is_sunny;
 
-axiom: e(0);
-axiom: forall n. n in Nat implies (e(n) implies not e(S(n)));
-axiom: forall n. n in Nat implies (not e(n) implies e(S(n)));
+theorem:
+  deduce not is_sunny
+by {
+  fw 2 as a
+  fw 3 as b
+  fw mp on a, b
+}
 
-prove_forward: e(S(S(0)));
+theorem:
+  deduce not not not is_sunny
+by {
+  fw 2 as a
+  fw 3 as b
+  ls
+}

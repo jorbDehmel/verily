@@ -39,6 +39,12 @@ struct Token {
       : text(_t), file(_f), line(_l), col(_c) {
   }
 
+  /// Construct a token
+  Token(const Token &_tok, const std::string &_t)
+      : text(_t), file(_tok.file), line(_tok.line),
+        col(_tok.col) {
+  }
+
   /// Lower-level constructor, because for some reason this
   /// isn't implicitly derived
   Token(const char *_c_str) : Token(std::string(_c_str)) {
@@ -60,6 +66,10 @@ public:
   /// The current index into data
   uintmax_t pos;
 
+  /// Implicit constructor
+  TokenStream() : data({}), pos(0) {
+  }
+
   /// Initialize to the beginning of the token list
   TokenStream(const std::vector<Token> &_tokens)
       : data(_tokens), pos(0) {
@@ -76,6 +86,26 @@ public:
       return Token("EOF");
     }
     return data.at(pos);
+  }
+
+  /// Append some text to parse after everything else
+  inline void
+  append(const std::vector<Token> &_to_append) noexcept {
+    for (const auto &tok : _to_append) {
+      data.push_back(tok);
+    }
+  }
+
+  /// Prepend some text to parse next
+  inline void
+  prepend(const std::vector<Token> &_to_prepend) noexcept {
+    std::vector<Token> new_data;
+    new_data.assign(_to_prepend.begin(), _to_prepend.end());
+    for (size_t i = pos; i < data.size(); ++i) {
+      new_data.push_back(data[i]);
+    }
+    pos = 0;
+    data.assign(new_data.begin(), new_data.end());
   }
 
   /// Advance to the next token

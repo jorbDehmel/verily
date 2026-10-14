@@ -1,11 +1,21 @@
-// Instantiation
-rule:
-  over M, x, y
-  given forall x. M, y
-  deduce M[x = y]
+include "std.verily";
+
+axiom and_intro:
+  over A, B
+  given A, B
+  deduce A and B
 ;
 
-axiom: foo;
-axiom: forall item. fizz(item);
+axiom 0_eq_0:
+  deduce 0 == 0
+;
 
-prove_forward: fizz(foo);
+axiom 1_eq_1:
+  deduce 1 == 1
+;
+
+theorem:
+  deduce 0 == 0 and 1 == 1
+by {
+  bw and_intro
+}

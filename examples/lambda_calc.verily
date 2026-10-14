@@ -1,0 +1,46 @@
+# Lambda calculus.
+# This holds for any objects implementing subs.
+
+axiom beta_reduction:
+  over x, M, N
+  given (lambda x. M) N
+  deduce (subs M x N)
+;
+
+axiom alpha_reduction:
+  over x, y, M
+  given (lambda x. M)
+  deduce (lambda y. (subs M x y))
+;
+
+axiom lambda_calc_subs:
+  over x, y, M, N
+  given (subs (lambda x. M) y N)
+  deduce (lambda x. (subs M y N))
+;
+
+----------------------------------------------------------------
+
+axiom subs_atom:
+  over x, M
+  given (subs x x M)
+  deduce M
+;
+
+theorem lemma_1:
+  given (lambda x. lambda y. x) 1
+  deduce lambda y. 1
+by {
+  fw beta_reduction on 0 as 1
+  fw lambda_calc_subs on 1 as 2
+  fw subs_atom on 2
+  ls
+}
+
+theorem:
+  given (((lambda x. lambda y. x) 1) 2)
+  deduce 1
+by {
+  fw beta_reduction on 0
+  ls
+}
