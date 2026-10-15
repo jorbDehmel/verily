@@ -1,0 +1,22 @@
+# Tests backwards application and goals
+
+axiom a1: deduce A;
+axiom a2: deduce B;
+axiom a3: given A deduce C;
+axiom a4: given B deduce D;
+axiom a5: given C, D deduce E;
+
+theorem: deduce E
+by {
+  bw a5
+  wts C {
+    bw a3
+    bw a1
+  }
+  wts D {
+    ls
+    bw a4
+    ls
+    bw a2
+  }
+}

@@ -1,0 +1,91 @@
+include "std.verily";
+include "sequent_calc.verily";
+
+# Positive semidefinite matrices
+notation psd: infix ">>=";
+axiom psd_intro: over B deduce B^T * B >>= 0;
+
+# Semialgebraic polynomial calculus rules
+axiom nonneg_mul:
+  over p, q
+  given
+    p >= 0,
+    q >= 0
+  deduce p * q >= 0
+;
+axiom nonneg_add:
+  over p, q
+  given
+    p >= 0,
+    q >= 0
+  deduce p + q >= 0
+;
+axiom zero_mul:
+  over r, s
+  given r == 0, s
+  deduce r * s == 0
+;
+axiom zero_to_nonneg:
+  over r
+  given r == 0
+  deduce r >= 0
+;
+axiom nonneg_sos:
+  over Q, b
+  given Q >>= 0, b
+  deduce b^T * Q * b >= 0
+;
+
+----------------------------------------------------------------
+
+# Putinar form over 3 ineqs, 3 eqs is nonnegative
+theorem putinar_3_nonneg:
+  over
+    p1, p2, p3,
+    q1, q2, q3,
+    Q0, Q1, Q2, Q3,
+    b0, b1, b2, b3,
+    r1, r2, r3
+  given
+    p1 >= 0,
+    p2 >= 0,
+    p3 >= 0,
+    q1 == 0,
+    q2 == 0,
+    q3 == 0,
+    Q0 >>= 0,
+    Q1 >>= 0,
+    Q2 >>= 0,
+    Q3 >>= 0,
+    b0, b1, b2, b3,
+    r1, r2, r3
+  deduce
+    b0^T * Q0 * b0
+    + p1 * (b1^T * Q1 * b1)
+    + p2 * (b2^T * Q2 * b2)
+    + p3 * (b3^T * Q3 * b3)
+    + q1 * r1
+    + q2 * r2
+    + q3 * r3
+    >= 0
+by {
+  fw nonneg_sos on 6, 10 as sigma_0
+  fw nonneg_sos on 7, 11 as sigma_1
+  fw nonneg_sos on 8, 12 as sigma_2
+  fw nonneg_sos on 9, 13 as sigma_3
+  fw zero_mul on 3, 14 as eq_1
+  fw zero_mul on 4, 15 as eq_2
+  fw zero_mul on 5, 16 as eq_3
+  fw nonneg_mul on 0, sigma_1 as ineq_1
+  fw nonneg_mul on 1, sigma_2 as ineq_2
+  fw nonneg_mul on 2, sigma_3 as ineq_3
+  fw zero_to_nonneg on eq_1 as nonneg_eq_1
+  fw zero_to_nonneg on eq_2 as nonneg_eq_2
+  fw zero_to_nonneg on eq_3 as nonneg_eq_3
+  fw nonneg_add on sigma_0, ineq_1 as sum_5
+  fw nonneg_add on sum_5, ineq_2 as sum_4
+  fw nonneg_add on sum_4, ineq_3 as sum_3
+  fw nonneg_add on sum_3, nonneg_eq_1 as sum_2
+  fw nonneg_add on sum_2, nonneg_eq_2 as sum_1
+  fw nonneg_add on sum_1, nonneg_eq_3 as sum_0
+}

@@ -5,7 +5,8 @@
 #pragma once
 
 #include "ast.hpp"
-#include <cstdint>
+#include <iostream>
+#include <map>
 #include <optional>
 
 /// A maker of inferences. It takes rules and axioms and deduces
@@ -15,28 +16,28 @@ public:
   /// A statement, along with proof that it is a theorem
   struct Theorem {
     /// If given, the name of the theorem.
-    std::optional<std::string> name;
-
-    /// The internal index of this theorem
-    size_t index;
+    std::string name;
 
     /// The syntactic representation of this theorem
     ASTNode thm;
 
-    /// Either the index of the rule causing this theorem or
-    /// a negative number (indicating an axiom).
-    intmax_t rule_index;
+    /// The rule that created this
+    std::string rule_name;
 
     /// The indices of the theorems which satisfied the rule to
     /// create this. This might be empty.
-    std::vector<size_t> premises;
+    std::vector<std::string> premises;
   };
 
   /// If all the requirements are met, the consequences are
   /// implied
   struct InferenceRule {
-    /// If given, the name of the rule.
-    std::optional<std::string> name;
+    /// The name of the rule.
+    std::string name;
+
+    /// Construct an empty inference rule
+    InferenceRule() {
+    }
 
     /// Construct an inference rule
     InferenceRule(const std::set<ASTNode> &_fv,
@@ -72,88 +73,72 @@ public:
   void backward_apply(const InferenceRule &_rule,
                       const ASTNode &_goal);
 
-  ASTNode proof_to_ast(const size_t &_thm_index) const;
-
-  /// Given a theorem which has already been proven, return its
-  /// proof as a new AST.
-  ASTNode theorem_to_proof(const ASTNode &_theorem) const;
+  ASTNode proof_to_ast(const std::string &_theorem_name) const;
 
   /// Adds a new rule
   void add_rule(const InferenceRule &_rule);
 
-  /// Returns nonnegative iff _what has ALREADY been derived.
-  /// Return value is -1 for underived, else index of proven
-  /// theorem.
-  int has(const ASTNode &_what) const noexcept;
+  /// True iff we have already proven _what
+  bool has(const ASTNode &_what) const noexcept;
+
+  std::string get_name(const ASTNode &_what) const;
 
   /// Adds an axiom and returns its index
-  size_t add_axiom(const ASTNode &_what) noexcept;
-
-  /// Gets a rule by internal index
-  const InferenceRule get_rule(const uint &_index) const;
+  void add_assumption(const std::string &_name,
+                      const ASTNode &_what) noexcept;
 
   /// Gets a rule by name
-  const InferenceRule get_rule(const std::string &_name,
-                               size_t &_index) const;
-
-  /// Gets a theorem by internal index
-  const Theorem get_theorem(const uint &_index) const;
+  const InferenceRule get_rule(const std::string &_name) const;
 
   /// Gets a theorem by name
   const Theorem get_theorem(const std::string &_name) const;
 
   /// Adds a theorem
-  const Theorem
-  add_theorem(const ASTNode &_thm,
-              const std::optional<std::string> &_name,
-              const size_t &_rule_index,
-              const std::vector<size_t> &_premises,
-              bool &_actually_added);
+  const Theorem add_theorem(const Theorem &_thm);
 
-  /// All the information needed to push or pop a snapshot
-  struct BackupFrame {
-    /// The known theorems at the time
-    std::vector<Theorem> theorems;
+  /// Keeps all the info
+  struct Frame {
+    /// Statements which are known to be true
+    std::map<std::string, Theorem> theorems;
 
-    /// The known pending theorems at the time
-    std::vector<ASTNode> pending;
+    /// Statements currently being proven
+    std::list<ASTNode> goals;
 
-    /// The known rules at the time
-    std::vector<InferenceRule> rules;
+    /// Inference rules / axioms
+    std::map<std::string, InferenceRule> rules;
   };
 
   /// Push a frame such that any theorems will not be saved
   /// after popping
   inline void push() noexcept {
-    backup_frames.push_back(BackupFrame(facts, goals, rules));
+    frames.push_back(Frame());
   }
 
   /// Pop the most recent frame (if there is one)
-  inline void pop() noexcept {
-    if (!backup_frames.empty()) {
-      facts = backup_frames.back().theorems;
-      goals = backup_frames.back().pending;
-      rules = backup_frames.back().rules;
-      backup_frames.pop_back();
-    }
-  }
-
-  /// Pop the given item, warning if it is not the current back
-  inline void pop_pending(const ASTNode &_expected_back) {
-    std::erase_if(goals, [&](const ASTNode &_item) -> bool {
-      return _item == _expected_back;
-    });
-  }
-
-  /// Returns true iff the given theorem is currently pending
-  inline bool is_pending(const ASTNode &_thm) {
-    for (auto rit = goals.rbegin(); rit != goals.rend();
-         ++rit) {
-      if (*rit == _thm) {
-        return true;
+  inline void pop() {
+    if (frames.size() > 1) {
+      for (const auto &goal : frames.back().goals) {
+        if (!has(goal)) {
+          std::cerr << "Unresolved goal: " << goal << '\n';
+          throw std::runtime_error("Unresolved goal!");
+        }
       }
+
+      frames.pop_back();
     }
-    return false;
+  }
+
+  /// Add a goal
+  inline void open_goal(const ASTNode &_goal) {
+    frames.back().goals.push_front(_goal);
+  }
+
+  /// Remove a goal (if it was present)
+  inline void close_goal(const ASTNode &_goal) {
+    std::erase_if(frames.back().goals,
+                  [&](const ASTNode &_item) -> bool {
+                    return _item == _goal;
+                  });
   }
 
   /// Checks a proof, obviously. It recurses and logs its
@@ -161,17 +146,8 @@ public:
   void check_proof(const ASTNode &_goal, const ASTNode &_proof,
                    const std::string &_name);
 
-  /// Statements which are known to be true
-  std::vector<Theorem> facts;
-
-  /// Statements currently being proven
-  std::vector<ASTNode> goals;
-
-  /// Inference rules
-  std::vector<InferenceRule> rules;
-
-  /// Backup frames, used by push and pop
-  std::list<BackupFrame> backup_frames;
+  /// Where all the data is stored
+  std::list<Frame> frames = {Frame{}};
 
   /// If true, prints some extra info
   bool debug = false;

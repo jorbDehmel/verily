@@ -195,8 +195,8 @@ int main(int argc, char *argv[]) {
 
   if (!verily.im.quiet) {
     std::cout << "\n";
-    for (const auto &index : verily.proven_theorems) {
-      std::cout << verily.im.proof_to_ast(index) << "\n\n";
+    for (const auto &thm : verily.im.frames.front().theorems) {
+      std::cout << verily.im.proof_to_ast(thm.first) << "\n\n";
     }
   }
 
@@ -206,11 +206,6 @@ int main(int argc, char *argv[]) {
             stop - start)
             .count();
     std::cout << "Took " << (elapsed_us / 1'000.0) << "ms\n"
-              << "Total theorems: " << verily.im.facts.size()
-              << "\n"
-              << "Mean theorems per second: "
-              << (1'000'000.0 * verily.im.facts.size() /
-                  elapsed_us)
               << "\n";
   }
 
@@ -221,13 +216,6 @@ int main(int argc, char *argv[]) {
       return 4;
     }
     verily.json(f);
-  }
-
-  if (!verily.im.goals.empty()) {
-    std::cerr << "Pending (unproven) theorems:\n";
-    for (const auto &p : verily.im.goals) {
-      std::cerr << p << '\n';
-    }
   }
 
   if (verily.saw_error) {

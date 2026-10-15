@@ -9,118 +9,82 @@
 #include <string>
 #include <vector>
 
-ASTNode
-InferenceMaker::proof_to_ast(const size_t &_thm_index) const {
-  const auto thm = get_theorem(_thm_index);
-  if (thm.rule_index < 0) {
-    return ASTNode("axiom", {thm.thm});
-  } else {
-    ASTNode premises_block("premises");
-    for (const auto &premise : thm.premises) {
-      premises_block.children.push_back(proof_to_ast(premise));
-    }
-
-    const auto rule = get_rule(thm.rule_index);
-    const std::string rule_name =
-        rule.name.value_or(std::to_string(thm.rule_index));
-
-    return ASTNode(
-        "theorem",
-        {thm.thm,
-         ASTNode("rule_application",
-                 {ASTNode("rule", {ASTNode(rule_name)}),
-                  premises_block})});
+ASTNode InferenceMaker::proof_to_ast(
+    const std::string &_thm_name) const {
+  const auto thm = get_theorem(_thm_name);
+  ASTNode premises_block("premises");
+  for (const auto &premise : thm.premises) {
+    premises_block.children.push_back(proof_to_ast(premise));
   }
+  const auto rule = get_rule(thm.rule_name);
+  return ASTNode(
+      "theorem",
+      {thm.thm, ASTNode("rule_application",
+                        {ASTNode("rule", {ASTNode(rule.name)}),
+                         premises_block})});
 }
 
 const InferenceMaker::InferenceRule
-InferenceMaker::get_rule(const uint &_index) const {
-  if (_index >= rules.size()) {
-    throw std::runtime_error("Invalid rule index " +
-                             std::to_string(_index));
-  }
-  return rules.at(_index);
-}
-
-const InferenceMaker::Theorem
-InferenceMaker::get_theorem(const uint &_index) const {
-  if (_index >= facts.size()) {
-    throw std::runtime_error("Invalid theorem index " +
-                             std::to_string(_index));
-  }
-  return facts.at(_index);
-}
-
-const InferenceMaker::InferenceRule
-InferenceMaker::get_rule(const std::string &_name,
-                         size_t &_index) const {
-  int index = -1;
-  for (size_t i = 0; i < rules.size(); ++i) {
-    const auto rule = rules.at(i);
-    if (rule.name.value_or(std::to_string(i)) == _name) {
-      if (index != -1) {
-        throw std::runtime_error(
-            "Multiple rules are identified by '" + _name + "'");
-      }
-      index = i;
+InferenceMaker::get_rule(const std::string &_name) const {
+  for (auto rit = frames.rbegin(); rit != frames.rend();
+       ++rit) {
+    if (rit->rules.contains(_name)) {
+      return rit->rules.at(_name);
     }
   }
-
-  if (index != -1) {
-    _index = index;
-    return get_rule(index);
-  }
-
-  throw std::runtime_error("Invalid rule identifier " + _name);
+  throw std::runtime_error("Unknown rule '" + _name + "'");
 }
 
 const InferenceMaker::Theorem
 InferenceMaker::get_theorem(const std::string &_name) const {
-  int index = -1;
-  for (size_t i = 0; i < facts.size(); ++i) {
-    const auto thm = facts.at(i);
-    if (thm.name.value_or(std::to_string(i)) == _name) {
-      if (index != -1) {
-        throw std::runtime_error(
-            "Multiple theorems are identified by '" + _name +
-            "'");
+  for (auto rit = frames.rbegin(); rit != frames.rend();
+       ++rit) {
+    if (rit->theorems.contains(_name)) {
+      return rit->theorems.at(_name);
+    }
+  }
+  throw std::runtime_error("Unknown theorem '" + _name + "'");
+}
+
+bool InferenceMaker::has(const ASTNode &_what) const noexcept {
+  for (auto rit = frames.rbegin(); rit != frames.rend();
+       ++rit) {
+    for (const auto &p : rit->theorems) {
+      if (p.second.thm == _what) {
+        return true;
       }
-      index = i;
     }
   }
-
-  if (index != -1) {
-    return get_theorem(index);
-  }
-
-  throw std::runtime_error("Invalid theorem identifier " +
-                           _name);
+  return false;
 }
 
-int InferenceMaker::has(const ASTNode &_what) const noexcept {
-  for (int i = facts.size() - 1; i >= 0; --i) {
-    if (facts.at(i).thm == _what) {
-      return i;
+std::string
+InferenceMaker::get_name(const ASTNode &_what) const {
+  for (auto rit = frames.rbegin(); rit != frames.rend();
+       ++rit) {
+    for (const auto &p : rit->theorems) {
+      if (p.second.thm == _what) {
+        return p.first;
+      }
     }
   }
-  return -1;
+  std::cerr << "Offender: " << _what << '\n';
+  throw std::runtime_error("Failed to find theorem name");
 }
 
-size_t
-InferenceMaker::add_axiom(const ASTNode &_what) noexcept {
-  pop_pending(_what);
-  facts.push_back({{}, facts.size(), _what, -1, {}});
+void InferenceMaker::add_assumption(
+    const std::string &_name, const ASTNode &_what) noexcept {
+  frames.back().theorems[_name] =
+      Theorem(_name, _what, "ASSUMPTION", {});
   if (debug) {
-    std::cout << "Added axiom: " << _what << "\n\n";
+    std::cout << "Added assumption: " << _what << "\n\n";
   }
-  return facts.back().index;
 }
 
 void InferenceMaker::add_rule(const InferenceRule &_rule) {
-  rules.push_back(_rule);
+  frames.back().rules[_rule.name] = _rule;
   if (debug) {
-    std::cout << "Added rule w/ index " << rules.size() - 1
-              << ": " << _rule << "\n\n";
+    std::cout << "Added rule: " << _rule << "\n\n";
   }
 }
 
@@ -198,42 +162,18 @@ ASTNode InferenceMaker::InferenceRule::apply(
   return consequence.replace(substitutions);
 }
 
-const InferenceMaker::Theorem InferenceMaker::add_theorem(
-    const ASTNode &_thm,
-    const std::optional<std::string> &_name,
-    const size_t &_rule_index,
-    const std::vector<size_t> &_premises,
-    bool &_actually_added) {
-  const auto res = has(_thm);
-  if (res >= 0) {
-    _actually_added = false;
-    return get_theorem(res);
+const InferenceMaker::Theorem
+InferenceMaker::add_theorem(const Theorem &_thm) {
+  const auto res = has(_thm.thm);
+  if (res) {
+    return get_theorem(_thm.name);
   }
-
-  const Theorem out = {.name = _name,
-                       .index = facts.size(),
-                       .thm = _thm,
-                       .rule_index =
-                           static_cast<intmax_t>(_rule_index),
-                       .premises = _premises};
-  facts.push_back(out);
-  pop_pending(_thm);
-
+  frames.back().theorems[_thm.name] = _thm;
+  close_goal(_thm.thm);
   if (debug) {
-    std::cout << "Derived theorem " << out << "\n\n";
+    std::cout << "Derived theorem " << _thm << "\n\n";
   }
-
-  return out;
-}
-
-ASTNode InferenceMaker::theorem_to_proof(
-    const ASTNode &_theorem) const {
-  for (auto rit = facts.rbegin(); rit != facts.rend(); ++rit) {
-    if (rit->thm == _theorem) {
-      return proof_to_ast(rit->index);
-    }
-  }
-  throw std::runtime_error("Cannot get proof of nontheorem!");
+  return _thm;
 }
 
 std::ostream &
@@ -278,13 +218,8 @@ operator<<(std::ostream &_strm,
 
 std::ostream &operator<<(std::ostream &_strm,
                          const InferenceMaker::Theorem &_thm) {
-  if (_thm.rule_index < 0) {
-    _strm << "axiom: " << _thm.thm;
-    return _strm;
-  }
-
-  _strm << "thm " << _thm.index << ": " << _thm.thm
-        << " due to rule " << _thm.rule_index
+  _strm << "thm " << _thm.name << ": " << _thm.thm
+        << " due to rule " << _thm.rule_name
         << " on premises (";
   bool first = true;
   for (const auto &premise : _thm.premises) {
@@ -308,80 +243,105 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
               << '\n';
   }
 
-  ASTNode goal = _goal;
-  goals.push_back(goal);
+  push();
+  open_goal(_goal);
   if (_proof.text != "PROOF") {
     throw std::runtime_error("Cannot check a non-proof!");
   }
 
   // Check proof
   for (const auto &pf : _proof.children) {
+    if (frames.back().goals.empty()) {
+      std::cerr << "WARNING: No goals remain! Ignoring " << pf
+                << "\n";
+      continue;
+    }
+
     const auto p = pf.text.text;
     if (p == "FORWARD") {
       const auto rule_name = pf.at(0).text.text;
       const auto on = pf.at(1);
       const auto as = pf.at(2);
-      size_t rule_index = 0;
-      const auto rule = get_rule(rule_name, rule_index);
+      const auto rule = get_rule(rule_name);
 
       std::vector<Theorem> antecedents;
-      std::vector<size_t> antecedent_indices;
+      std::vector<std::string> antecedent_names;
       for (const auto &arg : on.children) {
         const auto thm = get_theorem(arg.text.text);
         antecedents.push_back(thm);
-        antecedent_indices.push_back(thm.index);
+        antecedent_names.push_back(thm.name);
       }
 
       const auto res = rule.apply(antecedents);
-      bool actually_added = false;
-      add_theorem(res,
-                  as.empty() ? std::optional<std::string>{}
-                             : as.at(0).text.text,
-                  rule_index, antecedent_indices,
-                  actually_added);
+
+      const Theorem t(
+          as.empty()
+              ? "thm_" + std::to_string(
+                             frames.back().theorems.size())
+              : as.at(0).text.text,
+          res, rule_name, antecedent_names);
+
+      add_theorem(t);
     } else if (p == "BACKWARD") {
       const auto rule_name = pf.at(0).text.text;
-      size_t rule_index = 0;
-      const auto rule = get_rule(rule_name, rule_index);
-
-      backward_apply(rule, goal);
-      if (goals.empty()) {
-        return;
-      }
-      goal = goals.front();
+      const auto rule = get_rule(rule_name);
+      backward_apply(rule, frames.back().goals.front());
     } else if (p == "WTS") {
-      push();
       const auto goal = pf.at(0);
       const auto proof = pf.at(1);
-      check_proof(goal, proof, "NULL");
-      pop();
+      check_proof(goal, proof,
+                  "wts_" + std::to_string(
+                               frames.back().theorems.size()));
     }
 
     else if (p == "LS") {
-      std::cout << "At " << pf.text.file << ":" << pf.text.line
-                << "." << pf.text.col << "\n";
-      for (const auto &fact : facts) {
-        std::cout << fact.name.value_or(
-                         std::to_string(fact.index))
-                  << ": " << fact.thm << '\n';
+      std::cout << "ls at " << pf.text.file << ":"
+                << pf.text.line << "." << pf.text.col << "\n";
+
+      uint depth = 0;
+      for (const auto &frame : frames) {
+        ++depth;
+        for (const auto &p : frame.goals) {
+          for (uint i = 0; i < depth; ++i) {
+            std::cout << '|';
+          }
+          std::cout << " goal " << p << '\n';
+        }
+        for (const auto &p : frame.rules) {
+          for (uint i = 0; i < depth; ++i) {
+            std::cout << '|';
+          }
+          std::cout << " rule " << p.first << ": " << p.second
+                    << '\n';
+        }
+        for (const auto &p : frame.theorems) {
+          for (uint i = 0; i < depth; ++i) {
+            std::cout << '|';
+          }
+          std::cout << " theorem " << p.first << ": "
+                    << p.second.thm << '\n';
+        }
       }
-      std::cout << "Goal: " << goal << "\n\n";
+
+      for (const auto &p : frames.back().theorems) {
+        std::cout << p.first << ": " << p.second.thm << '\n';
+      }
+      std::cout << "Goal: " << frames.back().goals.front()
+                << "\n\n";
     }
   }
 
   // We must have proven it by now
-  bool failed = false;
-  for (const auto &goal : goals) {
-    if (has(goal) >= 0) {
-      continue;
-    }
-    failed = true;
-    std::cout << "Unresolved goal: " << goal << '\n';
+  std::optional<Theorem> thm;
+  if (has(_goal)) {
+    const auto name = get_name(_goal);
+    thm = get_theorem(_name);
   }
 
-  if (failed) {
-    throw std::runtime_error("Unresolved goal(s)");
-  }
+  pop();
+
+  thm->name = _name;
+  add_theorem(*thm);
 }
 
 void InferenceMaker::backward_apply(const InferenceRule &_rule,
@@ -408,10 +368,6 @@ void InferenceMaker::backward_apply(const InferenceRule &_rule,
       std::cout << "Trying rule: " << _rule << "\n";
     }
 
-    const std::string fresh_uid = std::to_string(facts.size());
-    std::list<std::pair<ASTNode, ASTNode>>
-        freshening_replacements;
-
     std::list<ASTNode> replaced_requirements;
     for (const auto &to_prove_schema : _rule.requirements) {
       const auto to_prove =
@@ -423,12 +379,10 @@ void InferenceMaker::backward_apply(const InferenceRule &_rule,
            _rule.requirements.size());
 
     // These are our new goals
+    close_goal(_goal);
     for (const auto &goal : replaced_requirements) {
-      goals.push_back(goal);
+      open_goal(goal);
     }
-    std::erase_if(goals, [&](const ASTNode &_g) -> bool {
-      return has(_g);
-    });
     return;
   }
 

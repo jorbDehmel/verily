@@ -74,9 +74,6 @@ public:
   /// If true, prints some extra info
   bool debug = false;
 
-  /// The theorems which were explicitly requested
-  std::set<size_t> proven_theorems;
-
   /// Called by 'setting' / 'option' statements. This is for
   /// the CLI to handle.
   std::function<void(Core &, const std::string &)>

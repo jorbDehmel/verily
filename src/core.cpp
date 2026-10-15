@@ -47,15 +47,15 @@ void Core::json(std::ostream &_strm) const {
            "    ";
   size_t rule_index = 0;
   bool first_rule = true;
-  for (const auto &rule : im.rules) {
+  for (const auto &p : im.frames.front().rules) {
+    const auto rule_name = p.first;
+    const auto rule = p.second;
     if (first_rule) {
       first_rule = false;
     } else {
       _strm << ",\n"
                "    ";
     }
-    const std::string rule_name =
-        rule.name.value_or(std::to_string(rule_index));
     ++rule_index;
     _strm << "{\n"
              "      \"name\": \""
@@ -96,37 +96,17 @@ void Core::json(std::ostream &_strm) const {
   }
   _strm << "\n"
            "  ],\n"
-           "  \"axioms\": [\n"
-           "    ";
-  std::list<size_t> axioms;
-  for (const auto &thm : im.facts) {
-    if (thm.rule_index < 0) {
-      axioms.push_back(thm.index);
-    }
-  }
-  bool first = true;
-  for (const auto &axiom : axioms) {
-    if (first) {
-      first = false;
-    } else {
-      _strm << ",\n"
-               "    ";
-    }
-    print_ast_json(im.proof_to_ast(axiom));
-  }
-  _strm << "\n"
-           "  ],\n"
            "  \"selected-theorems\": [\n"
            "    ";
-  first = true;
-  for (const auto &theorem : proven_theorems) {
+  bool first = true;
+  for (const auto &p : im.frames.front().theorems) {
     if (first) {
       first = false;
     } else {
       _strm << ",\n"
                "    ";
     }
-    print_ast_json(im.proof_to_ast(theorem));
+    print_ast_json(im.proof_to_ast(p.first));
   }
   _strm << "\n"
            "  ]\n"
@@ -175,11 +155,22 @@ void Core::process_statement(
     const auto name = _stmt.at(4).text.text;
 
     im.push();
+    uint i = 0;
     for (const auto &assumption : given.children) {
-      im.add_axiom(assumption);
+      im.add_assumption("h" + std::to_string(i), assumption);
+      ++i;
     }
     im.check_proof(deduce.at(0), proof, name);
     im.pop();
+
+    std::set<ASTNode> fvs;
+    for (const auto &v : over.children) {
+      fvs.insert(v);
+    }
+    const auto reqs = given.children;
+    const auto cons = deduce.children.front();
+    InferenceMaker::InferenceRule rule(fvs, reqs, cons);
+    im.add_rule(rule);
   }
 
   else if (_stmt.text == Token("NULL")) {
@@ -271,20 +262,14 @@ void Core::do_file(const std::filesystem::path &_fp) {
 }
 
 void Core::ls() const noexcept {
-  std::cout << "All " << im.rules.size() << " rules:\n";
-  for (uint i = 0; i < im.rules.size(); ++i) {
-    const auto r = im.rules.at(i);
-    std::cout << " " << r.name.value_or(std::to_string(i))
-              << " " << r << '\n';
+  std::cout << "All " << im.frames.back().rules.size()
+            << " rules:\n";
+  for (const auto &p : im.frames.back().rules) {
+    std::cout << " " << p.first << " " << p.second << '\n';
   }
-  std::cout << "\nAll " << im.facts.size() << " theorems:\n";
-  for (uint i = 0; i < im.facts.size(); ++i) {
-    const auto t = im.facts.at(i);
-    std::cout << " " << t.name.value_or(std::to_string(i))
-              << " " << t << '\n';
-  }
-  std::cout << "\nAll " << im.goals.size() << " pending:\n";
-  for (const auto &p : im.goals) {
-    std::cout << " " << p << '\n';
+  std::cout << "\nAll " << im.frames.back().theorems.size()
+            << " theorems:\n";
+  for (const auto &p : im.frames.back().theorems) {
+    std::cout << " " << p.first << " " << p.second << '\n';
   }
 }
