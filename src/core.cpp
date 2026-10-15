@@ -3,6 +3,7 @@
 #include "parse.hpp"
 #include <functional>
 #include <stdexcept>
+#include <string>
 
 std::string Core::sanitize_name(const std::string &_s) {
   std::string out;
@@ -139,11 +140,7 @@ void Core::process_statement(
     }
     InferenceMaker::InferenceRule ir(free_variables,
                                      requirements, consequence);
-
-    if (name != "NULL") {
-      ir.name = name;
-    }
-
+    ir.name = name;
     im.add_rule(ir);
   }
 
@@ -170,6 +167,10 @@ void Core::process_statement(
     const auto reqs = given.children;
     const auto cons = deduce.children.front();
     InferenceMaker::InferenceRule rule(fvs, reqs, cons);
+    rule.name = (name == "NULL"
+                     ? "t" + std::to_string(
+                                 im.frames.back().rules.size())
+                     : name);
     im.add_rule(rule);
   }
 
@@ -240,8 +241,8 @@ void Core::process_statement(
     parser.order_of_operations.insert(pos, info);
   }
 
-  else if (!im.quiet) {
-    std::cout << "WARNING: Skipping unknown statement " << _stmt
+  else {
+    std::cerr << "WARNING: Skipping unknown statement " << _stmt
               << "\n";
   }
 }

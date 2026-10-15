@@ -16,8 +16,8 @@ by {
   ls
   fw 0_is_even as 0_is_even_thm
   ls
-  bw plus_2_is_even
-  ls
   fw plus_2_is_even on 0_is_even_thm as 2_is_even
+  ls
+  bw plus_2_is_even
   ls
 }

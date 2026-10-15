@@ -43,6 +43,7 @@ void print_help() {
 int main(int argc, char *argv[]) {
   bool time = false;
   bool print_json = false;
+  bool quiet = false;
 
   std::filesystem::path fp = null_fp;
   Core verily;
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
     } else if (arg == "--json") {
       print_json = !print_json;
     } else if (arg == "--quiet") {
-      verily.im.quiet = !verily.im.quiet;
+      quiet = !quiet;
     } else if (arg == "--help") {
       print_help();
       return 1;
@@ -85,7 +86,7 @@ int main(int argc, char *argv[]) {
     } else if (_setting == "time") {
       time = !time;
     } else if (_setting == "quiet") {
-      _c.im.quiet = !_c.im.quiet;
+      quiet = !quiet;
     }
 
     else if (_setting == "debug=true") {
@@ -105,12 +106,12 @@ int main(int argc, char *argv[]) {
     } else if (_setting == "time=false") {
       time = false;
     } else if (_setting == "time=quiet") {
-      _c.im.quiet = true;
+      quiet = true;
     } else if (_setting == "time=quiet") {
-      _c.im.quiet = false;
+      quiet = false;
     }
 
-    else if (!_c.im.quiet) {
+    else if (!quiet) {
       std::cout << "WARNING: Unknown setting " << _setting
                 << "\n";
     }
@@ -133,10 +134,10 @@ int main(int argc, char *argv[]) {
     if (time) {
       std::cout << "WARNING: Cannot time in CLI mode\n";
       time = false;
-    } else if (verily.im.quiet) {
+    } else if (quiet) {
       std::cout
           << "WARNING: Cannot use '--quiet' in CLI mode\n";
-      verily.im.quiet = false;
+      quiet = false;
     }
 
     std::cout << "Verily CLI mode: CTL+D / EOF to exit.\n";
@@ -193,7 +194,7 @@ int main(int argc, char *argv[]) {
     verily.ls();
   }
 
-  if (!verily.im.quiet) {
+  if (!quiet) {
     std::cout << "\n";
     for (const auto &thm : verily.im.frames.front().theorems) {
       std::cout << verily.im.proof_to_ast(thm.first) << "\n\n";

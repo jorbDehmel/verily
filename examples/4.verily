@@ -43,9 +43,9 @@ theorem:
   deduce d == g
 by {
   ls
-  fw eq_trans on 1, 2
+  fw eq_trans on h1, h2
   ls
-  fw derives_intro on 0
+  fw derives_intro on h0
   ls
   bw derives_elim
   ls

@@ -7,7 +7,6 @@
 #include "ast.hpp"
 #include <iostream>
 #include <map>
-#include <optional>
 
 /// A maker of inferences. It takes rules and axioms and deduces
 /// theorems
@@ -26,7 +25,7 @@ public:
 
     /// The indices of the theorems which satisfied the rule to
     /// create this. This might be empty.
-    std::vector<std::string> premises;
+    std::vector<ASTNode> premises;
   };
 
   /// If all the requirements are met, the consequences are
@@ -70,9 +69,12 @@ public:
     ASTNode apply(const std::vector<Theorem> &_premises) const;
   };
 
+  /// Apply, but backwards.
   void backward_apply(const InferenceRule &_rule,
                       const ASTNode &_goal);
 
+  /// Return an AST representing the proof of the theorem with
+  /// the given name
   ASTNode proof_to_ast(const std::string &_theorem_name) const;
 
   /// Adds a new rule
@@ -81,6 +83,7 @@ public:
   /// True iff we have already proven _what
   bool has(const ASTNode &_what) const noexcept;
 
+  /// Get the name of the proof, throwing if it doesn't exist
   std::string get_name(const ASTNode &_what) const;
 
   /// Adds an axiom and returns its index
@@ -92,6 +95,9 @@ public:
 
   /// Gets a theorem by name
   const Theorem get_theorem(const std::string &_name) const;
+
+  /// Gets a theorem by theorem
+  const Theorem get_theorem(const ASTNode &_thm) const;
 
   /// Adds a theorem
   const Theorem add_theorem(const Theorem &_thm);
@@ -119,22 +125,31 @@ public:
     if (frames.size() > 1) {
       for (const auto &goal : frames.back().goals) {
         if (!has(goal)) {
-          std::cerr << "Unresolved goal: " << goal << '\n';
-          throw std::runtime_error("Unresolved goal!");
+          std::cerr << "Unresolved goal at end of frame: "
+                    << goal << '\n';
+          throw std::runtime_error(
+              "Unresolved goal at end of frame");
         }
       }
-
       frames.pop_back();
     }
   }
 
   /// Add a goal
   inline void open_goal(const ASTNode &_goal) {
-    frames.back().goals.push_front(_goal);
+    if (!has(_goal)) {
+      if (debug) {
+        std::cout << "Adding goal " << _goal << '\n';
+      }
+      frames.back().goals.push_front(_goal);
+    }
   }
 
   /// Remove a goal (if it was present)
   inline void close_goal(const ASTNode &_goal) {
+    if (debug) {
+      std::cout << "Dropping goal " << _goal << '\n';
+    }
     std::erase_if(frames.back().goals,
                   [&](const ASTNode &_item) -> bool {
                     return _item == _goal;
@@ -146,14 +161,14 @@ public:
   void check_proof(const ASTNode &_goal, const ASTNode &_proof,
                    const std::string &_name);
 
+  /// List everything
+  void ls() const noexcept;
+
   /// Where all the data is stored
-  std::list<Frame> frames = {Frame{}};
+  std::list<Frame> frames = {Frame()};
 
   /// If true, prints some extra info
   bool debug = false;
-
-  /// If true, suppresses warning and error messages
-  bool quiet = false;
 };
 
 /// Print a rule

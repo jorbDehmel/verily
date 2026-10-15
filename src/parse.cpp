@@ -504,7 +504,8 @@ ASTNode Parser::parse_expr_from_list(
 }
 
 ASTNode Parser::parse_proof() {
-  ASTNode pf("PROOF");
+  const auto pos_tok = ts.cur();
+  ASTNode pf(Token(pos_tok, "PROOF"));
   ts.expect({"{"});
   while (!ts.done() && ts.cur() != "}") {
     const auto tok = ts.cur_next();

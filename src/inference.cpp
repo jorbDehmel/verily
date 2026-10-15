@@ -5,6 +5,7 @@
 #include "inference.hpp"
 #include <cassert>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -14,7 +15,8 @@ ASTNode InferenceMaker::proof_to_ast(
   const auto thm = get_theorem(_thm_name);
   ASTNode premises_block("premises");
   for (const auto &premise : thm.premises) {
-    premises_block.children.push_back(proof_to_ast(premise));
+    premises_block.children.push_back(
+        proof_to_ast(get_name(premise)));
   }
   const auto rule = get_rule(thm.rule_name);
   return ASTNode(
@@ -46,6 +48,20 @@ InferenceMaker::get_theorem(const std::string &_name) const {
   throw std::runtime_error("Unknown theorem '" + _name + "'");
 }
 
+const InferenceMaker::Theorem
+InferenceMaker::get_theorem(const ASTNode &_thm) const {
+  for (auto rit = frames.rbegin(); rit != frames.rend();
+       ++rit) {
+    for (const auto &p : rit->theorems) {
+      if (p.second.thm == _thm) {
+        return p.second;
+      }
+    }
+  }
+  std::cerr << "Offender: " << _thm << '\n';
+  throw std::runtime_error("Failed to find theorem");
+}
+
 bool InferenceMaker::has(const ASTNode &_what) const noexcept {
   for (auto rit = frames.rbegin(); rit != frames.rend();
        ++rit) {
@@ -63,6 +79,7 @@ InferenceMaker::get_name(const ASTNode &_what) const {
   for (auto rit = frames.rbegin(); rit != frames.rend();
        ++rit) {
     for (const auto &p : rit->theorems) {
+      assert(p.first == p.second.name);
       if (p.second.thm == _what) {
         return p.first;
       }
@@ -74,17 +91,27 @@ InferenceMaker::get_name(const ASTNode &_what) const {
 
 void InferenceMaker::add_assumption(
     const std::string &_name, const ASTNode &_what) noexcept {
-  frames.back().theorems[_name] =
-      Theorem(_name, _what, "ASSUMPTION", {});
+  const std::string name =
+      (_name == "NULL"
+           ? "h" + std::to_string(frames.back().theorems.size())
+           : _name);
+  frames.back().theorems[name] =
+      Theorem(name, _what, "ASSUMPTION", {});
   if (debug) {
     std::cout << "Added assumption: " << _what << "\n\n";
   }
 }
 
 void InferenceMaker::add_rule(const InferenceRule &_rule) {
-  frames.back().rules[_rule.name] = _rule;
+  const std::string name =
+      (_rule.name == "NULL"
+           ? "r" + std::to_string(frames.back().rules.size())
+           : _rule.name);
+  InferenceRule r = _rule;
+  r.name = name;
+  frames.back().rules[name] = r;
   if (debug) {
-    std::cout << "Added rule: " << _rule << "\n\n";
+    std::cout << "Added rule: " << r << "\n\n";
   }
 }
 
@@ -164,16 +191,22 @@ ASTNode InferenceMaker::InferenceRule::apply(
 
 const InferenceMaker::Theorem
 InferenceMaker::add_theorem(const Theorem &_thm) {
-  const auto res = has(_thm.thm);
+  const std::string name =
+      (_thm.name == "NULL"
+           ? "t" + std::to_string(frames.back().theorems.size())
+           : _thm.name);
+  Theorem t = _thm;
+  t.name = name;
+  const auto res = has(t.thm);
   if (res) {
-    return get_theorem(_thm.name);
+    return get_theorem(name);
   }
-  frames.back().theorems[_thm.name] = _thm;
-  close_goal(_thm.thm);
+  frames.back().theorems[name] = t;
+  close_goal(t.thm);
   if (debug) {
-    std::cout << "Derived theorem " << _thm << "\n\n";
+    std::cout << "Derived theorem " << t << "\n\n";
   }
-  return _thm;
+  return t;
 }
 
 std::ostream &
@@ -251,7 +284,7 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
 
   // Check proof
   for (const auto &pf : _proof.children) {
-    if (frames.back().goals.empty()) {
+    if (frames.back().goals.empty() && pf.text.text != "LS") {
       std::cerr << "WARNING: No goals remain! Ignoring " << pf
                 << "\n";
       continue;
@@ -263,29 +296,25 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
       const auto on = pf.at(1);
       const auto as = pf.at(2);
       const auto rule = get_rule(rule_name);
-
       std::vector<Theorem> antecedents;
-      std::vector<std::string> antecedent_names;
+      std::vector<ASTNode> antecedent_thms;
       for (const auto &arg : on.children) {
         const auto thm = get_theorem(arg.text.text);
         antecedents.push_back(thm);
-        antecedent_names.push_back(thm.name);
       }
-
       const auto res = rule.apply(antecedents);
-
       const Theorem t(
           as.empty()
               ? "thm_" + std::to_string(
                              frames.back().theorems.size())
               : as.at(0).text.text,
-          res, rule_name, antecedent_names);
-
+          res, rule_name, antecedent_thms);
       add_theorem(t);
     } else if (p == "BACKWARD") {
       const auto rule_name = pf.at(0).text.text;
       const auto rule = get_rule(rule_name);
-      backward_apply(rule, frames.back().goals.front());
+      const auto cur_goal = frames.back().goals.front();
+      backward_apply(rule, cur_goal);
     } else if (p == "WTS") {
       const auto goal = pf.at(0);
       const auto proof = pf.at(1);
@@ -294,48 +323,23 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
                                frames.back().theorems.size()));
     }
 
-    else if (p == "LS") {
+    if (p == "LS" || debug) {
       std::cout << "ls at " << pf.text.file << ":"
                 << pf.text.line << "." << pf.text.col << "\n";
-
-      uint depth = 0;
-      for (const auto &frame : frames) {
-        ++depth;
-        for (const auto &p : frame.goals) {
-          for (uint i = 0; i < depth; ++i) {
-            std::cout << '|';
-          }
-          std::cout << " goal " << p << '\n';
-        }
-        for (const auto &p : frame.rules) {
-          for (uint i = 0; i < depth; ++i) {
-            std::cout << '|';
-          }
-          std::cout << " rule " << p.first << ": " << p.second
-                    << '\n';
-        }
-        for (const auto &p : frame.theorems) {
-          for (uint i = 0; i < depth; ++i) {
-            std::cout << '|';
-          }
-          std::cout << " theorem " << p.first << ": "
-                    << p.second.thm << '\n';
-        }
-      }
-
-      for (const auto &p : frames.back().theorems) {
-        std::cout << p.first << ": " << p.second.thm << '\n';
-      }
-      std::cout << "Goal: " << frames.back().goals.front()
-                << "\n\n";
+      ls();
     }
   }
 
   // We must have proven it by now
   std::optional<Theorem> thm;
   if (has(_goal)) {
-    const auto name = get_name(_goal);
-    thm = get_theorem(_name);
+    thm = get_theorem(_goal);
+  } else {
+    const auto tok = _proof.text;
+    std::cerr << "Unsolved goal: " << _goal
+              << " at end of proof beginning at " << tok.file
+              << ":" << tok.line << "." << tok.col << '\n';
+    throw std::runtime_error("Proof does not solve its goal");
   }
 
   pop();
@@ -368,12 +372,17 @@ void InferenceMaker::backward_apply(const InferenceRule &_rule,
       std::cout << "Trying rule: " << _rule << "\n";
     }
 
-    std::list<ASTNode> replaced_requirements;
+    std::vector<ASTNode> replaced_requirements;
     for (const auto &to_prove_schema : _rule.requirements) {
       const auto to_prove =
           to_prove_schema.replace(substitutions);
       replaced_requirements.push_back(to_prove);
     }
+
+    Theorem t("bw_" +
+                  std::to_string(frames.back().theorems.size()),
+              _goal, _rule.name, replaced_requirements);
+    add_theorem(t);
 
     assert(replaced_requirements.size() ==
            _rule.requirements.size());
@@ -395,4 +404,33 @@ void InferenceMaker::backward_apply(const InferenceRule &_rule,
   }
   std::cerr << " ] (but failed pattern-match)\n";
   throw std::runtime_error("Failed backward rewrite");
+}
+
+void InferenceMaker::ls() const noexcept {
+  uint i = 0;
+  for (const auto &frame : frames) {
+    std::cout << "Frame " << i << ":\n";
+    ++i;
+    for (const auto &p : frame.theorems) {
+      std::cout << "  " << p.first << ": " << p.second.thm
+                << '\n';
+    }
+    if (!frame.goals.empty()) {
+      std::cout << "  Goals: ";
+      bool first = true;
+      for (const auto &p : frame.goals) {
+        if (first) {
+          first = false;
+        } else {
+          std::cout << ", ";
+        }
+        std::cout << p;
+      }
+      std::cout << "\n";
+    }
+  }
+  if (!frames.back().goals.empty()) {
+    std::cout << "Current goal: " << frames.back().goals.front()
+              << "\n\n";
+  }
 }

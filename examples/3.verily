@@ -18,4 +18,10 @@ theorem:
   deduce 0 == 0 and 1 == 1
 by {
   bw and_intro
+  wts 0 == 0 {
+    fw 0_eq_0
+  }
+  wts 1 == 1 {
+    fw 1_eq_1
+  }
 }
