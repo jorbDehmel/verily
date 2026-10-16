@@ -18,17 +18,16 @@ axiom: deduce is_raining implies not is_sunny;
 theorem:
   deduce not is_sunny
 by {
-  fw r3 as a
-  fw r4 as b
+  fw r4 as a
+  fw r5 as b
   fw mp on a, b
 }
 
 theorem:
   deduce not not not is_sunny
 by {
-  fw r3 as a
-  fw r4 as b
+  fw r4 as a
+  fw r5 as b
   bw double_negation_introduction
-  fw mp on a, b as c
-  ls
+  fw mp on a, b
 }

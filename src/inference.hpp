@@ -14,8 +14,15 @@ class InferenceMaker {
 public:
   /// A statement, along with proof that it is a theorem
   struct Theorem {
-    /// If given, the name of the theorem.
-    std::string name;
+    /// Empty construct
+    Theorem() {
+    }
+
+    /// Construct
+    Theorem(const ASTNode &_thm, const std::string &_name,
+            const std::vector<ASTNode> &_premises)
+        : thm(_thm), rule_name(_name), premises(_premises) {
+    }
 
     /// The syntactic representation of this theorem
     ASTNode thm;
@@ -28,49 +35,9 @@ public:
     std::vector<ASTNode> premises;
   };
 
-  /// If all the requirements are met, the consequences are
-  /// implied
-  struct InferenceRule {
-    /// The name of the rule.
-    std::string name;
-
-    /// Construct an empty inference rule
-    InferenceRule() {
-    }
-
-    /// Construct an inference rule
-    InferenceRule(const std::set<ASTNode> &_fv,
-                  const std::vector<ASTNode> &_req,
-                  const ASTNode &_cons);
-
-    /// The free variables over both the requirements and the
-    /// consequence
-    std::set<ASTNode> free_variables;
-
-    /// The things which must be known theorems
-    std::vector<ASTNode> requirements;
-
-    /// Given the requirements over some substitutions, derive
-    /// this theorem
-    ASTNode consequence;
-
-    /// This is a measure of where the free variables occur. If
-    /// a rule is neither, it is an error.
-    enum Type {
-      FORWARD_ONLY,  /// Given premises, deduce conclusion
-      BACKWARD_ONLY, /// Given conclusion, attempt premises
-      BIDIRECTIONAL, /// Either way works
-    };
-
-    /// The type of this rule
-    Type type = BACKWARD_ONLY;
-
-    /// Throws on failure
-    ASTNode apply(const std::vector<Theorem> &_premises) const;
-  };
-
   /// Apply, but backwards.
-  void backward_apply(const InferenceRule &_rule,
+  void backward_apply(const std::string &_rule_name,
+                      const InferenceRule &_rule,
                       const ASTNode &_goal);
 
   /// Return an AST representing the proof of the theorem with
@@ -78,7 +45,8 @@ public:
   ASTNode proof_to_ast(const std::string &_theorem_name) const;
 
   /// Adds a new rule
-  void add_rule(const InferenceRule &_rule);
+  void add_rule(const std::string &_name,
+                const InferenceRule &_rule);
 
   /// True iff we have already proven _what
   bool has(const ASTNode &_what) const noexcept;
@@ -100,7 +68,8 @@ public:
   const Theorem get_theorem(const ASTNode &_thm) const;
 
   /// Adds a theorem
-  const Theorem add_theorem(const Theorem &_thm);
+  const Theorem add_theorem(const std::string &_name,
+                            const Theorem &_thm);
 
   /// Keeps all the info
   struct Frame {
@@ -170,10 +139,6 @@ public:
   /// If true, prints some extra info
   bool debug = false;
 };
-
-/// Print a rule
-std::ostream &operator<<(std::ostream &,
-                         const InferenceMaker::InferenceRule &);
 
 /// Print a theorem
 std::ostream &operator<<(std::ostream &,

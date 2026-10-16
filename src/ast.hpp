@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <list>
+#include <optional>
 #include <set>
 #include <string>
 #include <sys/types.h>
@@ -239,3 +240,41 @@ struct ASTNode {
 /// Prints an AST node as an S-expression
 std::ostream &operator<<(std::ostream &_strm,
                          const ASTNode &_node);
+
+/// If all the requirements are met, the consequences are
+/// implied
+struct InferenceRule {
+  InferenceRule() {
+  }
+
+  InferenceRule(const std::set<ASTNode> &_fvs,
+                const std::vector<ASTNode> &_reqs,
+                const ASTNode &_cons)
+      : free_variables(_fvs), requirements(_reqs),
+        consequence(_cons) {
+  }
+
+  /// The free variables over both the requirements and
+  /// the consequence
+  std::set<ASTNode> free_variables;
+
+  /// The things which must be known theorems
+  std::vector<ASTNode> requirements;
+
+  /// Given the requirements over some substitutions, derive
+  /// this theorem
+  ASTNode consequence;
+
+  /// Throws on failure
+  ASTNode apply(const std::vector<ASTNode> &_premises) const;
+
+  /// Silently returns none upon failure
+  std::optional<ASTNode> try_apply(
+      const std::vector<ASTNode> &_premises) const noexcept;
+
+  std::vector<ASTNode>
+  backward_apply(const ASTNode &_goal) const;
+};
+
+/// Print a rule
+std::ostream &operator<<(std::ostream &, const InferenceRule &);

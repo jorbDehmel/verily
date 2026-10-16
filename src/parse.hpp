@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "inference.hpp"
 
 /// Given some text from some file, lex it
 TokenStream lex_text(const std::string &text,
@@ -46,18 +47,11 @@ public:
   ASTNode
   parse_expr_from_list(const std::list<ASTNode> &input_items);
 
-  /// Enough information to parse an operator
-  struct OperationInfo {
-    enum {
-      PREFIX,
-      INFIX, // INFIX is only allowed for binary
-      POSTFIX,
-    } mode = PREFIX;
-    int arity = 1;
-    std::string tok = "";
-    std::string label = "";
-  };
-
   /// The order of operations (if you can believe it)
-  std::list<OperationInfo> order_of_operations = {};
+  std::list<std::pair<std::string, InferenceRule>>
+      order_of_operations = {};
+
+  /// Tokens which indicate that an expression is done
+  std::set<std::string> expression_terminators = {
+      ",", ";", "given", "deduce", "{", "}", "by", "wts"};
 };

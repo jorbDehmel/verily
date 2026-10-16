@@ -2,7 +2,12 @@ include "std.verily";
 include "sequent_calc.verily";
 
 # Positive semidefinite matrices
-notation psd: infix ">>=";
+notation psd:
+  over Q
+  given A, >>=, 0
+  deduce (psd A)
+;
+
 axiom psd_intro: over B deduce B^T * B >>= 0;
 
 # Semialgebraic polynomial calculus rules

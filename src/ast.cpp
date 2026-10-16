@@ -4,6 +4,7 @@
  */
 
 #include "ast.hpp"
+#include <iostream>
 
 Token TokenStream::expect(std::set<std::string> what) {
   const auto cur_tok = cur();
@@ -138,4 +139,46 @@ bool ASTNode::is_of_form(const ASTNode &_form,
     }
   }
   return true;
+}
+
+ASTNode InferenceRule::apply(
+    const std::vector<ASTNode> &_premises) const {
+  std::set<ASTNode> fv = free_variables;
+  std::list<std::pair<ASTNode, ASTNode>> substitutions;
+  for (size_t i = 0; i < _premises.size(); ++i) {
+    const auto corresponding_requirement = requirements.at(i);
+    const auto thm = _premises.at(i);
+
+    if (!thm.is_of_form(
+            corresponding_requirement.replace(substitutions),
+            fv, substitutions)) {
+      std::cerr << "Expected " << thm << " to be of form "
+                << corresponding_requirement.replace(
+                       substitutions)
+                << " with free variables [";
+      for (const auto &fv : free_variables) {
+        std::cerr << ' ' << fv;
+      }
+      std::cerr << " ] (but failed pattern-match)\n";
+      throw std::runtime_error("Malformed rule application");
+    }
+  }
+  return consequence.replace(substitutions);
+}
+
+std::optional<ASTNode> InferenceRule::try_apply(
+    const std::vector<ASTNode> &_premises) const noexcept {
+  std::set<ASTNode> fv = free_variables;
+  std::list<std::pair<ASTNode, ASTNode>> substitutions;
+  for (size_t i = 0; i < _premises.size(); ++i) {
+    const auto corresponding_requirement = requirements.at(i);
+    const auto thm = _premises.at(i);
+
+    if (!thm.is_of_form(
+            corresponding_requirement.replace(substitutions),
+            fv, substitutions)) {
+      return {};
+    }
+  }
+  return consequence.replace(substitutions);
 }

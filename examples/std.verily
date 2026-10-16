@@ -1,23 +1,123 @@
 # Standard notation
-notation cross: infix "cross"
-notation to: infix "->"
-notation in: infix "in"
-notation prime: postfix "'"
-notation pow: infix "^"
-notation mul: infix "*"
-notation div: infix "/"
-notation add: infix "+"
-notation sub: infix "-"
-notation lt: infix "<"
-notation le: infix "<="
-notation gt: infix ">"
-notation ge: infix ">="
-notation eq: infix "=="
-notation neq: infix "!="
-notation not: prefix "not";
-notation and: infix "and"
-notation or: infix "or"
-notation implies: infix "implies"
-notation derives: infix "derives"
+notation cross:
+  over A, B
+  given A, cross, B
+  deduce (cross A B)
+;
+
+notation to:
+  over A, B
+  given A, ->, B
+  deduce (to A B)
+;
+
+notation in:
+  over A, B
+  given A, in, B
+  deduce (in A B)
+;
+
+notation prime:
+  over A
+  given A, '
+  deduce (prime A)
+;
+
+notation pow:
+  over A, B
+  given A, ^, B
+  deduce (pow A B)
+;
+
+notation mul:
+  over A, B
+  given A, *, B
+  deduce (mul A B)
+;
+
+notation div:
+  over A, B
+  given A, /, B
+  deduce (div A B)
+;
+
+notation add:
+  over A, B
+  given A, +, B
+  deduce (add A B)
+;
+
+notation sub:
+  over A, B
+  given A, -, B
+  deduce (sub A B)
+;
+
+notation lt:
+  over A, B
+  given A, <, B
+  deduce (lt A B)
+;
+
+notation le:
+  over A, B
+  given A, <=, B
+  deduce (le A B)
+;
+
+notation gt:
+  over A, B
+  given A, >, B
+  deduce (gt A B)
+;
+
+notation ge:
+  over A, B
+  given A, >=, B
+  deduce (ge A B)
+;
+
+notation eq:
+  over A, B
+  given A, ==, B
+  deduce (eq A B)
+;
+
+notation neq:
+  over A, B
+  given A, !=, B
+  deduce (neq A B)
+;
+
+notation not:
+  over A
+  given not, A
+  deduce (not A)
+;
+
+notation and:
+  over A, B
+  given A, and, B
+  deduce (and A B)
+;
+
+notation or:
+  over A, B
+  given A, or, B
+  deduce (or A B)
+;
+
+notation implies:
+  over A, B
+  given A, implies, B
+  deduce (implies A B)
+;
+
+notation derives:
+  over A, B
+  given A, derives, B
+  deduce (derives A B)
+;
 
 axiom intro_false: over A given A, not A, deduce false;
+axiom elim_false: over A given false deduce A;

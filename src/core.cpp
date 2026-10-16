@@ -138,10 +138,8 @@ void Core::process_statement(
     for (const auto &child : given.children) {
       requirements.push_back(child);
     }
-    InferenceMaker::InferenceRule ir(free_variables,
-                                     requirements, consequence);
-    ir.name = name;
-    im.add_rule(ir);
+    InferenceRule ir(free_variables, requirements, consequence);
+    im.add_rule(name, ir);
   }
 
   else if (_stmt.text == "THEOREM") {
@@ -166,12 +164,12 @@ void Core::process_statement(
     }
     const auto reqs = given.children;
     const auto cons = deduce.children.front();
-    InferenceMaker::InferenceRule rule(fvs, reqs, cons);
-    rule.name = (name == "NULL"
+    InferenceRule rule(fvs, reqs, cons);
+    im.add_rule((name == "NULL"
                      ? "t" + std::to_string(
                                  im.frames.back().rules.size())
-                     : name);
-    im.add_rule(rule);
+                     : name),
+                rule);
   }
 
   else if (_stmt.text == Token("NULL")) {
@@ -204,26 +202,17 @@ void Core::process_statement(
 
   else if (_stmt.text == "NOTATION") {
     const auto name = _stmt.at(0).text.text;
-    const auto fixedness = _stmt.at(1).text.text;
-    const auto tok = _stmt.at(2).text.text;
-    const auto before = _stmt.at(3);
-    const auto arity = std::stoull(_stmt.at(4).text.text);
+    const auto fvs = _stmt.at(1);
+    const auto input_pattern = _stmt.at(2);
+    const auto output_pattern = _stmt.at(3).at(0);
+    const auto before = _stmt.at(4);
 
-    if (tok.size() < 3 || !tok.starts_with('"') ||
-        !tok.ends_with('"')) {
-      throw std::runtime_error("Invalid notation token '" +
-                               tok + "'");
+    std::set<ASTNode> real_fvs;
+    for (const auto &fv : fvs.children) {
+      real_fvs.insert(fv);
     }
-
-    Parser::OperationInfo info;
-    info.arity = arity;
-    info.label = name;
-    info.mode =
-        (fixedness == "infix" ? Parser::OperationInfo::INFIX
-         : fixedness == "prefix"
-             ? Parser::OperationInfo::PREFIX
-             : Parser::OperationInfo::POSTFIX);
-    info.tok = tok.substr(1, tok.size() - 2);
+    InferenceRule info(real_fvs, input_pattern.children,
+                       output_pattern);
 
     // Find where to put it
     auto pos = parser.order_of_operations.end();
@@ -232,13 +221,14 @@ void Core::process_statement(
       const auto b = before.at(0).text.text;
       pos = parser.order_of_operations.begin();
       while (pos != parser.order_of_operations.end() &&
-             pos->label != b) {
+             pos->first != b) {
         ++pos;
       }
     }
 
     // Insert it
-    parser.order_of_operations.insert(pos, info);
+    parser.order_of_operations.insert(
+        pos, std::make_pair(name, info));
   }
 
   else {

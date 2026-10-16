@@ -2,7 +2,13 @@
 include "std.verily";
 
 # Lists
-notation append: infix "++" before in;
+notation append:
+  over A, B
+  given A, ++, B
+  deduce (append A B)
+  before in
+;
+
 axiom singleton_list: over A deduce A in A;
 axiom cons_list_l: over A, B given A in B deduce A in B ++ C;
 axiom cons_list_r: over A, B, C given A in C deduce A in B ++ C;
