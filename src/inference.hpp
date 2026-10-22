@@ -67,6 +67,13 @@ public:
   /// Gets a theorem by theorem
   const Theorem get_theorem(const ASTNode &_thm) const;
 
+  /// Get all facts from all existing frames
+  std::list<Theorem> get_all_facts() const noexcept;
+
+  /// Get all rules from all existing frames
+  std::list<std::pair<std::string, InferenceRule>>
+  get_all_rules() const noexcept;
+
   /// Adds a theorem
   const Theorem add_theorem(const std::string &_name,
                             const Theorem &_thm);

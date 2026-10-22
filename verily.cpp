@@ -190,16 +190,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (verily.debug) {
-    verily.ls();
-  }
-
-  if (!quiet) {
-    std::cout << "\n";
-    for (const auto &thm : verily.im.frames.front().theorems) {
-      std::cout << verily.im.proof_to_ast(thm.first) << "\n\n";
-    }
-  }
+  verily.ls();
 
   if (time) {
     const auto elapsed_us =

@@ -53,5 +53,6 @@ public:
 
   /// Tokens which indicate that an expression is done
   std::set<std::string> expression_terminators = {
-      ",", ";", "given", "deduce", "{", "}", "by", "wts"};
+      ",",      ";", "over", "given", "deduce",
+      "before", "{", "}",    "by",    "wts"};
 };

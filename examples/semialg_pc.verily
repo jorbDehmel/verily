@@ -4,7 +4,7 @@ include "sequent_calc.verily";
 # Positive semidefinite matrices
 notation psd:
   over Q
-  given A, >>=, 0
+  given A >>= 0
   deduce (psd A)
 ;
 

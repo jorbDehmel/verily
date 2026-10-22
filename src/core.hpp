@@ -2,6 +2,7 @@
 
 #include "inference.hpp"
 #include "parse.hpp"
+#include <filesystem>
 #include <functional>
 #include <iostream>
 
@@ -73,6 +74,9 @@ public:
 
   /// If true, prints some extra info
   bool debug = false;
+
+  /// The set of files to blacklist from visiting again
+  std::set<std::filesystem::path> visited_files;
 
   /// Called by 'setting' / 'option' statements. This is for
   /// the CLI to handle.

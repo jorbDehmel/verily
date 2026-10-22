@@ -4,7 +4,7 @@ include "std.verily";
 # Lists
 notation append:
   over A, B
-  given A, ++, B
+  given A ++ B
   deduce (append A B)
   before in
 ;

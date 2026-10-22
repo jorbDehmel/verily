@@ -249,9 +249,9 @@ struct InferenceRule {
 
   InferenceRule(const std::set<ASTNode> &_fvs,
                 const std::vector<ASTNode> &_reqs,
-                const ASTNode &_cons)
+                const ASTNode &_cons, const bool &_axiom = true)
       : free_variables(_fvs), requirements(_reqs),
-        consequence(_cons) {
+        consequence(_cons), axiom(_axiom) {
   }
 
   /// The free variables over both the requirements and
@@ -265,6 +265,8 @@ struct InferenceRule {
   /// this theorem
   ASTNode consequence;
 
+  bool axiom = true;
+
   /// Throws on failure
   ASTNode apply(const std::vector<ASTNode> &_premises) const;
 
@@ -272,6 +274,12 @@ struct InferenceRule {
   std::optional<ASTNode> try_apply(
       const std::vector<ASTNode> &_premises) const noexcept;
 
+  /// This applies ONCE to the largest subexpression and
+  /// returns the result.
+  ASTNode apply_subexpr(const ASTNode &_upon,
+                        bool &_did_something) const noexcept;
+
+  /// Apply backwards (obviously)
   std::vector<ASTNode>
   backward_apply(const ASTNode &_goal) const;
 };

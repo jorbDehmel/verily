@@ -1,12 +1,13 @@
 #include "parse.hpp"
 #include "ast.hpp"
-#include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <fstream>
 #include <initializer_list>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 
 const static std::set<char> singletons({';', '(', ')', '{', '}',
                                         '.', ',', '[', ']',
@@ -144,29 +145,23 @@ ASTNode Parser::parse_statement() {
         }
       }
     }
-    ASTNode given_block(Token("GIVEN"));
-    if (ts.cur().text == "given") {
-      ts.next();
-      while (!ts.done() && ts.cur().text != "deduce") {
-        given_block.children.push_back(parse_expr());
-        while (ts.cur().text == ",") {
-          ts.next();
-        }
-      }
-    }
+    ts.expect({"given"});
+    const ASTNode given_block(Token("GIVEN"),
+                              parse_expr().children);
     ts.expect({"deduce"});
-    ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
+    const ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
 
     ASTNode before("BEFORE");
     if (ts.cur() == "before") {
       ts.next();
       before.children.push_back(ts.cur_next());
     }
-    return ASTNode("NOTATION", {{name},
-                                over_block,
-                                given_block,
-                                deduce_block,
-                                before});
+    const auto out = ASTNode("NOTATION", {{name},
+                                          over_block,
+                                          given_block,
+                                          deduce_block,
+                                          before});
+    return out;
   } else if (t == "axiom") {
     std::string name = "NULL";
     if (ts.cur().text != ":") {
@@ -338,37 +333,14 @@ ASTNode Parser::parse_expr_from_list(
        rit != order_of_operations.end(); ++rit) {
     const auto name = rit->first;
     const auto rule = rit->second;
-    const size_t width = rule.requirements.size();
-    assert(width >= 2);
-
     bool did_change = true;
     while (did_change) {
       did_change = false;
-      std::list<ASTNode> next;
-      for (int start = items.size() - 1; start >= 0; --start) {
-        next.push_front(items.at(start));
-        if (start + width > items.size() || did_change) {
-          continue;
-        }
-
-        // Else, check against rule
-        std::vector<ASTNode> premises;
-        for (size_t i = start; i < start + width; ++i) {
-          premises.push_back(items.at(i));
-        }
-
-        const auto res = rule.try_apply(premises);
-
-        if (res.has_value()) {
-          for (size_t i = 0; i < width; ++i) {
-            next.pop_front();
-          }
-          next.push_front(res.value());
-          did_change = true;
-        }
-      }
+      ASTNode tmp("_", {items});
+      const auto next = rule.apply_subexpr(tmp, did_change);
       if (did_change) {
-        items.assign(next.begin(), next.end());
+        items.assign(next.children.begin(),
+                     next.children.end());
       }
     }
 
@@ -415,6 +387,21 @@ ASTNode Parser::parse_proof() {
       }
       pf.children.push_back(
           ASTNode(Token(tok, "FORWARD"), {name, on, as}));
+    } else if (t == "grind") {
+      const auto n = ts.cur_next();
+      pf.children.push_back(ASTNode(Token(tok, "GRIND"), {n}));
+    } else if (t == "rewrite" || t == "rw") {
+      const auto name = ts.cur_next();
+      ASTNode on("ON");
+      ts.expect({"on"});
+      on.children.push_back(ts.cur_next());
+      ASTNode as("AS");
+      if (ts.cur() == "as") {
+        ts.expect({"as"});
+        as.children.push_back(ts.cur_next());
+      }
+      pf.children.push_back(
+          ASTNode(Token(tok, "REWRITE"), {name, on, as}));
     } else if (t == "backward" || t == "bw") {
       const auto name = ts.cur_next();
       pf.children.push_back(

@@ -46,7 +46,7 @@
 		"keywords": {
 			"patterns": [
 				{
-					"match": "\\b(on|by|forward|fw|backward|bw|wts|notation|infix|prefix|postfix|before|option|as|ls|help|quit|setting|axiom|include|exists|forall|lambda|over|given|deduce|theorem)\\b",
+					"match": "\\b(rw|rewrite|grind|on|by|forward|fw|backward|bw|wts|notation|infix|prefix|postfix|before|option|as|ls|help|quit|setting|axiom|include|exists|forall|lambda|over|given|deduce|theorem)\\b",
 					"name": "keyword.control.verily"
 				}
 			]

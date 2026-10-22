@@ -3,7 +3,10 @@
  */
 
 #include "inference.hpp"
+#include "ast.hpp"
+#include <algorithm>
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
@@ -215,6 +218,113 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
                                 frames.back().theorems.size())
                       : as.at(0).text.text,
                   t);
+    } else if (p == "GRIND") {
+      // Apply everything to everything for some number of
+      // rounds
+      std::cout
+          << "WARNING: Invoking grind! You should "
+             "replace this with explicit fw statements!\n";
+
+      const std::function<bool(
+          const InferenceRule &, const std::list<Theorem> &,
+          const std::string &, const std::vector<ASTNode> &)>
+          apply_all =
+              [&](const InferenceRule &_r,
+                  const std::list<Theorem> _facts,
+                  const std::string &_rule_name,
+                  const std::vector<ASTNode> &_antecedents)
+          -> bool {
+        if (_r.requirements.empty()) {
+          const auto thm = _r.consequence;
+          if (has(thm)) {
+            return false;
+          }
+          add_theorem("g" + std::to_string(
+                                frames.back().theorems.size()),
+                      Theorem(thm, _rule_name, _antecedents));
+          return true;
+        }
+        bool out = false;
+        for (const auto &fact : _facts) {
+          // Replace first antecedent with this fact if
+          // possible. If not, continue.
+          InferenceRule modified_rule = _r;
+          std::list<std::pair<ASTNode, ASTNode>> subs;
+          if (fact.thm.is_of_form(
+                  modified_rule.requirements.front(),
+                  modified_rule.free_variables, subs)) {
+            // Adjust rule
+            for (const auto &p : subs) {
+              modified_rule.free_variables.erase(p.first);
+              modified_rule.consequence =
+                  modified_rule.consequence.replace(p.first,
+                                                    p.second);
+              for (auto &req : modified_rule.requirements) {
+                req = req.replace(p.first, p.second);
+              }
+            }
+
+            // Recurse
+            std::vector<ASTNode> modified_antecedents =
+                _antecedents;
+            modified_antecedents.push_back(fact.thm);
+            out |= apply_all(modified_rule, _facts, _rule_name,
+                             modified_antecedents);
+          }
+        }
+        return out;
+      };
+
+      const auto n = pf.at(0).text.text;
+      bool inf = false;
+      size_t rounds = 0;
+      if (n == "inf") {
+        inf = true;
+      } else {
+        try {
+          rounds = std::stoull(n);
+        } catch (...) {
+          throw std::runtime_error(
+              "Invalid argument '" + n +
+              "' to grind: Must be a number or inf");
+        }
+      }
+
+      bool progress = true;
+      for (size_t cur_round = 0;
+           (inf || cur_round < rounds) && progress;
+           ++cur_round) {
+        const auto facts = get_all_facts();
+        const auto rules = get_all_rules();
+        for (const auto &rule : rules) {
+          // Apply to all combinations of facts
+          progress =
+              apply_all(rule.second, facts, rule.first, {});
+        }
+      }
+    } else if (p == "REWRITE") {
+      const auto rule_name = pf.at(0).text.text;
+      const auto on = pf.at(1).at(0).text.text;
+      const auto as = pf.at(2);
+      const auto rule = get_rule(rule_name);
+      bool did_something = false;
+      const auto ante = get_theorem(on);
+      const auto res =
+          rule.apply_subexpr(ante.thm, did_something);
+      if (!did_something) {
+        std::cerr << "Failed to rewrite " << ante.thm
+                  << " with rule " << rule_name << ' ' << rule
+                  << '\n';
+        throw std::runtime_error("Failed rewrite");
+      }
+
+      const Theorem t(res, rule_name, {ante.thm});
+      add_theorem(as.empty()
+                      ? "thm_" +
+                            std::to_string(
+                                frames.back().theorems.size())
+                      : as.at(0).text.text,
+                  t);
     } else if (p == "BACKWARD") {
       const auto rule_name = pf.at(0).text.text;
       const auto rule = get_rule(rule_name);
@@ -336,6 +446,28 @@ void InferenceMaker::ls() const noexcept {
   }
   if (!frames.back().goals.empty()) {
     std::cout << "Current goal: " << frames.back().goals.front()
-              << "\n\n";
+              << "\n";
   }
+}
+
+std::list<InferenceMaker::Theorem>
+InferenceMaker::get_all_facts() const noexcept {
+  std::list<InferenceMaker::Theorem> out;
+  for (const auto &frame : frames) {
+    for (const auto &p : frame.theorems) {
+      out.push_back(p.second);
+    }
+  }
+  return out;
+}
+
+std::list<std::pair<std::string, InferenceRule>>
+InferenceMaker::get_all_rules() const noexcept {
+  std::list<std::pair<std::string, InferenceRule>> out;
+  for (const auto &frame : frames) {
+    for (const auto &p : frame.rules) {
+      out.push_back(p);
+    }
+  }
+  return out;
 }

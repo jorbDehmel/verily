@@ -3,12 +3,12 @@
 
 notation lambda:
   over x, M
-  given lambda, x, ., M
+  given lambda x . M
   deduce (lambda x M)
 ;
 notation subs:
   over M x N
-  given M, [, x, =, N, ]
+  given M [ x = N ]
   deduce (subs M x N)
   before lambda
 ;
@@ -43,11 +43,9 @@ theorem lemma_1:
   given (lambda x. lambda y. x) 1
   deduce lambda y. 1
 by {
-  ls
   fw beta_reduction on h0 as h1
   fw lambda_calc_subs on h1 as h2
   fw subs_atom on h2
-  ls
 }
 
 theorem:

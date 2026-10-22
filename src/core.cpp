@@ -1,9 +1,10 @@
 #include "core.hpp"
 #include "inference.hpp"
 #include "parse.hpp"
+#include <cassert>
 #include <functional>
-#include <stdexcept>
 #include <string>
+#include <sys/types.h>
 
 std::string Core::sanitize_name(const std::string &_s) {
   std::string out;
@@ -138,7 +139,8 @@ void Core::process_statement(
     for (const auto &child : given.children) {
       requirements.push_back(child);
     }
-    InferenceRule ir(free_variables, requirements, consequence);
+    InferenceRule ir(free_variables, requirements, consequence,
+                     true);
     im.add_rule(name, ir);
   }
 
@@ -164,7 +166,7 @@ void Core::process_statement(
     }
     const auto reqs = given.children;
     const auto cons = deduce.children.front();
-    InferenceRule rule(fvs, reqs, cons);
+    InferenceRule rule(fvs, reqs, cons, false);
     im.add_rule((name == "NULL"
                      ? "t" + std::to_string(
                                  im.frames.back().rules.size())
@@ -177,9 +179,11 @@ void Core::process_statement(
   }
 
   else if (_stmt.text == Token("SCOPE")) {
+    im.push();
     for (const auto &stmt : _stmt.children) {
       process_statement(stmt, _cur_path);
     }
+    im.pop();
   }
 
   else if (_stmt.text == "LS") {
@@ -204,8 +208,16 @@ void Core::process_statement(
     const auto name = _stmt.at(0).text.text;
     const auto fvs = _stmt.at(1);
     const auto input_pattern = _stmt.at(2);
-    const auto output_pattern = _stmt.at(3).at(0);
+    const auto raw_output_pattern = _stmt.at(3).at(0);
     const auto before = _stmt.at(4);
+
+    assert(raw_output_pattern.text == "_");
+    assert(raw_output_pattern.at(0).empty());
+    ASTNode output_pattern(raw_output_pattern.at(0).text);
+    for (size_t i = 1; i < raw_output_pattern.size(); ++i) {
+      output_pattern.children.push_back(
+          raw_output_pattern.at(i));
+    }
 
     std::set<ASTNode> real_fvs;
     for (const auto &fv : fvs.children) {
@@ -238,6 +250,10 @@ void Core::process_statement(
 }
 
 void Core::do_file(const std::filesystem::path &_fp) {
+  if (visited_files.contains(_fp)) {
+    return;
+  }
+  visited_files.insert(_fp);
   const auto ts = lex_file(_fp);
   if (debug) {
     std::cout << "Prepending file ts:";
@@ -253,14 +269,23 @@ void Core::do_file(const std::filesystem::path &_fp) {
 }
 
 void Core::ls() const noexcept {
+  size_t n_axioms = 0;
   std::cout << "All " << im.frames.back().rules.size()
             << " rules:\n";
   for (const auto &p : im.frames.back().rules) {
-    std::cout << " " << p.first << " " << p.second << '\n';
+    if (p.second.axiom) {
+      n_axioms += 1;
+    }
+    std::cout << "  " << p.first << " " << p.second;
+    if (!p.second.axiom) {
+      std::cout << " [theorem]";
+    }
+    std::cout << '\n';
   }
   std::cout << "\nAll " << im.frames.back().theorems.size()
             << " theorems:\n";
   for (const auto &p : im.frames.back().theorems) {
     std::cout << " " << p.first << " " << p.second << '\n';
   }
+  std::cout << "Total axiom schemas: " << n_axioms << '\n';
 }

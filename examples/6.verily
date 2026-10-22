@@ -1,0 +1,26 @@
+# Tets rw and grind
+include "std.verily";
+
+axiom times_zero:
+  over A
+  given A * 0
+  deduce 0
+;
+
+theorem:
+  over B
+  given B * 0
+  deduce 0
+by {
+  rw times_zero on h0
+  ls
+}
+
+axiom zero_is_even: deduce even 0;
+axiom plus_two_is_even: over n given even n deduce even (n + 2);
+
+theorem:
+  deduce even (((0 + 2) + 2) + 2)
+by {
+  grind 3
+}
