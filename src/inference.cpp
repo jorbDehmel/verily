@@ -94,10 +94,7 @@ InferenceMaker::get_name(const ASTNode &_what) const {
 
 void InferenceMaker::add_assumption(
     const std::string &_name, const ASTNode &_what) noexcept {
-  const std::string name =
-      (_name == "NULL"
-           ? "h" + std::to_string(frames.back().theorems.size())
-           : _name);
+  const std::string name = fix_name(_name, "h");
   frames.back().theorems[name] =
       Theorem(_what, "ASSUMPTION", {});
   if (debug) {
@@ -107,10 +104,7 @@ void InferenceMaker::add_assumption(
 
 void InferenceMaker::add_rule(const std::string &_name,
                               const InferenceRule &_rule) {
-  const std::string name =
-      (_name == "NULL"
-           ? "r" + std::to_string(frames.back().rules.size())
-           : _name);
+  const std::string name = fix_name(_name, "r");
   frames.back().rules[name] = _rule;
   if (debug) {
     std::cout << "Added rule: " << _rule << "\n\n";
@@ -120,10 +114,7 @@ void InferenceMaker::add_rule(const std::string &_name,
 const InferenceMaker::Theorem
 InferenceMaker::add_theorem(const std::string &_name,
                             const Theorem &_thm) {
-  const std::string name =
-      (_name == "NULL"
-           ? "t" + std::to_string(frames.back().theorems.size())
-           : _name);
+  const std::string name = fix_name(_name, "t");
   frames.back().theorems[_name] = _thm;
   close_goal(_thm.thm);
   if (debug) {
@@ -177,15 +168,15 @@ std::ostream &operator<<(std::ostream &_strm,
 }
 
 // Note: _name is either "NULL" or an actual name.
-void InferenceMaker::check_proof(const ASTNode &_goal,
-                                 const ASTNode &_proof,
-                                 const std::string &_name) {
+std::optional<InferenceMaker::Theorem>
+InferenceMaker::check_proof(const ASTNode &_goal,
+                            const ASTNode &_proof,
+                            const std::string &_name) {
   if (debug) {
     std::cout << "Checking if " << _proof << " proves " << _goal
               << '\n';
   }
 
-  push();
   open_goal(_goal);
   if (_proof.text != "PROOF") {
     throw std::runtime_error("Cannot check a non-proof!");
@@ -212,17 +203,14 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
       }
       const auto res = rule.apply(antecedent_thms);
       const Theorem t(res, rule_name, antecedent_thms);
-      add_theorem(as.empty()
-                      ? "thm_" +
-                            std::to_string(
-                                frames.back().theorems.size())
-                      : as.at(0).text.text,
+      add_theorem(as.empty() ? fresh_with_prefix("l")
+                             : as.at(0).text.text,
                   t);
-    } else if (p == "GRIND") {
+    } else if (p == "SWEEP") {
       // Apply everything to everything for some number of
       // rounds
       std::cout
-          << "WARNING: Invoking grind! You should "
+          << "WARNING: Invoking sweep! You should "
              "replace this with explicit fw statements!\n";
 
       const std::function<bool(
@@ -239,8 +227,7 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
           if (has(thm)) {
             return false;
           }
-          add_theorem("g" + std::to_string(
-                                frames.back().theorems.size()),
+          add_theorem(fresh_with_prefix("g"),
                       Theorem(thm, _rule_name, _antecedents));
           return true;
         }
@@ -248,20 +235,19 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
         for (const auto &fact : _facts) {
           // Replace first antecedent with this fact if
           // possible. If not, continue.
-          InferenceRule modified_rule = _r;
+          std::set<ASTNode> fvs = _r.free_variables;
           std::list<std::pair<ASTNode, ASTNode>> subs;
-          if (fact.thm.is_of_form(
-                  modified_rule.requirements.front(),
-                  modified_rule.free_variables, subs)) {
+          if (fact.thm.is_of_form(_r.requirements.front(), fvs,
+                                  subs)) {
             // Adjust rule
-            for (const auto &p : subs) {
-              modified_rule.free_variables.erase(p.first);
-              modified_rule.consequence =
-                  modified_rule.consequence.replace(p.first,
-                                                    p.second);
-              for (auto &req : modified_rule.requirements) {
-                req = req.replace(p.first, p.second);
-              }
+            InferenceRule modified_rule;
+            modified_rule.consequence =
+                _r.consequence.replace(subs);
+            modified_rule.free_variables = fvs;
+            for (size_t i = 1; i < _r.requirements.size();
+                 ++i) {
+              modified_rule.requirements.push_back(
+                  _r.requirements.at(i).replace(subs));
             }
 
             // Recurse
@@ -286,7 +272,7 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
         } catch (...) {
           throw std::runtime_error(
               "Invalid argument '" + n +
-              "' to grind: Must be a number or inf");
+              "' to sweep: Must be a number or inf");
         }
       }
 
@@ -298,8 +284,15 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
         const auto rules = get_all_rules();
         for (const auto &rule : rules) {
           // Apply to all combinations of facts
-          progress =
+          progress |=
               apply_all(rule.second, facts, rule.first, {});
+        }
+
+        // Note: Sweep never changes to goal
+        if (has(_goal)) {
+          std::cout << "WARNING: Halting sweep after "
+                    << cur_round << '\n';
+          break;
         }
       }
     } else if (p == "REWRITE") {
@@ -319,11 +312,8 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
       }
 
       const Theorem t(res, rule_name, {ante.thm});
-      add_theorem(as.empty()
-                      ? "thm_" +
-                            std::to_string(
-                                frames.back().theorems.size())
-                      : as.at(0).text.text,
+      add_theorem(as.empty() ? fresh_with_prefix("l")
+                             : as.at(0).text.text,
                   t);
     } else if (p == "BACKWARD") {
       const auto rule_name = pf.at(0).text.text;
@@ -333,9 +323,11 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
     } else if (p == "WTS") {
       const auto goal = pf.at(0);
       const auto proof = pf.at(1);
-      check_proof(goal, proof,
-                  "wts_" + std::to_string(
-                               frames.back().theorems.size()));
+      check_proof(goal, proof, fresh_with_prefix("wts"));
+    } else if (p == "HAVE") {
+      const auto name = pf.at(0).text.text;
+      const auto proving = pf.at(1);
+      add_theorem(fix_name(name, "have"), get_theorem(proving));
     }
 
     if (p == "LS" || debug) {
@@ -356,10 +348,8 @@ void InferenceMaker::check_proof(const ASTNode &_goal,
               << ":" << tok.line << "." << tok.col << '\n';
     throw std::runtime_error("Proof does not solve its goal");
   }
-
-  pop();
-
   add_theorem(_name, *thm);
+  return *thm;
 }
 
 void InferenceMaker::backward_apply(const std::string &_name,
@@ -395,9 +385,7 @@ void InferenceMaker::backward_apply(const std::string &_name,
     }
 
     Theorem t(_goal, _name, replaced_requirements);
-    add_theorem(
-        "bw_" + std::to_string(frames.back().theorems.size()),
-        t);
+    add_theorem(fresh_with_prefix("bw"), t);
 
     assert(replaced_requirements.size() ==
            _rule.requirements.size());
@@ -470,4 +458,35 @@ InferenceMaker::get_all_rules() const noexcept {
     }
   }
   return out;
+}
+
+bool InferenceMaker::name_is_used(
+    const std::string &_name) const noexcept {
+  for (const auto &frame : frames) {
+    if (frame.rules.contains(_name)) {
+      return true;
+    }
+    if (frame.theorems.contains(_name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string InferenceMaker::fresh_with_prefix(
+    const std::string &_prefix) const noexcept {
+  size_t i = 0;
+  while (name_is_used(_prefix + std::to_string(i))) {
+    ++i;
+  }
+  return _prefix + std::to_string(i);
+}
+
+std::string InferenceMaker::fix_name(
+    const std::string &_name,
+    const std::string &_prefix) const noexcept {
+  if (_name == "NULL") {
+    return fresh_with_prefix(_prefix);
+  }
+  return _name;
 }

@@ -8,7 +8,7 @@ notation lambda:
 ;
 notation subs:
   over M x N
-  given M [ x = N ]
+  given M[x = N]
   deduce (subs M x N)
   before lambda
 ;

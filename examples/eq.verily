@@ -17,3 +17,8 @@ axiom eq_trans:
   given A == B, B == C
   deduce A == C
 ;
+
+axiom eq_intro:
+  over A
+  deduce A == A
+;

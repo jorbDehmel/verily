@@ -139,8 +139,7 @@ void Core::process_statement(
     for (const auto &child : given.children) {
       requirements.push_back(child);
     }
-    InferenceRule ir(free_variables, requirements, consequence,
-                     true);
+    InferenceRule ir(free_variables, requirements, consequence);
     im.add_rule(name, ir);
   }
 
@@ -150,15 +149,18 @@ void Core::process_statement(
     const auto deduce = _stmt.at(2);
     const auto proof = _stmt.at(3);
     const auto name = _stmt.at(4).text.text;
+    const auto real_name = im.fresh_with_prefix("t");
 
     im.push();
     uint i = 0;
     for (const auto &assumption : given.children) {
-      im.add_assumption("h" + std::to_string(i), assumption);
+      im.add_assumption(im.fresh_with_prefix("h"), assumption);
       ++i;
     }
-    im.check_proof(deduce.at(0), proof, name);
-    im.pop();
+    const auto pf =
+        im.check_proof(deduce.at(0), proof, real_name);
+    assert(pf.has_value());
+    im.add_theorem(real_name, pf.value());
 
     std::set<ASTNode> fvs;
     for (const auto &v : over.children) {
@@ -166,12 +168,8 @@ void Core::process_statement(
     }
     const auto reqs = given.children;
     const auto cons = deduce.children.front();
-    InferenceRule rule(fvs, reqs, cons, false);
-    im.add_rule((name == "NULL"
-                     ? "t" + std::to_string(
-                                 im.frames.back().rules.size())
-                     : name),
-                rule);
+    InferenceRule rule(fvs, reqs, cons, pf.value().thm);
+    im.add_rule(real_name, rule);
   }
 
   else if (_stmt.text == Token("NULL")) {
@@ -273,11 +271,11 @@ void Core::ls() const noexcept {
   std::cout << "All " << im.frames.back().rules.size()
             << " rules:\n";
   for (const auto &p : im.frames.back().rules) {
-    if (p.second.axiom) {
+    if (!p.second.proof.has_value()) {
       n_axioms += 1;
     }
     std::cout << "  " << p.first << " " << p.second;
-    if (!p.second.axiom) {
+    if (p.second.proof.has_value()) {
       std::cout << " [theorem]";
     }
     std::cout << '\n';
@@ -285,7 +283,8 @@ void Core::ls() const noexcept {
   std::cout << "\nAll " << im.frames.back().theorems.size()
             << " theorems:\n";
   for (const auto &p : im.frames.back().theorems) {
-    std::cout << " " << p.first << " " << p.second << '\n';
+    std::cout << " " << p.first << " "
+              << im.proof_to_ast(p.first) << '\n';
   }
   std::cout << "Total axiom schemas: " << n_axioms << '\n';
 }

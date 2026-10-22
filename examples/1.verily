@@ -12,8 +12,8 @@ axiom double_negation_introduction:
   deduce not not p
 ;
 
-axiom: deduce is_raining;
-axiom: deduce is_raining implies not is_sunny;
+axiom r4: deduce is_raining;
+axiom r5: deduce is_raining implies not is_sunny;
 
 theorem:
   deduce not is_sunny

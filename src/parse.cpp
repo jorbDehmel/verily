@@ -387,9 +387,9 @@ ASTNode Parser::parse_proof() {
       }
       pf.children.push_back(
           ASTNode(Token(tok, "FORWARD"), {name, on, as}));
-    } else if (t == "grind") {
+    } else if (t == "sweep") {
       const auto n = ts.cur_next();
-      pf.children.push_back(ASTNode(Token(tok, "GRIND"), {n}));
+      pf.children.push_back(ASTNode(Token(tok, "SWEEP"), {n}));
     } else if (t == "rewrite" || t == "rw") {
       const auto name = ts.cur_next();
       ASTNode on("ON");
@@ -411,6 +411,12 @@ ASTNode Parser::parse_proof() {
       const auto proof = parse_proof();
       pf.children.push_back(
           ASTNode(Token(tok, "WTS"), {goal, proof}));
+    } else if (t == "have") {
+      const auto thm = parse_expr();
+      ts.expect({"as"});
+      const auto name = ts.cur_next();
+      pf.children.push_back(
+          ASTNode(Token(tok, "HAVE"), {name, thm}));
     } else if (t == "ls") {
       pf.children.push_back(ASTNode(Token(tok, "LS")));
     } else if (t != ";") {

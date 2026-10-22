@@ -74,16 +74,35 @@ theorem putinar_3_nonneg:
     + q3 * r3
     >= 0
 by {
-  fw nonneg_sos on 6, 10 as sigma_0
-  fw nonneg_sos on 7, 11 as sigma_1
-  fw nonneg_sos on 8, 12 as sigma_2
-  fw nonneg_sos on 9, 13 as sigma_3
-  fw zero_mul on 3, 14 as eq_1
-  fw zero_mul on 4, 15 as eq_2
-  fw zero_mul on 5, 16 as eq_3
-  fw nonneg_mul on 0, sigma_1 as ineq_1
-  fw nonneg_mul on 1, sigma_2 as ineq_2
-  fw nonneg_mul on 2, sigma_3 as ineq_3
+  have p1 >= 0 as h0
+  have p2 >= 0 as h1
+  have p3 >= 0 as h2
+  have q1 == 0 as h3
+  have q2 == 0 as h4
+  have q3 == 0 as h5
+  have Q0 >>= 0 as h6
+  have Q1 >>= 0 as h7
+  have Q2 >>= 0 as h8
+  have Q3 >>= 0 as h9
+  have b0 as h10
+  have b1 as h11
+  have b2 as h12
+  have b3 as h13
+  have r1 as h14
+  have r2 as h15
+  have r3 as h16
+
+  -- Real stuff
+  fw nonneg_sos on h6, h10 as sigma_0
+  fw nonneg_sos on h7, h11 as sigma_1
+  fw nonneg_sos on h8, h12 as sigma_2
+  fw nonneg_sos on h9, h13 as sigma_3
+  fw zero_mul on h3, h14 as eq_1
+  fw zero_mul on h4, h15 as eq_2
+  fw zero_mul on h5, h16 as eq_3
+  fw nonneg_mul on h0, sigma_1 as ineq_1
+  fw nonneg_mul on h1, sigma_2 as ineq_2
+  fw nonneg_mul on h2, sigma_3 as ineq_3
   fw zero_to_nonneg on eq_1 as nonneg_eq_1
   fw zero_to_nonneg on eq_2 as nonneg_eq_2
   fw zero_to_nonneg on eq_3 as nonneg_eq_3
@@ -93,4 +112,6 @@ by {
   fw nonneg_add on sum_3, nonneg_eq_1 as sum_2
   fw nonneg_add on sum_2, nonneg_eq_2 as sum_1
   fw nonneg_add on sum_1, nonneg_eq_3 as sum_0
+
+  ls
 }

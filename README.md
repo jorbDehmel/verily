@@ -43,8 +43,9 @@ a verily syntax highlighting extension for `vscode`.
 
 To build the CLI, just run `make` from the root of this repo.
 This will create `./verily.out`, which is the executable. Run
-`./verily.out --help` for help. View the examples to see
-verily's syntax.
+`./verily.out --help` for help. If you run
+`./verily.out file_name.verily`, it will check that file. If you
+run `./verily.out`, it will enter CLI mode.
 
 To install the `vscode` syntax highlighting extension, change
 directories to `verily-highlighting`. Then, run
@@ -57,6 +58,16 @@ reload your `vscode` window (ctrl+shift+p
 syntax-highlighting any open files with the extension `.verily`.
 
 ## Syntax
+
+Many comment styles are supported.
+
+```verily
+# I am a comment (python-style)
+-- I am a comment (lean-style)
+// I am a comment (C++-style)
+```
+
+There are no block comments.
 
 ### Meta
 
@@ -71,7 +82,7 @@ keyword.
 ```verily
 notation in:
   over A, B
-  given A, in, B
+  given A in B
   deduce (in A B)
 ;
 
@@ -83,7 +94,7 @@ notation not:
 
 notation prime:
   over A
-  given A, '
+  given A'
   deduce (prime A)
 ;
 ```
@@ -99,7 +110,7 @@ operator should go.
 ```verily
 notation append:
   over A, B
-  given A, ++, B
+  given A ++ B
   deduce (concat A B)
   before add
 ;
@@ -170,6 +181,10 @@ by {
 }
 ```
 
+After they are proven, you can apply them just like rules. The
+only difference between them and rule is that theorems do not
+count as axioms.
+
 ### Proofs
 
 A proof, which can only appear in the `by` clause of a theorem,
@@ -178,10 +193,16 @@ has a few legal statements.
 1. `bw rule_name_here` / `backward rule_name_here`
 2. `wts new_goal_here { proof_of_new_goal_here }`
 3. `fw rule_name_here` / `forward rule_name_here`
+4. `sweep num_of_passes` / `sweep inf`
+5. `have thm_goes_here as name`
 
 `forward` and `fw` are interchangeable, as are `backward` and
 `bw`. `wts` stands for "Want To Show". `fw` has a few variants,
 listed below.
+
+`have thm as name` just finds the **existing** proof of thm and
+creates a new theorem named `name` with that same proof. This
+is useful for hypothesis (`given` clauses).
 
 ```verily
 fw rule_name
@@ -197,13 +218,33 @@ is legal!
 
 `fw ... on ... as ...` pattern-matches the given rule's
 antecedents with the provided arguments, then adds the result
-as a theorem.
+as a theorem. It never changes the goal.
 
 `bw rule_name` pattern-matches the current goal with the
 consequent of the given rule, then adds all the resulting
-antecedents as new goals (closing the old goal).
+antecedents as new goals (closing the old goal). It can change
+the goal.
 
 `wts a { b }` introduces a goal `a` (it can be one that already
 exists, or even the current goal), then checks that `b` is a
 proof of `a`. If it is, `a` is eliminated as a goal and added
-as a theorem.
+as a theorem. It can change the goal.
+
+`sweep x`, where `x` is a natural number, synthesizes **all**
+(exponentially many) theorems reachable within `x` forward
+applications. `sweep inf` does this forever (or until no more
+theorems can be derived or the *current* goal is solved). As
+the name suggests, `sweep inf` can run forever if your TRS is
+non-normalizing and the goal is unprovable. If the system is
+normalizing or the goal is provable, `sweep inf` will always
+halt (though it takes exponentially long WRT the length of the
+proof). `sweep` never changes the goal. You should never have
+`sweep` statements in a finished proof! You should only ever use
+it to discover proofs that you can then manually insert!
+
+## Future
+
+## Vetoed Suggestions:
+
+- Alternative functional theorem / axiom syntax
+- Unified proof and "glue" syntax

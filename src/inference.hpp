@@ -134,8 +134,9 @@ public:
 
   /// Checks a proof, obviously. It recurses and logs its
   /// successes as needed
-  void check_proof(const ASTNode &_goal, const ASTNode &_proof,
-                   const std::string &_name);
+  std::optional<Theorem> check_proof(const ASTNode &_goal,
+                                     const ASTNode &_proof,
+                                     const std::string &_name);
 
   /// List everything
   void ls() const noexcept;
@@ -145,6 +146,21 @@ public:
 
   /// If true, prints some extra info
   bool debug = false;
+
+  /// True iff there exists a theorem or rule with the given
+  /// name
+  bool name_is_used(const std::string &_name) const noexcept;
+
+  /// Return _prefix + to_string(i), where i is the smallest
+  /// integer where the result is unique
+  std::string
+  fresh_with_prefix(const std::string &_prefix) const noexcept;
+
+  /// If _name is NULL, return a fresh name with the given
+  /// prefix. Otherwise, just return _name.
+  std::string
+  fix_name(const std::string &_name,
+           const std::string &_prefix) const noexcept;
 };
 
 /// Print a theorem

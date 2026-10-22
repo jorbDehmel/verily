@@ -42,7 +42,9 @@ theorem:
     f == g
   deduce d == g
 by {
-  fw eq_trans on h1, h2
+  have e == f as e_eq_f
+  have f == g as f_eq_g
+  fw eq_trans on e_eq_f, f_eq_g
   fw derives_intro on h0
   bw derives_elim
   bw derives_intro

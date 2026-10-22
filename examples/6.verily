@@ -1,4 +1,4 @@
-# Tets rw and grind
+# Tets rw and sweep
 include "std.verily";
 
 axiom times_zero:
@@ -12,8 +12,8 @@ theorem:
   given B * 0
   deduce 0
 by {
+  have B * 0 as h0
   rw times_zero on h0
-  ls
 }
 
 axiom zero_is_even: deduce even 0;
@@ -22,5 +22,11 @@ axiom plus_two_is_even: over n given even n deduce even (n + 2);
 theorem:
   deduce even (((0 + 2) + 2) + 2)
 by {
-  grind 3
+  sweep 4
+}
+
+theorem:
+  deduce even ((((((((0 + 2) + 2) + 2) + 2) + 2) + 2) + 2) + 2)
+by {
+  sweep inf
 }

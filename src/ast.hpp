@@ -249,9 +249,10 @@ struct InferenceRule {
 
   InferenceRule(const std::set<ASTNode> &_fvs,
                 const std::vector<ASTNode> &_reqs,
-                const ASTNode &_cons, const bool &_axiom = true)
+                const ASTNode &_cons,
+                const std::optional<ASTNode> &_proof = {})
       : free_variables(_fvs), requirements(_reqs),
-        consequence(_cons), axiom(_axiom) {
+        consequence(_cons), proof(_proof) {
   }
 
   /// The free variables over both the requirements and
@@ -265,7 +266,9 @@ struct InferenceRule {
   /// this theorem
   ASTNode consequence;
 
-  bool axiom = true;
+  /// Either None if this is an axiom, or the AST which is the
+  /// theorem form of this rule.
+  std::optional<ASTNode> proof;
 
   /// Throws on failure
   ASTNode apply(const std::vector<ASTNode> &_premises) const;
