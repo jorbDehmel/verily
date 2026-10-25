@@ -195,10 +195,11 @@ has a few legal statements.
 3. `fw rule_name_here` / `forward rule_name_here`
 4. `sweep num_of_passes` / `sweep inf`
 5. `have thm_goes_here as name`
+6. `rw rule_name_here` / `rewrite rule_name_here`
 
 `forward` and `fw` are interchangeable, as are `backward` and
-`bw`. `wts` stands for "Want To Show". `fw` has a few variants,
-listed below.
+`bw`, and `rewrite` and `rw`. `wts` stands for "Want To Show".
+`fw` has a few variants, listed below.
 
 `have thm as name` just finds the **existing** proof of thm and
 creates a new theorem named `name` with that same proof. This
@@ -210,6 +211,9 @@ fw rule_name on antecedent_1
 fw rule_name on antecedent_1, antecedent_2, antecedent_3
 fw rule_name as result_name
 fw rule_name on a1, a2 as result_name
+
+-- Same as 'fw rule_name on foo as foo'
+fw rule_name at foo
 ```
 
 Unless the rule has no antecedents, you probably want to apply
@@ -218,7 +222,9 @@ is legal!
 
 `fw ... on ... as ...` pattern-matches the given rule's
 antecedents with the provided arguments, then adds the result
-as a theorem. It never changes the goal.
+as a theorem. It never changes the goal. `fw ... at ...` works
+as mentioned above. `rw` has the same syntax as `fw`, but it
+can rewrite subexpressions instead of the entire subexpression.
 
 `bw rule_name` pattern-matches the current goal with the
 consequent of the given rule, then adds all the resulting
@@ -241,8 +247,6 @@ halt (though it takes exponentially long WRT the length of the
 proof). `sweep` never changes the goal. You should never have
 `sweep` statements in a finished proof! You should only ever use
 it to discover proofs that you can then manually insert!
-
-## Future
 
 ## Vetoed Suggestions:
 

@@ -101,7 +101,7 @@ void Core::json(std::ostream &_strm) const {
            "  \"selected-theorems\": [\n"
            "    ";
   bool first = true;
-  for (const auto &p : im.frames.front().theorems) {
+  for (const auto &p : im.get_all_facts()) {
     if (first) {
       first = false;
     } else {
@@ -267,6 +267,12 @@ void Core::do_file(const std::filesystem::path &_fp) {
 }
 
 void Core::ls() const noexcept {
+  std::cout << "All " << parser.order_of_operations.size()
+            << " active notations:\n";
+  for (const auto &p : parser.order_of_operations) {
+    std::cout << "  " << p.first << ": " << p.second << '\n';
+  }
+
   size_t n_axioms = 0;
   std::cout << "All " << im.frames.back().rules.size()
             << " rules:\n";

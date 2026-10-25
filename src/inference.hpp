@@ -68,7 +68,8 @@ public:
   const Theorem get_theorem(const ASTNode &_thm) const;
 
   /// Get all facts from all existing frames
-  std::list<Theorem> get_all_facts() const noexcept;
+  std::list<std::pair<std::string, Theorem>>
+  get_all_facts() const noexcept;
 
   /// Get all rules from all existing frames
   std::list<std::pair<std::string, InferenceRule>>

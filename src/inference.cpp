@@ -4,7 +4,6 @@
 
 #include "inference.hpp"
 #include "ast.hpp"
-#include <algorithm>
 #include <cassert>
 #include <functional>
 #include <iostream>
@@ -214,11 +213,14 @@ InferenceMaker::check_proof(const ASTNode &_goal,
              "replace this with explicit fw statements!\n";
 
       const std::function<bool(
-          const InferenceRule &, const std::list<Theorem> &,
+          const InferenceRule &,
+          const std::list<std::pair<std::string, Theorem>> &,
           const std::string &, const std::vector<ASTNode> &)>
           apply_all =
               [&](const InferenceRule &_r,
-                  const std::list<Theorem> _facts,
+                  const std::list<
+                      std::pair<std::string, Theorem>>
+                      _facts,
                   const std::string &_rule_name,
                   const std::vector<ASTNode> &_antecedents)
           -> bool {
@@ -237,8 +239,8 @@ InferenceMaker::check_proof(const ASTNode &_goal,
           // possible. If not, continue.
           std::set<ASTNode> fvs = _r.free_variables;
           std::list<std::pair<ASTNode, ASTNode>> subs;
-          if (fact.thm.is_of_form(_r.requirements.front(), fvs,
-                                  subs)) {
+          if (fact.second.thm.is_of_form(
+                  _r.requirements.front(), fvs, subs)) {
             // Adjust rule
             InferenceRule modified_rule;
             modified_rule.consequence =
@@ -253,7 +255,7 @@ InferenceMaker::check_proof(const ASTNode &_goal,
             // Recurse
             std::vector<ASTNode> modified_antecedents =
                 _antecedents;
-            modified_antecedents.push_back(fact.thm);
+            modified_antecedents.push_back(fact.second.thm);
             out |= apply_all(modified_rule, _facts, _rule_name,
                              modified_antecedents);
           }
@@ -438,12 +440,13 @@ void InferenceMaker::ls() const noexcept {
   }
 }
 
-std::list<InferenceMaker::Theorem>
+std::list<std::pair<std::string, InferenceMaker::Theorem>>
 InferenceMaker::get_all_facts() const noexcept {
-  std::list<InferenceMaker::Theorem> out;
+  std::list<std::pair<std::string, InferenceMaker::Theorem>>
+      out;
   for (const auto &frame : frames) {
     for (const auto &p : frame.theorems) {
-      out.push_back(p.second);
+      out.push_back(p);
     }
   }
   return out;

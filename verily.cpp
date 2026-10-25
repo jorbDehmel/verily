@@ -118,76 +118,83 @@ int main(int argc, char *argv[]) {
   };
 
   std::chrono::high_resolution_clock::time_point start, stop;
-  if (fp != null_fp) {
-    // File mode
-    if (time) {
-      start = std::chrono::high_resolution_clock::now();
-    }
-    verily.do_file(fp);
-    if (time) {
-      stop = std::chrono::high_resolution_clock::now();
-    }
-  }
-
-  else {
-    // CLI mode
-    if (time) {
-      std::cout << "WARNING: Cannot time in CLI mode\n";
-      time = false;
-    } else if (quiet) {
-      std::cout
-          << "WARNING: Cannot use '--quiet' in CLI mode\n";
-      quiet = false;
-    }
-
-    std::cout << "Verily CLI mode: CTL+D / EOF to exit.\n";
-
-    std::string cur_statement;
-    bool is_running = true;
-    while (!std::cin.eof() && is_running) {
-      std::string line;
-      std::cout << "> ";
-      std::getline(std::cin, line);
-      if (!cur_statement.empty()) {
-        cur_statement += '\n';
+  try {
+    if (fp != null_fp) {
+      // File mode
+      if (time) {
+        start = std::chrono::high_resolution_clock::now();
       }
-      cur_statement += line;
+      verily.do_file(fp);
+      if (time) {
+        stop = std::chrono::high_resolution_clock::now();
+      }
+    }
 
-      if (cur_statement.ends_with(';')) {
-        // Execute statement
-        if (verily.debug) {
-          std::cout << "Processing CLI statement "
-                    << cur_statement << "\n";
+    else {
+      // CLI mode
+      if (time) {
+        std::cout << "WARNING: Cannot time in CLI mode\n";
+        time = false;
+      } else if (quiet) {
+        std::cout
+            << "WARNING: Cannot use '--quiet' in CLI mode\n";
+        quiet = false;
+      }
+
+      std::cout << "Verily CLI mode: CTL+D / EOF to exit.\n";
+
+      std::string cur_statement;
+      bool is_running = true;
+      while (!std::cin.eof() && is_running) {
+        std::string line;
+        std::cout << "> ";
+        std::getline(std::cin, line);
+        if (!cur_statement.empty()) {
+          cur_statement += '\n';
         }
+        cur_statement += line;
 
-        try {
-          verily.append_parse(cur_statement, fp);
-          const ASTNode global = verily.parse_and_process(fp);
-
-          for (const auto &stmt : global.children) {
-            if (stmt == ASTNode("HELP")) {
-              print_help();
-            } else if (stmt == ASTNode("QUIT")) {
-              is_running = false;
-              break;
-            } else if (stmt.text != "NULL") {
-              verily.process_statement(stmt, fp);
-            }
+        if (cur_statement.ends_with(';')) {
+          // Execute statement
+          if (verily.debug) {
+            std::cout << "Processing CLI statement "
+                      << cur_statement << "\n";
           }
-        } catch (std::runtime_error &_e) {
-          std::cout << "Caught error: " << _e.what() << "\n";
-        } catch (...) {
-          std::cout << "Unknown error!\n";
-        }
 
-        // Clear
-        cur_statement.clear();
+          try {
+            verily.append_parse(cur_statement, fp);
+            const ASTNode global = verily.parse_and_process(fp);
+
+            for (const auto &stmt : global.children) {
+              if (stmt == ASTNode("HELP")) {
+                print_help();
+              } else if (stmt == ASTNode("QUIT")) {
+                is_running = false;
+                break;
+              } else if (stmt.text != "NULL") {
+                verily.process_statement(stmt, fp);
+              }
+            }
+          } catch (std::runtime_error &_e) {
+            std::cout << "Caught error: " << _e.what() << "\n";
+          } catch (...) {
+            std::cout << "Unknown error!\n";
+          }
+
+          // Clear
+          cur_statement.clear();
+        }
+      }
+      if (!cur_statement.empty()) {
+        std::cout << "WARNING: Discarding partial statement "
+                  << cur_statement << "\n";
       }
     }
-    if (!cur_statement.empty()) {
-      std::cout << "WARNING: Discarding partial statement "
-                << cur_statement << "\n";
-    }
+  } catch (...) {
+    const auto t = verily.parser.ts.cur();
+    std::cout << "Near " << t.file << ":" << t.line << "."
+              << t.col << '\n';
+    throw;
   }
 
   verily.ls();

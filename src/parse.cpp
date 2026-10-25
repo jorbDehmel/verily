@@ -1,13 +1,11 @@
 #include "parse.hpp"
 #include "ast.hpp"
 #include <cassert>
-#include <chrono>
 #include <fstream>
 #include <initializer_list>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include <thread>
 
 const static std::set<char> singletons({';', '(', ')', '{', '}',
                                         '.', ',', '[', ']',
@@ -62,6 +60,11 @@ TokenStream lex_text(const std::string &text,
       cur += c;
     }
     ++col;
+    if (col > 65) {
+      throw std::runtime_error("Lines should not exceed 64 "
+                               "characters (offender: line " +
+                               std::to_string(line) + ")");
+    }
   }
   add_tok();
   return TokenStream(out);
@@ -385,6 +388,11 @@ ASTNode Parser::parse_proof() {
         ts.expect({"as"});
         as.children.push_back(ts.cur_next());
       }
+      if (ts.cur() == "at") {
+        ts.expect({"at"});
+        as.children.push_back(ts.cur_next());
+        on.children.push_back(as.children.front());
+      }
       pf.children.push_back(
           ASTNode(Token(tok, "FORWARD"), {name, on, as}));
     } else if (t == "sweep") {
@@ -393,12 +401,16 @@ ASTNode Parser::parse_proof() {
     } else if (t == "rewrite" || t == "rw") {
       const auto name = ts.cur_next();
       ASTNode on("ON");
-      ts.expect({"on"});
-      on.children.push_back(ts.cur_next());
       ASTNode as("AS");
-      if (ts.cur() == "as") {
-        ts.expect({"as"});
-        as.children.push_back(ts.cur_next());
+      const auto choice = ts.expect({"on", "at"});
+      on.children.push_back(ts.cur_next());
+      if (choice == "on") {
+        if (ts.cur() == "as") {
+          ts.expect({"as"});
+          as.children.push_back(ts.cur_next());
+        }
+      } else {
+        as.children.push_back(on.children.front());
       }
       pf.children.push_back(
           ASTNode(Token(tok, "REWRITE"), {name, on, as}));

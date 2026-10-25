@@ -1,17 +1,19 @@
 # Lambda calculus.
-# This holds for any objects implementing subs.
+# This holds for any bodies implementing subs.
+
+notation subs:
+  over a, b, c
+  given a[b = c]
+  deduce (subs a b c)
+;
 
 notation lambda:
   over x, M
   given lambda x . M
   deduce (lambda x M)
 ;
-notation subs:
-  over M x N
-  given M[x = N]
-  deduce (subs M x N)
-  before lambda
-;
+
+----------------------------------------------------------------
 
 axiom beta_reduction:
   over x, M, N
@@ -21,8 +23,8 @@ axiom beta_reduction:
 
 axiom alpha_reduction:
   over x, y, M
-  given (lambda x. M)
-  deduce (lambda y. M[x = y])
+  given lambda x. M
+  deduce lambda y. (M[x = y])
 ;
 
 axiom lambda_calc_subs:
@@ -31,27 +33,41 @@ axiom lambda_calc_subs:
   deduce lambda x. M[y = N]
 ;
 
-----------------------------------------------------------------
-
-axiom subs_atom:
-  over x, M
-  given (subs x x M)
-  deduce M
+axiom unit_subs:
+  over a, b
+  given a[a = b]
+  deduce b
 ;
+
+axiom ne_subs:
+  over a, b, c
+  given syntax_does_not_contain a b, a[b = c]
+  deduce a
+;
+
+----------------------------------------------------------------
 
 theorem lemma_1:
   given (lambda x. lambda y. x) 1
   deduce lambda y. 1
 by {
-  fw beta_reduction on h0 as h1
-  fw lambda_calc_subs on h1 as h2
-  fw subs_atom on h2
+  have (lambda x. lambda y. x) 1 as h0
+  forward beta_reduction on h0 as h1
+  forward lambda_calc_subs on h1 as h2
+  rewrite unit_subs on h2 as h3
 }
 
 theorem:
-  given (((lambda x. lambda y. x) 1) 2)
+  given
+    (((lambda x. lambda y. x) 1) 2),
+    syntax_does_not_contain 1 y
   deduce 1
 by {
-  fw beta_reduction on 0
-  ls
+  have ((lambda x. lambda y. x) 1) 2 as h0
+  have syntax_does_not_contain 1 y as h1
+  rewrite beta_reduction at h0
+  rewrite lambda_calc_subs at h0
+  rewrite unit_subs at h0
+  rewrite beta_reduction at h0
+  forward ne_subs on h1, h0 as h2
 }

@@ -118,6 +118,11 @@ notation derives:
   given A derives B
   deduce (derives A B)
 ;
+notation deduces:
+  over A, B
+  given A deduces B
+  deduce (derives A B)
+;
 
 axiom intro_false: over A given A, not A, deduce false;
 axiom elim_false: over A given false deduce A;
