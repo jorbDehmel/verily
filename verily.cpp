@@ -22,11 +22,15 @@ void print_help() {
     "+-----------------------------------------------------+\n"
     "|                       Verily                        |\n"
     "+-----------------------------------------------------+\n"
-    "A deductive theorem prover. MIT License, 2025-2026.    \n"
+    "               A dogmatic theorem prover.              \n"
+    "                MIT License, 2025-2026.                \n"
     "                                                       \n"
     " CLI flag          | Default | Meaning                 \n"
     "-------------------|---------|-------------------------\n"
-    " --debug           | false   | Toggles debug mode      \n"
+    " --check           | false   | Toggles backup pf check \n"
+    " --debug           | false   | Toggles main debug mode \n"
+    " --parse-debug     | false   | Toggles parser debug    \n"
+    " --inference-debug | false   | Toggles inference debug \n"
     " --help            |         | Prints this text        \n"
     " --json            | false   | Prints json to file     \n"
     " --quiet           | false   | Toggles quiet mode      \n"
@@ -51,8 +55,12 @@ int main(int argc, char *argv[]) {
     const std::string arg = argv[i];
     if (arg == "--debug") {
       verily.debug = !verily.debug;
-      verily.im.debug = verily.debug;
-      verily.parser.debug = verily.debug;
+    } else if (arg == "--parse-debug") {
+      verily.parser.debug = !verily.parser.debug;
+    } else if (arg == "--inference-debug") {
+      verily.im.debug = !verily.im.debug;
+    } else if (arg == "--check") {
+      verily.im.check = !verily.im.check;
     } else if (arg == "--time") {
       time = !time;
     } else if (arg == "--json") {

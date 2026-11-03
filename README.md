@@ -9,9 +9,9 @@ Jordan Dehmel, MIT License, 2025-present
 
 Verily is a theorem prover based on term rewriting systems.
 It is *not* based on the Curry-Howard isomorphism (though it
-contains and is contained by such systems). Notably,
-there is no type system. The goal is to be extremely quick and
-lightweight.
+contains and is contained by it). Notably, `verily` has no type
+system. The goal is to be extremely quick and lightweight: The
+assembly language of theorem proving.
 
 **Everything is uninterpreted!** Though operators like `+`, `*`,
 and even `==` can be added via the `notation` keyword,
@@ -29,8 +29,7 @@ exist by default).
 
 1. Thou shalt not interpret functions
 2. Thou shalt not endow this theorem prover with external
-  resources (EG no internal interfaces to other provers, CLI,
-  or anything else)
+  resources (no internal interfaces to other provers)
 3. Thou shalt not contribute to this prover with AI (No
   exceptions: not even a little bit, not even tangentially, not
   even "based on a conversation with Claude". I don't care if
@@ -199,6 +198,7 @@ has a few legal statements.
 4. `sweep num_of_passes` / `sweep inf`
 5. `have thm_goes_here as name`
 6. `rw rule_name_here` / `rewrite rule_name_here`
+7. `theorem ...` (same as normal)
 
 `forward` and `fw` are interchangeable, as are `backward` and
 `bw`, and `rewrite` and `rw`. `wts` stands for "Want To Show".
@@ -234,10 +234,10 @@ consequent of the given rule, then adds all the resulting
 antecedents as new goals (closing the old goal). It can change
 the goal.
 
-`wts a { b }` introduces a goal `a` (it can be one that already
-exists, or even the current goal), then checks that `b` is a
-proof of `a`. If it is, `a` is eliminated as a goal and added
-as a theorem. It can change the goal.
+`wts a { b }` introduces a goal `a` (it can be new, one that
+already exists, or even the current goal), then checks that `b`
+is a proof of `a`. If it is, `a` is eliminated as a goal and
+added as a theorem. It can change the goal.
 
 `sweep x`, where `x` is a natural number, synthesizes **all**
 (exponentially many) theorems reachable within `x` forward
@@ -251,8 +251,25 @@ proof). `sweep` never changes the goal. You should never have
 `sweep` statements in a finished proof! You should only ever use
 it to discover proofs that you can then manually insert!
 
+If you are within a proof and want to synthesize a new rewrite
+rule with antecedents and/or generics, you can use a
+`theorem ...` (where `theorem` is interchangeable with `lemma`)
+statement. It takes the same syntax as usual, and inherits any
+assumptions that are currently active. Once proven, the theorem
+is added as a new rewrite rule.
+
 ## Vetoed Suggestions:
 
 - Alternative functional theorem / axiom syntax
 - Unified proof and "glue" syntax
 - `suppose` proof statements for adding axioms on the fly
+
+## Future
+
+- It might be useful to have a `hint` keyword that shows all
+  possible backwards goal groups.
+- If there is every a `uv`-style version / package manager, it
+  should be called `hark`.
+- `sweep` calls should print the `fw`-only proofs they discover.
+- The secondary proof checking system (for EG json) is *very*
+  broken, and needs a complete rewrite.

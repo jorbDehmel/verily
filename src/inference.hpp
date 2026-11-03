@@ -8,7 +8,6 @@
 #include <iostream>
 #include <map>
 #include <stdexcept>
-#include <thread>
 #include <vector>
 
 /// A maker of inferences. It takes rules and axioms and deduces
@@ -142,32 +141,10 @@ public:
             "Unresolved goal(s) at end of frame");
       }
 
-      // For fixing backwards proofs
-      std::list<std::pair<ASTNode, ASTNode>> subs;
-      for (const auto &p : popped.theorems) {
-        subs.push_back(
-            {ASTNode("THEOREM",
-                     {
-                         p.second.consequence,
-                         ASTNode("REPLACE_ME"),
-                     }),
-             ASTNode("THEOREM", {
-                                    p.second.consequence,
-                                    p.second.proof.value_or(
-                                        ASTNode("ASSUMPTION")),
-                                })});
-      }
-
       for (const auto &goal : popped.closed_goals) {
-        ASTNode pf = goal.second;
-        ASTNode tmp = pf.replace(subs);
-        while (pf != tmp) {
-          pf = tmp;
-          tmp = pf.replace(subs);
-        }
         add_theorem(fresh_with_prefix("t"),
                     Theorem(popped.generics, frame_assumptions,
-                            goal.first, pf));
+                            goal.first, goal.second));
       }
     } else {
       throw std::runtime_error(
@@ -206,6 +183,9 @@ public:
 
   /// If true, prints some extra info
   bool debug = false;
+
+  /// If true, checks every theorem as we add them
+  bool check = false;
 };
 
 /// Print a theorem

@@ -260,7 +260,7 @@ ASTNode InferenceRule::apply_subexpr(
 std::ostream &operator<<(std::ostream &_strm,
                          const InferenceRule &_thm) {
   if (!_thm.free_variables.empty()) {
-    std::cout << "For all {";
+    _strm << "For all {";
     bool first = true;
     for (const auto &fv : _thm.free_variables) {
       if (first) {
@@ -270,7 +270,7 @@ std::ostream &operator<<(std::ostream &_strm,
       }
       _strm << fv;
     }
-    std::cout << "}: ";
+    _strm << "}: ";
   }
 
   if (!_thm.requirements.empty()) {

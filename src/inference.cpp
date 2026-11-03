@@ -55,7 +55,8 @@ bool InferenceMaker::has(const ASTNode &_what) const noexcept {
   for (auto rit = frames.rbegin(); rit != frames.rend();
        ++rit) {
     for (const auto &p : rit->theorems) {
-      if (p.second.consequence == _what) {
+      if (p.second.consequence == _what &&
+          p.second.requirements.empty()) {
         return true;
       }
     }
@@ -93,8 +94,7 @@ InferenceMaker::add_theorem(const std::string &_name,
   frames.back().theorems[_name] = _thm;
   close_goal(_thm.consequence);
   if (debug) {
-    std::cout << "Derived theorem " << _thm.consequence
-              << "\n\n";
+    std::cout << "Derived theorem " << _thm << "\n\n";
   }
   return _thm;
 }
@@ -593,6 +593,11 @@ void InferenceMaker::check_proof(const Theorem &_thm) {
           "Cannot check proof for unknown axiom!");
     }
     return;
+  }
+  if (_thm.proof.value().contains("REPLACE_ME")) {
+    std::cerr << "Offender: " << _thm << '\n';
+    throw std::runtime_error(
+        "Malformed proof: Backwards linkage error!");
   }
   check_subproof(_thm.consequence, _thm.proof.value());
 }

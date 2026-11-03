@@ -139,8 +139,6 @@ void Core::process_statement(
         im.construct_proof(deduce.at(0), proof, real_name);
     // This adds the theorem
     im.pop();
-
-    im.check_proof(res.value());
   }
 
   else if (_stmt.text == Token("NULL")) {

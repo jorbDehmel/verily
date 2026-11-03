@@ -11,9 +11,6 @@ by {
   bw a5
   wts C {
     bw a3
-    ls
-    bw a1
-    ls
   }
   wts D {
     bw a4
