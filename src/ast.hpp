@@ -7,6 +7,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <list>
@@ -255,6 +256,20 @@ struct InferenceRule {
         consequence(_cons), proof(_proof) {
   }
 
+  inline bool
+  operator==(const InferenceRule &_other) const noexcept {
+    if (consequence != _other.consequence) {
+      return false;
+    }
+    if (free_variables != _other.free_variables) {
+      return false;
+    }
+    if (requirements != _other.requirements) {
+      return false;
+    }
+    return true;
+  }
+
   /// The free variables over both the requirements and
   /// the consequence
   std::set<ASTNode> free_variables;
@@ -285,6 +300,51 @@ struct InferenceRule {
   /// Apply backwards (obviously)
   std::vector<ASTNode>
   backward_apply(const ASTNode &_goal) const;
+
+  /// Create an ASTNode such that
+  /// from_ASTNode(this->to_ASTNode()) == *this
+  inline ASTNode to_ASTNode() const noexcept {
+    ASTNode over_block("OVER");
+    for (const auto &fv : free_variables) {
+      over_block.children.push_back(fv);
+    }
+    return ASTNode(
+        "INFERENCE_RULE",
+        {
+            over_block,
+            ASTNode("GIVEN", requirements),
+            ASTNode("DEDUCE", {consequence}),
+            ASTNode("PROOF",
+                    {proof.has_value() ? proof.value()
+                                       : ASTNode("NULL")}),
+        });
+  }
+
+  /// Decode an ASTNode such that
+  /// from_ASTNode(this->to_ASTNode()) == *this
+  inline static InferenceRule
+  from_ASTNode(const ASTNode &_from) {
+    assert(_from.size() == 4);
+    const auto over_block = _from.at(0);
+    const auto given_block = _from.at(1);
+    const auto deduce_block = _from.at(2);
+    assert(_from.at(3).text == "PROOF");
+    assert(_from.at(3).size() == 1);
+    const auto proof = _from.at(3).at(0);
+    assert(deduce_block.size() == 1);
+    assert(over_block.text == "OVER");
+    assert(given_block.text == "GIVEN");
+    assert(deduce_block.text == "DEDUCE");
+    std::set<ASTNode> fvs;
+    for (const auto &fv : over_block.children) {
+      fvs.insert(fv);
+    }
+    return InferenceRule(fvs, given_block.children,
+                         deduce_block.children.front(),
+                         proof == ASTNode("NULL")
+                             ? std::optional<ASTNode>()
+                             : proof);
+  }
 };
 
 /// Print a rule

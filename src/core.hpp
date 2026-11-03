@@ -48,9 +48,6 @@ public:
     return stmt;
   }
 
-  /// Turns all underscores to spaces
-  static std::string sanitize_name(const std::string &_s);
-
   /// Prints the rules, axioms, and selected theorems in JSON
   /// encoding
   void json(std::ostream &_strm) const;

@@ -1,5 +1,5 @@
 /**
- * @brief Tests the inference maker object
+ * @brief CLI
  */
 
 #include "src/core.hpp"
@@ -190,11 +190,11 @@ int main(int argc, char *argv[]) {
                   << cur_statement << "\n";
       }
     }
-  } catch (...) {
+  } catch (std::runtime_error &_e) {
     const auto t = verily.parser.ts.cur();
     std::cout << "Near " << t.file << ":" << t.line << "."
               << t.col << '\n';
-    throw;
+    throw _e;
   }
 
   verily.ls();

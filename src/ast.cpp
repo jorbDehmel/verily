@@ -256,3 +256,41 @@ ASTNode InferenceRule::apply_subexpr(
   }
   return out;
 }
+
+std::ostream &operator<<(std::ostream &_strm,
+                         const InferenceRule &_thm) {
+  if (!_thm.free_variables.empty()) {
+    std::cout << "For all {";
+    bool first = true;
+    for (const auto &fv : _thm.free_variables) {
+      if (first) {
+        first = false;
+      } else {
+        _strm << ", ";
+      }
+      _strm << fv;
+    }
+    std::cout << "}: ";
+  }
+
+  if (!_thm.requirements.empty()) {
+    bool first = true;
+    for (const auto &premise : _thm.requirements) {
+      if (first) {
+        first = false;
+      } else {
+        _strm << ", ";
+      }
+      _strm << premise;
+    }
+    std::cout << " ";
+  }
+
+  _strm << "|- " << _thm.consequence;
+  if (_thm.proof.has_value()) {
+    _strm << " (by " << _thm.proof.value() << ")";
+  } else {
+    _strm << " (axiom)";
+  }
+  return _strm;
+}

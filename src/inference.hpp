@@ -1,5 +1,5 @@
 /**
- * @brief Stack management, mostly for goals / tactics
+ * @brief Stack management, mostly for goals / tactics.
  */
 
 #pragma once
@@ -7,32 +7,29 @@
 #include "ast.hpp"
 #include <iostream>
 #include <map>
+#include <stdexcept>
+#include <thread>
+#include <vector>
 
 /// A maker of inferences. It takes rules and axioms and deduces
 /// theorems
 class InferenceMaker {
 public:
-  /// A statement, along with proof that it is a theorem
-  struct Theorem {
-    /// Empty construct
-    Theorem() {
-    }
+  using Theorem = InferenceRule;
 
-    /// Construct
-    Theorem(const ASTNode &_thm, const std::string &_name,
-            const std::vector<ASTNode> &_premises)
-        : thm(_thm), rule_name(_name), premises(_premises) {
-    }
+  /// Keeps all the info
+  struct Frame {
+    /// Generics
+    std::set<ASTNode> generics;
 
-    /// The syntactic representation of this theorem
-    ASTNode thm;
+    /// Statements which are known to be true
+    std::map<std::string, Theorem> theorems;
 
-    /// The rule that created this
-    std::string rule_name;
+    /// Statements currently being proven
+    std::list<ASTNode> goals;
 
-    /// The indices of the theorems which satisfied the rule to
-    /// create this. This might be empty.
-    std::vector<ASTNode> premises;
+    /// (goal, pf): Goals which have already been proven
+    std::list<std::pair<ASTNode, ASTNode>> closed_goals;
   };
 
   /// Apply, but backwards.
@@ -40,26 +37,15 @@ public:
                       const InferenceRule &_rule,
                       const ASTNode &_goal);
 
-  /// Return an AST representing the proof of the theorem with
-  /// the given name
-  ASTNode proof_to_ast(const std::string &_theorem_name) const;
-
-  /// Adds a new rule
-  void add_rule(const std::string &_name,
-                const InferenceRule &_rule);
-
   /// True iff we have already proven _what
   bool has(const ASTNode &_what) const noexcept;
 
   /// Get the name of the proof, throwing if it doesn't exist
   std::string get_name(const ASTNode &_what) const;
 
-  /// Adds an axiom and returns its index
+  /// Adds an axiomatic (EG not generic, no antecedents) AST
   void add_assumption(const std::string &_name,
                       const ASTNode &_what) noexcept;
-
-  /// Gets a rule by name
-  const InferenceRule get_rule(const std::string &_name) const;
 
   /// Gets a theorem by name
   const Theorem get_theorem(const std::string &_name) const;
@@ -71,44 +57,121 @@ public:
   std::list<std::pair<std::string, Theorem>>
   get_all_facts() const noexcept;
 
-  /// Get all rules from all existing frames
-  std::list<std::pair<std::string, InferenceRule>>
-  get_all_rules() const noexcept;
-
   /// Adds a theorem
   const Theorem add_theorem(const std::string &_name,
                             const Theorem &_thm);
 
-  /// Keeps all the info
-  struct Frame {
-    /// Statements which are known to be true
-    std::map<std::string, Theorem> theorems;
+  /// Turns a 'by' block into an actual theorem
+  std::optional<Theorem>
+  construct_proof(const ASTNode &_goal, const ASTNode &_proof,
+                  const std::string &_name);
 
-    /// Statements currently being proven
-    std::list<ASTNode> goals;
+  /// Throws an error if the given theorem is bunk
+  void check_proof(const Theorem &_thm);
 
-    /// Inference rules / axioms
-    std::map<std::string, InferenceRule> rules;
-  };
+  /// List everything
+  void ls() const noexcept;
 
-  /// Push a frame such that any theorems will not be saved
-  /// after popping
-  inline void push() noexcept {
-    frames.push_back(Frame());
+  /// True iff there exists a theorem or rule with the given
+  /// name
+  bool name_is_used(const std::string &_name) const noexcept;
+
+  /// Return _prefix + to_string(i), where i is the smallest
+  /// integer where the result is unique
+  std::string
+  fresh_with_prefix(const std::string &_prefix) const noexcept;
+
+  /// If _name is NULL, return a fresh name with the given
+  /// prefix. Otherwise, just return _name.
+  std::string
+  fix_name(const std::string &_name,
+           const std::string &_prefix) const noexcept;
+
+  /// Push a frame
+  inline void
+  push(const std::set<ASTNode> &_generics = {}) noexcept {
+    frames.push_back(Frame{.generics = _generics});
+  }
+
+  /// Gets all the assumptions in the BACK frame ONLY!
+  inline std::vector<ASTNode> assumptions() const {
+    std::vector<ASTNode> out;
+    for (const auto &thm : frames.back().theorems) {
+      if (!thm.second.proof.has_value()) {
+        if (!thm.second.requirements.empty()) {
+          throw std::runtime_error(
+              "Assumption has non-empty antecedent: How did "
+              "you even do that?");
+        }
+        out.push_back(thm.second.consequence);
+      }
+    }
+    return out;
   }
 
   /// Pop the most recent frame (if there is one)
   inline void pop() {
     if (frames.size() > 1) {
-      for (const auto &goal : frames.back().goals) {
-        if (!has(goal)) {
-          std::cerr << "Unresolved goal at end of frame: "
-                    << goal << '\n';
-          throw std::runtime_error(
-              "Unresolved goal at end of frame");
+      const auto popped = frames.back();
+      frames.pop_back();
+
+      std::vector<ASTNode> frame_assumptions;
+      for (const auto &thm : popped.theorems) {
+        if (!thm.second.proof.has_value()) {
+          if (!thm.second.requirements.empty()) {
+            throw std::runtime_error(
+                "Assumption has non-empty antecedent: How did "
+                "you even do that?");
+          }
+          frame_assumptions.push_back(thm.second.consequence);
         }
       }
-      frames.pop_back();
+      if (!popped.goals.empty()) {
+        std::cerr << "Unresolved goal(s) at end of frame: ";
+        bool first = true;
+        for (const auto &g : popped.goals) {
+          if (first) {
+            first = false;
+          } else {
+            std::cout << ", ";
+          }
+          std::cout << g;
+        }
+        std::cerr << '\n';
+        throw std::runtime_error(
+            "Unresolved goal(s) at end of frame");
+      }
+
+      // For fixing backwards proofs
+      std::list<std::pair<ASTNode, ASTNode>> subs;
+      for (const auto &p : popped.theorems) {
+        subs.push_back(
+            {ASTNode("THEOREM",
+                     {
+                         p.second.consequence,
+                         ASTNode("REPLACE_ME"),
+                     }),
+             ASTNode("THEOREM", {
+                                    p.second.consequence,
+                                    p.second.proof.value_or(
+                                        ASTNode("ASSUMPTION")),
+                                })});
+      }
+
+      for (const auto &goal : popped.closed_goals) {
+        ASTNode pf = goal.second;
+        ASTNode tmp = pf.replace(subs);
+        while (pf != tmp) {
+          pf = tmp;
+          tmp = pf.replace(subs);
+        }
+        add_theorem(fresh_with_prefix("t"),
+                    Theorem(popped.generics, frame_assumptions,
+                            goal.first, pf));
+      }
+    } else {
+      throw std::runtime_error(
+          "Attempted to pop global frame!");
     }
   }
 
@@ -127,41 +190,22 @@ public:
     if (debug) {
       std::cout << "Dropping goal " << _goal << '\n';
     }
-    std::erase_if(frames.back().goals,
-                  [&](const ASTNode &_item) -> bool {
-                    return _item == _goal;
-                  });
+    std::erase_if(
+        frames.back().goals, [&](const ASTNode &_item) -> bool {
+          if (_item == _goal) {
+            frames.back().closed_goals.push_back(
+                {_item, get_theorem(_item).proof.value()});
+            return true;
+          }
+          return false;
+        });
   }
-
-  /// Checks a proof, obviously. It recurses and logs its
-  /// successes as needed
-  std::optional<Theorem> check_proof(const ASTNode &_goal,
-                                     const ASTNode &_proof,
-                                     const std::string &_name);
-
-  /// List everything
-  void ls() const noexcept;
 
   /// Where all the data is stored
   std::list<Frame> frames = {Frame()};
 
   /// If true, prints some extra info
   bool debug = false;
-
-  /// True iff there exists a theorem or rule with the given
-  /// name
-  bool name_is_used(const std::string &_name) const noexcept;
-
-  /// Return _prefix + to_string(i), where i is the smallest
-  /// integer where the result is unique
-  std::string
-  fresh_with_prefix(const std::string &_prefix) const noexcept;
-
-  /// If _name is NULL, return a fresh name with the given
-  /// prefix. Otherwise, just return _name.
-  std::string
-  fix_name(const std::string &_name,
-           const std::string &_prefix) const noexcept;
 };
 
 /// Print a theorem

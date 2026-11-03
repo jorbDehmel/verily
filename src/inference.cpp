@@ -12,34 +12,6 @@
 #include <string>
 #include <vector>
 
-ASTNode InferenceMaker::proof_to_ast(
-    const std::string &_thm_name) const {
-  const auto thm = get_theorem(_thm_name);
-  ASTNode premises_block("premises");
-  for (const auto &premise : thm.premises) {
-    premises_block.children.push_back(
-        proof_to_ast(get_name(premise)));
-  }
-  const auto rule = get_rule(thm.rule_name);
-  return ASTNode(
-      "theorem",
-      {thm.thm,
-       ASTNode("rule_application",
-               {ASTNode("rule", {ASTNode(thm.rule_name)}),
-                premises_block})});
-}
-
-const InferenceRule
-InferenceMaker::get_rule(const std::string &_name) const {
-  for (auto rit = frames.rbegin(); rit != frames.rend();
-       ++rit) {
-    if (rit->rules.contains(_name)) {
-      return rit->rules.at(_name);
-    }
-  }
-  throw std::runtime_error("Unknown rule '" + _name + "'");
-}
-
 const InferenceMaker::Theorem
 InferenceMaker::get_theorem(const std::string &_name) const {
   for (auto rit = frames.rbegin(); rit != frames.rend();
@@ -53,11 +25,25 @@ InferenceMaker::get_theorem(const std::string &_name) const {
 
 const InferenceMaker::Theorem
 InferenceMaker::get_theorem(const ASTNode &_thm) const {
-  for (auto rit = frames.rbegin(); rit != frames.rend();
-       ++rit) {
-    for (const auto &p : rit->theorems) {
-      if (p.second.thm == _thm) {
-        return p.second;
+  if (_thm.text == "syntactically_equivalent") {
+    if (_thm.size() == 2 &&
+        _thm.children.front() == _thm.children.back()) {
+      return Theorem({}, {}, _thm, ASTNode(_thm.text));
+    }
+  } else if (_thm.text == "not_syntactically_equivalent") {
+    if (_thm.size() == 2 &&
+        _thm.children.front() != _thm.children.back()) {
+      return Theorem({}, {}, _thm, ASTNode(_thm.text));
+    }
+  }
+
+  else {
+    for (auto rit = frames.rbegin(); rit != frames.rend();
+         ++rit) {
+      for (const auto &p : rit->theorems) {
+        if (p.second.consequence == _thm) {
+          return p.second;
+        }
       }
     }
   }
@@ -69,7 +55,7 @@ bool InferenceMaker::has(const ASTNode &_what) const noexcept {
   for (auto rit = frames.rbegin(); rit != frames.rend();
        ++rit) {
     for (const auto &p : rit->theorems) {
-      if (p.second.thm == _what) {
+      if (p.second.consequence == _what) {
         return true;
       }
     }
@@ -82,7 +68,7 @@ InferenceMaker::get_name(const ASTNode &_what) const {
   for (auto rit = frames.rbegin(); rit != frames.rend();
        ++rit) {
     for (const auto &p : rit->theorems) {
-      if (p.second.thm == _what) {
+      if (p.second.consequence == _what) {
         return p.first;
       }
     }
@@ -94,19 +80,9 @@ InferenceMaker::get_name(const ASTNode &_what) const {
 void InferenceMaker::add_assumption(
     const std::string &_name, const ASTNode &_what) noexcept {
   const std::string name = fix_name(_name, "h");
-  frames.back().theorems[name] =
-      Theorem(_what, "ASSUMPTION", {});
+  frames.back().theorems[name] = Theorem({}, {}, _what, {});
   if (debug) {
     std::cout << "Added assumption: " << _what << "\n\n";
-  }
-}
-
-void InferenceMaker::add_rule(const std::string &_name,
-                              const InferenceRule &_rule) {
-  const std::string name = fix_name(_name, "r");
-  frames.back().rules[name] = _rule;
-  if (debug) {
-    std::cout << "Added rule: " << _rule << "\n\n";
   }
 }
 
@@ -115,62 +91,19 @@ InferenceMaker::add_theorem(const std::string &_name,
                             const Theorem &_thm) {
   const std::string name = fix_name(_name, "t");
   frames.back().theorems[_name] = _thm;
-  close_goal(_thm.thm);
+  close_goal(_thm.consequence);
   if (debug) {
-    std::cout << "Derived theorem " << _thm.thm << "\n\n";
+    std::cout << "Derived theorem " << _thm.consequence
+              << "\n\n";
   }
   return _thm;
 }
 
-std::ostream &operator<<(std::ostream &_strm,
-                         const InferenceRule &_rule) {
-  _strm << "<";
-  bool first = true;
-  for (const auto &fv : _rule.free_variables) {
-    if (first) {
-      first = false;
-    } else {
-      _strm << ", ";
-    }
-    _strm << fv;
-  }
-  _strm << ">(";
-
-  first = true;
-  for (const auto &p : _rule.requirements) {
-    if (first) {
-      first = false;
-    } else {
-      _strm << ", ";
-    }
-    _strm << p;
-  }
-  _strm << ") -> " << _rule.consequence;
-  return _strm;
-}
-
-std::ostream &operator<<(std::ostream &_strm,
-                         const InferenceMaker::Theorem &_thm) {
-  _strm << "thm: " << _thm.thm << " due to rule "
-        << _thm.rule_name << " on premises (";
-  bool first = true;
-  for (const auto &premise : _thm.premises) {
-    if (first) {
-      first = false;
-    } else {
-      _strm << ", ";
-    }
-    _strm << premise;
-  }
-  _strm << ")";
-  return _strm;
-}
-
 // Note: _name is either "NULL" or an actual name.
 std::optional<InferenceMaker::Theorem>
-InferenceMaker::check_proof(const ASTNode &_goal,
-                            const ASTNode &_proof,
-                            const std::string &_name) {
+InferenceMaker::construct_proof(const ASTNode &_goal,
+                                const ASTNode &_proof,
+                                const std::string &_name) {
   if (debug) {
     std::cout << "Checking if " << _proof << " proves " << _goal
               << '\n';
@@ -194,14 +127,23 @@ InferenceMaker::check_proof(const ASTNode &_goal,
       const auto rule_name = pf.at(0).text.text;
       const auto on = pf.at(1);
       const auto as = pf.at(2);
-      const auto rule = get_rule(rule_name);
+      const auto rule = get_theorem(rule_name);
       std::vector<ASTNode> antecedent_thms;
+      std::vector<ASTNode> antecedent_pfs;
       for (const auto &arg : on.children) {
         const auto thm = get_theorem(arg.text.text);
-        antecedent_thms.push_back(thm.thm);
+        antecedent_thms.push_back(thm.consequence);
+        antecedent_pfs.push_back(
+            thm.proof.value_or(ASTNode("ASSUMPTION")));
       }
       const auto res = rule.apply(antecedent_thms);
-      const Theorem t(res, rule_name, antecedent_thms);
+      const Theorem t(
+          {}, {}, res,
+          ASTNode(
+              "THEOREM",
+              {res, ASTNode("APPLICATION",
+                            {rule.to_ASTNode(),
+                             ASTNode("_", antecedent_pfs)})}));
       add_theorem(as.empty() ? fresh_with_prefix("l")
                              : as.at(0).text.text,
                   t);
@@ -229,8 +171,10 @@ InferenceMaker::check_proof(const ASTNode &_goal,
           if (has(thm)) {
             return false;
           }
-          add_theorem(fresh_with_prefix("g"),
-                      Theorem(thm, _rule_name, _antecedents));
+          add_theorem(
+              fresh_with_prefix("s"),
+              Theorem({}, {}, thm,
+                      ASTNode(_rule_name, _antecedents)));
           return true;
         }
         bool out = false;
@@ -239,7 +183,7 @@ InferenceMaker::check_proof(const ASTNode &_goal,
           // possible. If not, continue.
           std::set<ASTNode> fvs = _r.free_variables;
           std::list<std::pair<ASTNode, ASTNode>> subs;
-          if (fact.second.thm.is_of_form(
+          if (fact.second.consequence.is_of_form(
                   _r.requirements.front(), fvs, subs)) {
             // Adjust rule
             InferenceRule modified_rule;
@@ -255,7 +199,8 @@ InferenceMaker::check_proof(const ASTNode &_goal,
             // Recurse
             std::vector<ASTNode> modified_antecedents =
                 _antecedents;
-            modified_antecedents.push_back(fact.second.thm);
+            modified_antecedents.push_back(
+                fact.second.consequence);
             out |= apply_all(modified_rule, _facts, _rule_name,
                              modified_antecedents);
           }
@@ -283,8 +228,7 @@ InferenceMaker::check_proof(const ASTNode &_goal,
            (inf || cur_round < rounds) && progress;
            ++cur_round) {
         const auto facts = get_all_facts();
-        const auto rules = get_all_rules();
-        for (const auto &rule : rules) {
+        for (const auto &rule : facts) {
           // Apply to all combinations of facts
           progress |=
               apply_all(rule.second, facts, rule.first, {});
@@ -301,31 +245,48 @@ InferenceMaker::check_proof(const ASTNode &_goal,
       const auto rule_name = pf.at(0).text.text;
       const auto on = pf.at(1).at(0).text.text;
       const auto as = pf.at(2);
-      const auto rule = get_rule(rule_name);
+      const auto rule = get_theorem(rule_name);
       bool did_something = false;
       const auto ante = get_theorem(on);
       const auto res =
-          rule.apply_subexpr(ante.thm, did_something);
+          rule.apply_subexpr(ante.consequence, did_something);
       if (!did_something) {
-        std::cerr << "Failed to rewrite " << ante.thm
+        std::cerr << "Failed to rewrite " << ante.consequence
                   << " with rule " << rule_name << ' ' << rule
                   << '\n';
         throw std::runtime_error("Failed rewrite");
       }
-
-      const Theorem t(res, rule_name, {ante.thm});
+      const Theorem t({}, {}, res, pf);
       add_theorem(as.empty() ? fresh_with_prefix("l")
                              : as.at(0).text.text,
                   t);
     } else if (p == "BACKWARD") {
       const auto rule_name = pf.at(0).text.text;
-      const auto rule = get_rule(rule_name);
+      const auto rule = get_theorem(rule_name);
       const auto cur_goal = frames.back().goals.front();
       backward_apply(rule_name, rule, cur_goal);
     } else if (p == "WTS") {
       const auto goal = pf.at(0);
       const auto proof = pf.at(1);
-      check_proof(goal, proof, fresh_with_prefix("wts"));
+      construct_proof(goal, proof, fresh_with_prefix("wts"));
+    } else if (p == "THEOREM") {
+      const auto over = pf.at(0);
+      const auto given = pf.at(1);
+      const auto deduce = pf.at(2);
+      const auto proof = pf.at(3);
+      const auto name = pf.at(4).text.text;
+      const auto real_name =
+          name == "" ? fresh_with_prefix("t") : name;
+      std::set<ASTNode> fvs;
+      for (const auto &v : over.children) {
+        fvs.insert(v);
+      }
+      push(fvs);
+      for (const auto &assumption : given.children) {
+        add_assumption(fresh_with_prefix("h"), assumption);
+      }
+      construct_proof(deduce.at(0), proof, real_name);
+      pop();
     } else if (p == "HAVE") {
       const auto name = pf.at(0).text.text;
       const auto proving = pf.at(1);
@@ -380,13 +341,23 @@ void InferenceMaker::backward_apply(const std::string &_name,
     }
 
     std::vector<ASTNode> replaced_requirements;
+    std::vector<ASTNode> partial_subproofs;
     for (const auto &to_prove_schema : _rule.requirements) {
       const auto to_prove =
           to_prove_schema.replace(substitutions);
       replaced_requirements.push_back(to_prove);
+      partial_subproofs.push_back(
+          ASTNode("THEOREM", {to_prove, {"REPLACE_ME"}}));
     }
 
-    Theorem t(_goal, _name, replaced_requirements);
+    Theorem t(
+        {}, {}, _goal,
+        ASTNode(
+            "THEOREM",
+            {_goal,
+             ASTNode("APPLICATION",
+                     {_rule.to_ASTNode(),
+                      ASTNode("_", {partial_subproofs})})}));
     add_theorem(fresh_with_prefix("bw"), t);
 
     assert(replaced_requirements.size() ==
@@ -417,8 +388,8 @@ void InferenceMaker::ls() const noexcept {
     std::cout << "Frame " << i << ":\n";
     ++i;
     for (const auto &p : frame.theorems) {
-      std::cout << "  " << p.first << ": " << p.second.thm
-                << '\n';
+      std::cout << "  " << p.first << ": "
+                << p.second.consequence << '\n';
     }
     if (!frame.goals.empty()) {
       std::cout << "  Goals: ";
@@ -452,23 +423,9 @@ InferenceMaker::get_all_facts() const noexcept {
   return out;
 }
 
-std::list<std::pair<std::string, InferenceRule>>
-InferenceMaker::get_all_rules() const noexcept {
-  std::list<std::pair<std::string, InferenceRule>> out;
-  for (const auto &frame : frames) {
-    for (const auto &p : frame.rules) {
-      out.push_back(p);
-    }
-  }
-  return out;
-}
-
 bool InferenceMaker::name_is_used(
     const std::string &_name) const noexcept {
   for (const auto &frame : frames) {
-    if (frame.rules.contains(_name)) {
-      return true;
-    }
     if (frame.theorems.contains(_name)) {
       return true;
     }
@@ -492,4 +449,150 @@ std::string InferenceMaker::fix_name(
     return fresh_with_prefix(_prefix);
   }
   return _name;
+}
+
+void InferenceMaker::check_proof(const Theorem &_thm) {
+  const std::function<void(const ASTNode &, const ASTNode &)>
+      check_subproof = [&](const ASTNode &_goal,
+                           const ASTNode &_pf) {
+        if (debug) {
+          std::cout << "Checking if " << _pf << " proves "
+                    << _goal << "\n";
+        }
+
+        if (_pf.text != "THEOREM") {
+          std::cerr << "Current goal: " << _goal
+                    << "\nCurrent proof: " << _pf << "\n";
+          throw std::runtime_error(
+              "Malformed proof in proof check: Expected "
+              "'THEOREM', but saw '" +
+              _pf.text.text + "'");
+        } else if (_pf.size() != 2) {
+          std::cerr << "Current goal: " << _goal
+                    << "\nCurrent proof: " << _pf << "\n";
+          throw std::runtime_error(
+              "Malformed proof in proof check: 'THEOREM' node "
+              "had wrong number of children");
+        } else if (_pf.at(0) != _goal) {
+          std::cerr << "Current goal is " << _goal
+                    << ", but proof " << _pf
+                    << " claims to prove " << _pf.at(0) << '\n';
+          throw std::runtime_error(
+              "Malformed proof in proof check: Goal mismatch!");
+        }
+
+        const auto pf = _pf.at(1);
+
+        if (pf.text == "ASSUMPTION") {
+          for (const auto &antecedent : _thm.requirements) {
+            if (antecedent == _goal) {
+              return;
+            }
+          }
+
+          std::cerr << "Current goal: " << _goal
+                    << "\nCurrent proof: " << _pf << "\n";
+          throw std::runtime_error(
+              "Malformed proof in proof check: Claimed "
+              "assumption not present in antecedents");
+        }
+
+        else if (pf.text == "APPLICATION") {
+          if (pf.size() != 2 || pf.at(1).text != "_") {
+            std::cerr << "Current goal: " << _goal
+                      << "\nCurrent proof: " << _pf << "\n";
+            throw std::runtime_error(
+                "Malformed proof in proof check: 'APPLICATION' "
+                "node is malformed");
+          }
+
+          const auto rule_pf = pf.at(0);
+          const auto arg_pfs = pf.at(1).children;
+
+          const InferenceRule rule =
+              InferenceRule::from_ASTNode(rule_pf);
+          check_proof(rule);
+
+          if (rule.requirements.size() != arg_pfs.size()) {
+            std::cerr << "Current goal: " << _goal
+                      << "\nCurrent proof: " << _pf << "\n";
+            throw std::runtime_error(
+                "Malformed proof in proof check: Rule "
+                "application has wrong number of args");
+          }
+
+          std::list<std::pair<ASTNode, ASTNode>> subs;
+          auto fvs = rule.free_variables;
+          if (!_goal.is_of_form(rule.consequence, fvs, subs)) {
+            std::cerr << "Current goal: " << _goal
+                      << "\nCurrent proof: " << _pf;
+            throw std::runtime_error(
+                "Malformed proof in proof check: Goal is not "
+                "of proper form for rule application");
+          }
+
+          std::list<std::pair<ASTNode, ASTNode>> to_check;
+          for (size_t i = 0; i < rule.requirements.size();
+               ++i) {
+            if (arg_pfs.at(i).at(0).is_of_form(
+                    rule.requirements.at(i), fvs, subs)) {
+              const auto arg_goal =
+                  rule.requirements.at(i).replace(subs);
+              if (debug) {
+                std::cout << "Pattern-matched rule " << rule
+                          << " against goal " << _goal
+                          << " to get new goal " << i
+                          << " w/ subs\n";
+                for (const auto &p : subs) {
+                  std::cout << p.first << " := " << p.second
+                            << '\n';
+                }
+                std::cout << rule.requirements.at(i)
+                          << " became " << arg_goal << '\n';
+              }
+              to_check.push_back({arg_goal, arg_pfs.at(i)});
+            } else {
+              std::cerr << "Current goal: " << _goal
+                        << "\nCurrent proof: " << _pf;
+              throw std::runtime_error(
+                  "Malformed proof in proof check: Failed "
+                  "argument pattern match");
+            }
+          }
+
+          // Only now do we have all the substitutions
+          for (const auto &p : to_check) {
+            check_subproof(p.first.replace(subs), p.second);
+          }
+        }
+
+        else {
+          std::cerr << "Current goal: " << _goal
+                    << "\nCurrent proof: " << _pf << "\n";
+          throw std::runtime_error(
+              "Malformed proof in proof check: Expected "
+              "'ASSUMPTION' or 'APPLICATION', but saw '" +
+              pf.text.text + "'");
+        }
+      };
+
+  if (debug) {
+    std::cout << "Checking pf " << _thm << '\n';
+  }
+  if (!_thm.proof.has_value()) {
+    const auto facts = get_all_facts();
+    bool saw = false;
+    for (const auto &fact : facts) {
+      if (fact.second == _thm) {
+        saw = true;
+        break;
+      }
+    }
+    if (!saw) {
+      throw std::runtime_error(
+          "Cannot check proof for unknown axiom!");
+    }
+    return;
+  }
+  check_subproof(_thm.consequence, _thm.proof.value());
 }

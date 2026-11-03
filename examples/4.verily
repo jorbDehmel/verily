@@ -36,6 +36,7 @@ axiom or_deduction:
 include "sequent_calc.verily";
 
 theorem:
+  over d, e, f, g
   given
     d == e or d == f,
     e == f,

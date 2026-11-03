@@ -13,11 +13,7 @@ axiom plus_2_is_even:
 theorem 4_is_even:
   deduce is_even (S (S (S (S 0))))
 by {
-  ls
   fw 0_is_even as 0_is_even_thm
-  ls
   fw plus_2_is_even on 0_is_even_thm as 2_is_even
-  ls
   bw plus_2_is_even
-  ls
 }

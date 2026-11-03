@@ -423,6 +423,43 @@ ASTNode Parser::parse_proof() {
       const auto proof = parse_proof();
       pf.children.push_back(
           ASTNode(Token(tok, "WTS"), {goal, proof}));
+    } else if (t == "theorem" || t == "lemma") {
+      std::string name = "NULL";
+      if (ts.cur().text != ":") {
+        name = ts.cur().text;
+        ts.next();
+      }
+      ts.expect({":"});
+      ASTNode over_block(Token("OVER"));
+      if (ts.cur().text == "over") {
+        ts.next();
+        while (!ts.done() && ts.cur().text != "given" &&
+               ts.cur().text != "deduce") {
+          over_block.children.push_back(parse_expr());
+          while (ts.cur().text == ",") {
+            ts.next();
+          }
+        }
+      }
+      ASTNode given_block(Token("GIVEN"));
+      if (ts.cur().text == "given") {
+        ts.next();
+        while (!ts.done() && ts.cur().text != "deduce") {
+          given_block.children.push_back(parse_expr());
+          while (ts.cur().text == ",") {
+            ts.next();
+          }
+        }
+      }
+      ts.expect({"deduce"});
+      const ASTNode deduce_block(Token("DEDUCE"),
+                                 {parse_expr()});
+      ts.expect({"by"});
+      const auto proof = parse_proof();
+      pf.children.push_back(
+          ASTNode(Token(Token(tok, "THEOREM")),
+                  {over_block, given_block, deduce_block, proof,
+                   ASTNode(name)}));
     } else if (t == "have") {
       const auto thm = parse_expr();
       ts.expect({"as"});

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ast.hpp"
-#include "inference.hpp"
 
 /// Given some text from some file, lex it
 TokenStream lex_text(const std::string &text,
@@ -49,7 +48,20 @@ public:
 
   /// The order of operations (if you can believe it)
   std::list<std::pair<std::string, InferenceRule>>
-      order_of_operations = {};
+      order_of_operations = {
+          {"syntactically_equivalent",
+           InferenceRule(
+               {{"A"}, {"B"}},
+               {{"syntactically_equivalent"}, {"A"}, {"B"}},
+               ASTNode("syntactically_equivalent",
+                       {{"A"}, {"B"}}))},
+          {"not_syntactically_equivalent",
+           InferenceRule(
+               {{"A"}, {"B"}},
+               {{"not_syntactically_equivalent"}, {"A"}, {"B"}},
+               ASTNode("not_syntactically_equivalent",
+                       {{"A"}, {"B"}}))},
+  };
 
   /// Tokens which indicate that an expression is done
   std::set<std::string> expression_terminators = {

@@ -6,17 +6,6 @@
 #include <string>
 #include <sys/types.h>
 
-std::string Core::sanitize_name(const std::string &_s) {
-  std::string out;
-  for (const auto &c : _s) {
-    if (c == '_') {
-      out.push_back('\\');
-    }
-    out.push_back(c);
-  }
-  return out;
-}
-
 void Core::json(std::ostream &_strm) const {
   const std::function<void(const ASTNode &)> print_ast_json =
       [&](const ASTNode &_what) -> void {
@@ -49,7 +38,7 @@ void Core::json(std::ostream &_strm) const {
            "    ";
   size_t rule_index = 0;
   bool first_rule = true;
-  for (const auto &p : im.frames.front().rules) {
+  for (const auto &p : im.frames.front().theorems) {
     const auto rule_name = p.first;
     const auto rule = p.second;
     if (first_rule) {
@@ -97,20 +86,6 @@ void Core::json(std::ostream &_strm) const {
              "    }";
   }
   _strm << "\n"
-           "  ],\n"
-           "  \"selected-theorems\": [\n"
-           "    ";
-  bool first = true;
-  for (const auto &p : im.get_all_facts()) {
-    if (first) {
-      first = false;
-    } else {
-      _strm << ",\n"
-               "    ";
-    }
-    print_ast_json(im.proof_to_ast(p.first));
-  }
-  _strm << "\n"
            "  ]\n"
            "}\n";
 }
@@ -140,7 +115,7 @@ void Core::process_statement(
       requirements.push_back(child);
     }
     InferenceRule ir(free_variables, requirements, consequence);
-    im.add_rule(name, ir);
+    im.add_theorem(name, ir);
   }
 
   else if (_stmt.text == "THEOREM") {
@@ -149,27 +124,23 @@ void Core::process_statement(
     const auto deduce = _stmt.at(2);
     const auto proof = _stmt.at(3);
     const auto name = _stmt.at(4).text.text;
-    const auto real_name = im.fresh_with_prefix("t");
-
-    im.push();
-    uint i = 0;
-    for (const auto &assumption : given.children) {
-      im.add_assumption(im.fresh_with_prefix("h"), assumption);
-      ++i;
-    }
-    const auto pf =
-        im.check_proof(deduce.at(0), proof, real_name);
-    assert(pf.has_value());
-    im.add_theorem(real_name, pf.value());
+    const auto real_name =
+        name == "" ? im.fresh_with_prefix("t") : name;
 
     std::set<ASTNode> fvs;
     for (const auto &v : over.children) {
       fvs.insert(v);
     }
-    const auto reqs = given.children;
-    const auto cons = deduce.children.front();
-    InferenceRule rule(fvs, reqs, cons, pf.value().thm);
-    im.add_rule(real_name, rule);
+    im.push(fvs);
+    for (const auto &assumption : given.children) {
+      im.add_assumption(im.fresh_with_prefix("h"), assumption);
+    }
+    const auto res =
+        im.construct_proof(deduce.at(0), proof, real_name);
+    // This adds the theorem
+    im.pop();
+
+    im.check_proof(res.value());
   }
 
   else if (_stmt.text == Token("NULL")) {
@@ -274,23 +245,14 @@ void Core::ls() const noexcept {
   }
 
   size_t n_axioms = 0;
-  std::cout << "All " << im.frames.back().rules.size()
-            << " rules:\n";
-  for (const auto &p : im.frames.back().rules) {
-    if (!p.second.proof.has_value()) {
-      n_axioms += 1;
-    }
-    std::cout << "  " << p.first << " " << p.second;
-    if (p.second.proof.has_value()) {
-      std::cout << " [theorem]";
-    }
-    std::cout << '\n';
-  }
   std::cout << "\nAll " << im.frames.back().theorems.size()
             << " theorems:\n";
   for (const auto &p : im.frames.back().theorems) {
-    std::cout << " " << p.first << " "
-              << im.proof_to_ast(p.first) << '\n';
+    if (!p.second.proof.has_value()) {
+      ++n_axioms;
+    }
+
+    std::cout << " " << p.first << ": " << p.second << '\n';
   }
-  std::cout << "Total axiom schemas: " << n_axioms << '\n';
+  std::cout << "Total axioms: " << n_axioms << '\n';
 }

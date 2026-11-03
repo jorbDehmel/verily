@@ -7,19 +7,23 @@ Jordan Dehmel, MIT License, 2025-present
 
 ## About
 
-Verily is a theorem prover based on term rewriting rules.
-It is *not* based on the Curry-Howard isomorphism. Notably,
+Verily is a theorem prover based on term rewriting systems.
+It is *not* based on the Curry-Howard isomorphism (though it
+contains and is contained by such systems). Notably,
 there is no type system. The goal is to be extremely quick and
-lightweight (*lean*, if you will).
+lightweight.
 
 **Everything is uninterpreted!** Though operators like `+`, `*`,
 and even `==` can be added via the `notation` keyword,
 **they don't do anything!** They are just ASTs! If you want them
 to do anything, you have to add that functionality
-axiomatically.
-
-Also, I'm pretty proud of that logo. It's a "V", and a
-"$\forall$", and a 2-input, 1-output deduction rule.
+axiomatically. There is only one exception:
+`syntactically_equivalent a b` is provable **iff** `a` is
+syntactically equivalent to `b` (and
+`not_syntactically_equivalent a b` likewise). I have made it
+purposefully verbose because you need to understand exactly what
+it is doing! It is not the same as `==` (which doesn't even
+exist by default).
 
 ## Rules for Contributing
 
@@ -27,14 +31,13 @@ Also, I'm pretty proud of that logo. It's a "V", and a
 2. Thou shalt not endow this theorem prover with external
   resources (EG no internal interfaces to other provers, CLI,
   or anything else)
-3. Thou shalt use only ASCII
-4. Thou shalt not contribute to this prover with AI (No
+3. Thou shalt not contribute to this prover with AI (No
   exceptions: not even a little bit, not even tangentially, not
   even "based on a conversation with Claude". I don't care if
   you use AI to write code in verily, but never use it to
   contribute to the tool itself)
-5. Thou shalt not covet the features of other theorem provers
-6. Thou shalt avoid bloat and feature creep
+4. Thou shalt not covet the features of other theorem provers
+5. Thou shalt avoid bloat and feature creep
 
 ## This Repo
 
@@ -252,3 +255,4 @@ it to discover proofs that you can then manually insert!
 
 - Alternative functional theorem / axiom syntax
 - Unified proof and "glue" syntax
+- `suppose` proof statements for adding axioms on the fly
