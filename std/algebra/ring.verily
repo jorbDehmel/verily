@@ -1,0 +1,79 @@
+# Defines rngs, rings, commutative rings, and (totally) ordered
+# rings (orings)
+
+include "binary_relation_properties.verily";
+include "group.verily";
+include "orderings.verily";
+
+# rngs (rings without identity)
+axiom rng_add_is_abelian_group:
+  over R, add, mul, neg, 0
+  given (rng R add mul neg 0)
+  deduce (abelian_group R add neg 0)
+;
+axiom rng_mul_is_semigroup:
+  over R, add, mul, neg, 0
+  given (rng R add mul neg 0)
+  deduce (semigroup R mul)
+;
+axiom rng_mul_add_distributive:
+  over R, add, mul, neg, 0
+  given (rng R add mul neg 0)
+  deduce (distributive mul add R)
+;
+
+# rings (rngs plus identity)
+axiom ring_is_rng:
+  over R, add, mul, neg, 0, 1
+  given (ring R add mul neg 0 1)
+  deduce (rng R add mul neg 0)
+;
+axiom ring_1_is_commutative_mul_identity:
+  over R, add, mul, neg, 0, 1
+  given (ring R add mul neg 0 1)
+  deduce (commutative_operator_identity 1 mul R)
+;
+
+# commutative rings
+axiom commutative_ring_is_ring:
+  over R, add, mul, neg, 0, 1
+  given (commutative_ring R add mul neg 0 1)
+  deduce (ring R add mul neg 0 1)
+;
+axiom commutative_ring_mul_is_commutative:
+  over R, add, mul, neg, 0, 1
+  given (commutative_ring R add mul neg 0 1)
+  deduce (commutative mul R)
+;
+
+# Totally ordered ring (oring) axioms
+axiom oring_is_ring:
+  over S, add, mul, le, neg, 0, 1
+  given (oring S add mul le neg 0 1)
+  deduce (ring S add mul neg 0 1)
+;
+axiom oring_is_toset:
+  over S, add, mul, le, neg, 0, 1
+  given (oring S add mul le neg 0 1)
+  deduce (toset S le)
+;
+axiom oring_add_le_add:
+  over
+    S, add, mul, le, neg, 0, 1
+    a, b, c
+  given
+    (oring S add mul le neg 0 1),
+    a in S, b in S, c in S,
+    (le a b)
+  deduce (le (add a c) (add b c))
+;
+axiom oring_0_le:
+  over
+    S, add, mul, le, neg, 0, 1
+    a, b
+  given
+    (oring S add mul le neg 0 1),
+    a in S, b in S,
+    (le 0 a), (le 0 b)
+  deduce (le 0 (mul a b))
+;

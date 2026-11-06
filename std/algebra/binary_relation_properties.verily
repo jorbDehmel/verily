@@ -1,0 +1,143 @@
+# The definitions of some standard binary relation / operator
+# properties (commutativity, transitivity, etc). These require
+# an appropriate definition of equality!
+
+include "../eq.verily";
+
+# Commutativity
+axiom commutativity_def:
+  over S, op, x, y
+  given
+    (commutative op S),
+    x in S,
+    y in S
+  deduce (op x y) == (op y x)
+;
+
+# Associativity
+axiom associativity_def:
+  over S, op, x, y, z
+  given
+    (associative op S),
+    x in S,
+    y in S,
+    z in S
+  deduce (op x (op y z)) == (op (op x y) z)
+;
+
+# Idempotency
+axiom idempotency_def:
+  over S, op, x
+  given
+    (idempotent op S),
+    x in S
+  deduce (op x x) == x
+;
+
+# Reflexivity
+axiom reflexivity_def:
+  over S, R, x
+  given
+    (reflexive R S),
+    x in S
+  deduce (R x x)
+;
+
+# Symmetry
+axiom symmetry_def:
+  over S, R, x, y
+  given
+    (symmetric R S),
+    x in S,
+    y in S,
+    (R x y)
+  deduce (R y x)
+;
+
+# Transitivity
+axiom transitivity_def:
+  over S, R, a, b, c
+  given
+    (transitive R S),
+    a in S,
+    b in S,
+    c in S,
+    (R a b),
+    (R b c)
+  deduce (R a c)
+;
+
+# Equivalence relations
+axiom equivalence_relation_is_reflexive:
+  over S, R
+  given (equivalence_relation R S)
+  deduce (reflexive R S)
+;
+axiom equivalence_relation_is_symmetric:
+  over S, R
+  given (equivalence_relation R S)
+  deduce (symmetric R S)
+;
+axiom equivalence_relation_is_transitive:
+  over S, R
+  given (equivalence_relation R S)
+  deduce (transitive R S)
+;
+
+# Distributivity
+axiom left_distributive:
+  over S, outer_op, inner_op, x, y, z
+  given
+    (left_distributive outer_op inner_op S),
+    x in S,
+    y in S,
+    z in S
+  deduce
+    (outer_op x (inner_op y z))
+    ==
+    (inner_op (outer_op x y) (outer_op x z))
+;
+axiom right_distributive:
+  over S, outer_op, inner_op, x, y, z
+  given
+    (right_distributive outer_op inner_op S),
+    x in S,
+    y in S,
+    z in S
+  deduce
+    (outer_op (inner_op y z) x)
+    ==
+    (inner_op (outer_op y x) (outer_op z x))
+;
+axiom distributive_is_left_distributive:
+  over S, A, B
+  given (distributive A B S)
+  deduce (left_distributive A B S)
+;
+axiom distributive_is_right_distributive:
+  over S, A, B
+  given (distributive A B S)
+  deduce (right_distributive A B S)
+;
+
+# Commutative operator identity elements
+# (like 1 * x = x * 1 = x or 0 + x = x + 0 = x)
+axiom commutative_operator_identity_has:
+  over S, op, i
+  given (commutative_operator_identity i op S)
+  deduce i in S
+;
+axiom commutative_operator_identity_is_commutative:
+  over S, op, i, x
+  given
+    (commutative_operator_identity i op S),
+    x in S
+  deduce (op x i) == (op i x)
+;
+axiom commutative_operator_identity_is_identity:
+  over S, op, i, x
+  given
+    (commutative_operator_identity i op S),
+    x in S
+  deduce (op x i) == x
+;

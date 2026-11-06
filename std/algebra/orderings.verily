@@ -1,0 +1,42 @@
+# Partially ordered and totally ordered sets
+# (posets and tosets, respectively).
+# Relies on proper implementation of 'not'!
+
+include "binary_relation_properties.verily";
+
+# Posets
+axiom poset_def:
+  over P, le
+  given
+    (reflexive le P),
+    (antisymmetric le P),
+    (transitive le P)
+  deduce (poset P le)
+;
+axiom poset_le_is_reflexive:
+  over P, le
+  given (poset P le)
+  deduce (reflexive le P)
+;
+axiom poset_le_is_antisymmetric:
+  over P, le
+  given (poset P le)
+  deduce (antisymmetric le P)
+;
+axiom poset_le_is_transitive:
+  over P, le
+  given (poset P le)
+  deduce (transitive le P)
+;
+
+# Tosets
+axiom toset_is_poset:
+  over P, le
+  given (toset P le)
+  deduce (poset P le)
+;
+axiom toset_totality:
+  over P, le, a, b
+  given (toset P le), a in P, b in P, not (le a b)
+  deduce (le b a)
+;

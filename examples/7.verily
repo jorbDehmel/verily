@@ -1,100 +1,51 @@
-# Ordered rings as algebraic structures
+# Ordered ring theorems
 
-include "std.verily";
-include "eq.verily";
+include "../std/algebra/ring.verily";
 
-# Notations
-notation negate: over X given neg X deduce (neg X) before in;
+theorem ring_double_neg:
+  over S, add, mul, neg, 0, 1, t
+  given
+    (ring S add mul neg 0 1),
+    t in S
+  deduce neg (neg t) == t
+by {
+  ls
+}
 
-# Ring axioms
-axiom 0_in_ring: over R given ring R deduce 0 in R;
-axiom 1_in_ring: over R given ring R deduce 1 in R;
-axiom negation_in_ring:
-  over R, x given ring R, x in R deduce neg a in R;
-axiom ring_add_assoc:
-  over R, a, b, c given ring R, a in R, b in R, c in R
-  deduce (a + b) + c == a + (b + c);
-axiom ring_add_comm:
-  over R, a, b given ring R, a in R, b in R
-  deduce a + b == b + a;
-axiom ring_add_neg:
-  over R, a given ring R, a in R deduce a + (neg a) == 0;
-axiom ring_mul_assoc:
-  over R, a, b, c given ring R, a in R, b in R, c in R
-  deduce (a * b) * c == a * (b * c);
-axiom ring_mul_one:
-  over R, a given ring R, a in R deduce a * 1 == a;
-axiom ring_one_mul:
-  over R, a given ring R, a in R
-  deduce 1 * a == a;
-axiom ring_left_expand:
-  over R, a, b, c given ring R, a in R, b in R, c in R
-  deduce a * (b + c) == (a * b) + (a * c);
-axiom ring_right_expand:
-  over R, a, b, c given ring R, a in R, b in R, c in R
-  deduce (b + c) * a == (b * a) + (c * a);
+# For any ring, -1 times -1 is 1
+theorem ring_negative_1_squared_eq_1:
+  over S, add, mul, neg, 0, 1
+  given (ring S add mul neg 0 1)
+  deduce (neg 1) * (neg 1) == 1
+by {
+  have ring S add mul neg 0 1 as s_is_ring
+  fw ring_is_rng on s_is_ring as s_is_rng
+  fw ring_1_is_commutative_mul_identity
+    on s_is_ring
+    as s_1_mul_comm
+  fw commutative_operator_identity_has
+    on s_1_mul_comm
+    as 1_in_s
+  fw rng_add_is_abelian_group
+    on s_is_rng
+    as s_add_is_abelian_group
+  fw abelian_group_is_group
+    on s_add_is_abelian_group
+    as s_add_is_group
+  fw group_contains_inv
+    on s_add_is_group, 1_in_s
+    as inv_1_in_s
 
-# Totally-ordered set (toset) axioms
-axiom toset_le_self:
-  over S, a given toset S, a in S
-  deduce a <= a;
-axiom toset_le_trans:
-  over S, a, b, c
-  given toset S, a in S, b in S, c in S, a <= b, b <= c
-  deduce a <= c;
-axiom toset_le_to_eq:
-  over S, a, b
-  given toset S, a in S, b in S, a <= b, b <= a
-  deduce a == b;
-axiom toset_total_ordering:
-  over S, a, b given toset S, a in S, b in S
-  deduce (a <= b) or (b <= a);
-axiom toset_le_to_ge:
-  over S, a, b given toset S, a in S, b in S, a <= b
-  deduce b >= a;
-axiom toset_ge_to_le:
-  over S, a, b given toset S, a in S, b in S, b >= a
-  deduce a <= b;
-
-# Ordered ring (oring) axioms
-axiom oring_is_ring: over S given oring S deduce ring S;
-axiom oring_is_toset: over S given oring S deduce toset S;
-axiom oring_add_le_add:
-  over S, a, b, c given oring S, a in S, b in S, c in S, a <= b
-  deduce a + c <= b + c;
-axiom oring_0_le:
-  over S, a, b given oring S, a in S, b in S, 0 <= a, 0 <= b
-  deduce 0 <= a * b;
-
-----------------------------------------------------------------
-# Theorems
+  ls
+}
 
 # Any element of any ordered ring, when squared, is nonnegative
-theorem: over t, S given oring S, t in S deduce 0 <= t * t by {
-  # Unpack definitions
-  have oring S as s_is_oring
-  have t in S as t_in_s
-  forward oring_is_ring on s_is_oring as s_is_ring
-  forward oring_is_toset on s_is_oring as s_is_toset
-
-  # Actual proof
-  forward 0_in_ring on s_is_ring as 0_in_s
-  forward toset_total_ordering
-    on s_is_toset, t_in_s, 0_in_s
-    as t_le_0_or_0_le_t
-
-  # Trivial direction
-  lemma: given t <= 0 deduce 0 <= t * t by {
-    have t <= 0 as h2
-    ls
-  }
-
-  # Hard direction
-  lemma: given 0 <= t deduce 0 <= t * t by {
-    have 0 <= t as h2
-    ls
-  }
-
-  # TODO: How do we finish this?
+theorem:
+  over t, S, add, mul, le, neg, 0, 1
+  given
+    (oring S add mul le neg 0 1),
+    t in S
+  deduce 0 <= t * t
+by {
   ls
 }

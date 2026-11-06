@@ -1,0 +1,66 @@
+# Defines groups, monoids, Abelian groups, and semigroups
+
+include "binary_relation_properties.verily";
+
+# Semigroups
+axiom semigroup_def:
+  over G, mul
+  given (associative mul G)
+  deduce (semigroup G mul)
+;
+axiom semigroup_mul_is_associative:
+  over G, mul
+  given (semigroup G mul)
+  deduce (associative mul G)
+;
+
+# Monoids
+axiom monoid_is_semigroup:
+  over G, mul, 1
+  given (monoid G mul 1)
+  deduce (semigroup G mul)
+;
+axiom monoid_has_1:
+  over G, mul, 1
+  given (monoid G mul 1)
+  deduce 1 in G
+;
+axiom monoid_1_is_commutative_mul_identity:
+  over G, mul, 1
+  given (monoid G mul 1)
+  deduce (commutative_operator_identity 1 mul G)
+;
+
+# Groups
+axiom group_is_monoid:
+  over G, mul, inv, 1
+  given (group G mul inv 1)
+  deduce (monoid G mul)
+;
+axiom group_contains_inv:
+  over G, mul, inv, 1, x
+  given (group G mul inv 1), x in G
+  deduce (inv x) in G
+;
+axiom group_mul_inv_eq_1:
+  over G, mul, inv, 1, x
+  given (group G mul inv 1), x in G
+  deduce (mul x (inv x)) == 1
+;
+axiom group_mul_inv_self_commutes:
+  over G, mul, inv, 1, x
+  given (group G mul inv 1), x in G
+  deduce (mul x (inv x)) == (mul (inv x) x)
+;
+
+# Abelian groups
+axiom abelian_group_is_group:
+  over G, mul, inv, 1
+  given (abelian_group G mul inv 1)
+  deduce (group G mul inv 1)
+;
+axiom abelian_group_mul_is_commutative:
+  over G, mul, inv, 1
+  given (abelian_group G mul inv 1)
+  deduce (commutes mul G)
+;

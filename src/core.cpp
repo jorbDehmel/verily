@@ -2,6 +2,7 @@
 #include "inference.hpp"
 #include "parse.hpp"
 #include <cassert>
+#include <filesystem>
 #include <functional>
 #include <string>
 #include <sys/types.h>
@@ -161,8 +162,8 @@ void Core::process_statement(
   else if (_stmt.text == Token("INCLUDE")) {
     // (INCLUDE path)
     const auto written = _stmt.children.front().text.text;
-    const auto path = std::filesystem::absolute(
-        _cur_path.parent_path() / written);
+    const auto path = std::filesystem::canonical(
+        _stmt.text.file.parent_path() / written);
     do_file(path);
   }
 
