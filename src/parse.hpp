@@ -25,7 +25,8 @@ public:
   }
 
   /// Construct from a given token stream
-  Parser(const TokenStream &_ts);
+  Parser(const TokenStream &_ts) : ts(_ts) {
+  }
 
   /// Parses a global scope
   ASTNode parse();

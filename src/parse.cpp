@@ -7,9 +7,17 @@
 #include <sstream>
 #include <stdexcept>
 
-const static std::set<char> singletons({';', '(', ')', '{', '}',
-                                        '.', ',', '[', ']',
-                                        '\'', '^', ':'});
+// If there are two in a row, they should be two seperate tokens
+const static std::set<char> singletons({'(', ')', '{', '}', '[',
+                                        ']'});
+
+// Encountering these from text (or vice versa) creates a new
+// token
+const static std::set<char> operator_chars({
+    ';', ':', '\'', '.', ',', '^', '!', '`',
+    '~', '@', '#',  '$', '%', '&', '*', '-',
+    '+', '=', '\\', '|', '<', '>', '?', '/',
+});
 
 TokenStream lex_text(const std::string &text,
                      const std::filesystem::path &fp) {
@@ -18,6 +26,8 @@ TokenStream lex_text(const std::string &text,
   int col = 0;
   std::string cur;
   bool in_comment = false;
+  bool in_string = false;
+  bool in_operator = false;
   const auto add_tok = [&]() {
     if (!cur.empty()) {
       if (!in_comment) {
@@ -26,7 +36,6 @@ TokenStream lex_text(const std::string &text,
       cur.clear();
     }
   };
-  bool in_string = false;
   for (const auto &c : text) {
     if (c == '"') {
       cur.push_back(c);
@@ -36,11 +45,9 @@ TokenStream lex_text(const std::string &text,
       in_string = !in_string;
     } else if (in_string) {
       cur.push_back(c);
-    } else if (singletons.contains(c)) {
-      add_tok();
-      cur = c;
-      add_tok();
-    } else if (c == '#') {
+    }
+
+    else if (c == '#') {
       in_comment = true;
     } else if ((c == '/' && cur == "/") ||
                (c == '-' && cur == "-")) {
@@ -53,12 +60,29 @@ TokenStream lex_text(const std::string &text,
       in_comment = false;
     } else if (c == ' ' || c == '\t') {
       add_tok();
+    }
+
+    else if (singletons.contains(c)) {
+      in_operator = false;
+      add_tok();
+      cur = c;
+      add_tok();
+    }
+
+    else if (operator_chars.contains(c)) {
+      if (!in_operator) {
+        in_operator = true;
+        add_tok();
+      }
+      cur += c;
     } else {
-      if (cur == ":") {
+      if (in_operator) {
+        in_operator = false;
         add_tok();
       }
       cur += c;
     }
+
     ++col;
     if (col > 65) {
       throw std::runtime_error("Lines should not exceed 64 "
@@ -81,21 +105,6 @@ TokenStream lex_file(const std::filesystem::path &fp) {
     text += line + "\n";
   }
   return lex_text(text, fp);
-}
-
-Parser::Parser(const TokenStream &_ts) : ts(_ts) {
-  for (uint pos = 0; pos < ts.data.size(); ++pos) {
-    const std::string t = ts.data.at(pos).text;
-    if (t == "!") {
-      ts.data[pos].text = "not";
-    } else if (t == "&&") {
-      ts.data[pos].text = "and";
-    } else if (t == "||") {
-      ts.data[pos].text = "or";
-    } else if (t == "symbol") {
-      ts.data[pos].text = "bind";
-    }
-  }
 }
 
 // Parses a single statement
@@ -468,7 +477,13 @@ ASTNode Parser::parse_proof() {
           ASTNode(Token(tok, "HAVE"), {name, thm}));
     } else if (t == "ls") {
       pf.children.push_back(ASTNode(Token(tok, "LS")));
-    } else if (t != ";") {
+    }
+
+    else if (t == "sorry") {
+      pf.children.push_back(ASTNode(Token(tok, "SORRY")));
+    }
+
+    else if (t != ";") {
       throw std::runtime_error(
           "Invalid proof statement start token '" + t + "'");
     }

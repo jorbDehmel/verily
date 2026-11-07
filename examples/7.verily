@@ -1,4 +1,4 @@
-# Ordered ring theorems
+# Shenanigans
 
 include "../std/algebra/ring.verily";
 
@@ -7,9 +7,9 @@ theorem ring_double_neg:
   given
     (ring S add mul neg 0 1),
     t in S
-  deduce neg (neg t) == t
+  deduce (neg (neg t)) == t
 by {
-  ls
+  sorry
 }
 
 # For any ring, -1 times -1 is 1
@@ -36,7 +36,7 @@ by {
     on s_add_is_group, 1_in_s
     as inv_1_in_s
 
-  ls
+  sorry
 }
 
 # Any element of any ordered ring, when squared, is nonnegative
@@ -47,5 +47,5 @@ theorem:
     t in S
   deduce 0 <= t * t
 by {
-  ls
+  sorry
 }

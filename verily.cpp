@@ -14,7 +14,7 @@
 #include <stdexcept>
 #include <string>
 
-const std::string version = "0.1.0";
+const std::string version = "0.1.1";
 
 void print_help() {
   // clang-format off

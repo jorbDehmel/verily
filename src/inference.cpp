@@ -293,6 +293,15 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
       add_theorem(fix_name(name, "have"), get_theorem(proving));
     }
 
+    else if (p == "SORRY") {
+      std::cerr << "WARNING: Using 'sorry' to close goal "
+                << _goal << "!\n";
+      Theorem t;
+      t.consequence = _goal;
+      t.proof = ASTNode(Token(_goal.text, "SORRY"));
+      add_theorem(fresh_with_prefix("sorry"), t);
+    }
+
     if (p == "LS" || debug) {
       std::cout << "ls at " << pf.text.file << ":"
                 << pf.text.line << "." << pf.text.col << "\n";
