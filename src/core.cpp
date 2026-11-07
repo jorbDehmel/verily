@@ -11,7 +11,7 @@ void Core::json(std::ostream &_strm) const {
   const std::function<void(const ASTNode &)> print_ast_json =
       [&](const ASTNode &_what) -> void {
     const auto t = _what.text;
-    if (t == "_") {
+    if (t.text == "_") {
       _strm << "[";
       bool first = true;
       for (const auto &child : _what.children) {
@@ -98,14 +98,14 @@ void Core::process_statement(
     std::cout << "On stmt " << _stmt << "\n";
   }
 
-  if (_stmt.text == Token("AXIOM")) {
+  if (_stmt.text.text == "AXIOM") {
     // (AXIOM (OVER x y z) (GIVEN fee fi fo) (DEDUCE
     // fum fli foo flib))
     const auto over = _stmt.children.at(0);
     const auto given = _stmt.children.at(1);
     const auto consequence =
         _stmt.children.at(2).children.front();
-    const std::string name = _stmt.children.at(3).text.text;
+    const auto name = _stmt.children.at(3).text;
 
     std::set<ASTNode> free_variables;
     std::vector<ASTNode> requirements;
@@ -119,14 +119,16 @@ void Core::process_statement(
     im.add_theorem(name, ir);
   }
 
-  else if (_stmt.text == "THEOREM") {
+  else if (_stmt.text.text == "THEOREM") {
     const auto over = _stmt.at(0);
     const auto given = _stmt.at(1);
     const auto deduce = _stmt.at(2);
     const auto proof = _stmt.at(3);
-    const auto name = _stmt.at(4).text.text;
+    const auto name = _stmt.at(4).text;
     const auto real_name =
-        name == "" ? im.fresh_with_prefix("t") : name;
+        name.text == ""
+            ? Token(deduce.text, im.fresh_with_prefix("t"))
+            : name;
 
     std::set<ASTNode> fvs;
     for (const auto &v : over.children) {
@@ -134,7 +136,9 @@ void Core::process_statement(
     }
     im.push(fvs);
     for (const auto &assumption : given.children) {
-      im.add_assumption(im.fresh_with_prefix("h"), assumption);
+      im.add_assumption(
+          Token(real_name, im.fresh_with_prefix("h")),
+          assumption);
     }
     const auto res =
         im.construct_proof(deduce.at(0), proof, real_name);
@@ -142,11 +146,11 @@ void Core::process_statement(
     im.pop();
   }
 
-  else if (_stmt.text == Token("NULL")) {
+  else if (_stmt.text.text == "NULL") {
     return;
   }
 
-  else if (_stmt.text == Token("SCOPE")) {
+  else if (_stmt.text.text == "SCOPE") {
     im.push();
     for (const auto &stmt : _stmt.children) {
       process_statement(stmt, _cur_path);
@@ -154,12 +158,12 @@ void Core::process_statement(
     im.pop();
   }
 
-  else if (_stmt.text == "LS") {
+  else if (_stmt.text.text == "LS") {
     ls();
   }
 
   // Inclusion
-  else if (_stmt.text == Token("INCLUDE")) {
+  else if (_stmt.text.text == "INCLUDE") {
     // (INCLUDE path)
     const auto written = _stmt.children.front().text.text;
     const auto path = std::filesystem::canonical(
@@ -167,19 +171,19 @@ void Core::process_statement(
     do_file(path);
   }
 
-  else if (_stmt.text == Token("SETTING")) {
+  else if (_stmt.text.text == "SETTING") {
     const std::string t = _stmt.children.front().text.text;
     handle_setting(*this, t);
   }
 
-  else if (_stmt.text == "NOTATION") {
+  else if (_stmt.text.text == "NOTATION") {
     const auto name = _stmt.at(0).text.text;
     const auto fvs = _stmt.at(1);
     const auto input_pattern = _stmt.at(2);
     const auto raw_output_pattern = _stmt.at(3).at(0);
     const auto before = _stmt.at(4);
 
-    assert(raw_output_pattern.text == "_");
+    assert(raw_output_pattern.text.text == "_");
     assert(raw_output_pattern.at(0).empty());
     ASTNode output_pattern(raw_output_pattern.at(0).text);
     for (size_t i = 1; i < raw_output_pattern.size(); ++i) {

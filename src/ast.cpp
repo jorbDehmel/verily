@@ -60,7 +60,7 @@ bool ASTNode::contains(const ASTNode &_what) const noexcept {
 
 bool ASTNode::contains(
     const std::string &_what) const noexcept {
-  if (text == _what) {
+  if (text.text == _what) {
     return true;
   }
   for (const auto &child : children) {
@@ -163,7 +163,7 @@ std::optional<ASTNode> InferenceRule::try_apply(
                          return prem.contains(to_add);
                        })) {
       const auto old = to_add;
-      to_add = ASTNode("prime", {old});
+      to_add = ASTNode(Token(old.text, "prime"), {old});
       for (size_t i = 0; i < reqs.size(); ++i) {
         reqs[i] = reqs[i].replace(old, to_add);
       }

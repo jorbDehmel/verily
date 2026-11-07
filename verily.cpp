@@ -174,12 +174,12 @@ int main(int argc, char *argv[]) {
             const ASTNode global = verily.parse_and_process(fp);
 
             for (const auto &stmt : global.children) {
-              if (stmt == ASTNode("HELP")) {
+              if (stmt == "HELP") {
                 print_help();
-              } else if (stmt == ASTNode("QUIT")) {
+              } else if (stmt == "QUIT") {
                 is_running = false;
                 break;
-              } else if (stmt.text != "NULL") {
+              } else if (stmt != "NULL") {
                 verily.process_statement(stmt, fp);
               }
             }

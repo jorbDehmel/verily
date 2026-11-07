@@ -1,0 +1,47 @@
+# Polynomials (as per some definition I made up without
+# justification)
+# Presupposes some accurate definition of (term_algebra (...))
+# for the term algebra operator, (union (...) (...)) for set
+# union, and (set_of_algebra (...)) for getting the set of an
+# algebra.
+
+include "ring.verily";
+
+axiom polynomial_def:
+  over R, X, add, mul, neg, 0
+  given
+    (rng
+      (union
+        (set_of_algebra (term_algebra R))
+        (set_of_algebra (term_algebra X))
+      )
+      mul add neg 0
+    )
+  deduce
+    (polynomial
+      (union
+        (set_of_algebra (term_algebra R))
+        (set_of_algebra (term_algebra X))
+      )
+      mul add neg 0
+    )
+;
+axiom polynomial_is_rng:
+  over R, X, add, mul, neg, 0
+  given
+    (polynomial
+      (union
+        (set_of_algebra (term_algebra R))
+        (set_of_algebra (term_algebra X))
+      )
+      mul add neg 0
+    )
+  deduce
+    (rng
+      (union
+        (set_of_algebra (term_algebra R))
+        (set_of_algebra (term_algebra X))
+      )
+      mul add neg 0
+    )
+;

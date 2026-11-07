@@ -2,6 +2,7 @@
 
 include "../std/algebra/ring.verily";
 
+# For any ring, -(-t) == t
 theorem ring_double_neg:
   over S, add, mul, neg, 0, 1, t
   given

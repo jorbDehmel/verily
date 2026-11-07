@@ -52,16 +52,27 @@ public:
       order_of_operations = {
           {"syntactically_equivalent",
            InferenceRule(
-               {{"A"}, {"B"}},
-               {{"syntactically_equivalent"}, {"A"}, {"B"}},
-               ASTNode("syntactically_equivalent",
-                       {{"A"}, {"B"}}))},
+               {Token("A", "NULL", 0, 0),
+                Token("B", "NULL", 0, 0)},
+               {Token("syntactically_equivalent", "NULL", 0, 0),
+                Token("A", "NULL", 0, 0),
+                Token("B", "NULL", 0, 0)},
+               ASTNode(Token("syntactically_equivalent", "NULL",
+                             0, 0),
+                       {Token("A", "NULL", 0, 0),
+                        Token("B", "NULL", 0, 0)}))},
           {"not_syntactically_equivalent",
            InferenceRule(
-               {{"A"}, {"B"}},
-               {{"not_syntactically_equivalent"}, {"A"}, {"B"}},
-               ASTNode("not_syntactically_equivalent",
-                       {{"A"}, {"B"}}))},
+               {Token("A", "NULL", 0, 0),
+                Token("B", "NULL", 0, 0)},
+               {Token("not_syntactically_equivalent", "NULL", 0,
+                      0),
+                Token("A", "NULL", 0, 0),
+                Token("B", "NULL", 0, 0)},
+               ASTNode(Token("not_syntactically_equivalent",
+                             "NULL", 0, 0),
+                       {Token("A", "NULL", 0, 0),
+                        Token("B", "NULL", 0, 0)}))},
   };
 
   /// Tokens which indicate that an expression is done

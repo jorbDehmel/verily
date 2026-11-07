@@ -130,23 +130,25 @@ ASTNode Parser::parse_statement() {
     ts.next();
     return out;
   } else if (t == "include" || t == "import") {
-    const auto written = ts.cur_next().text;
+    const auto written = ts.cur_next();
     return ASTNode(
         Token(Token(tok, "INCLUDE")),
-        {Token(written.substr(1, written.size() - 2))});
+        {Token(written, written.text.substr(
+                            1, written.text.size() - 2))});
   } else if (t == "setting" || t == "option") {
-    const auto written = ts.cur_next().text;
+    const auto written = ts.cur_next();
     return ASTNode(
         Token(Token(tok, "SETTING")),
-        {Token(written.substr(1, written.size() - 2))});
+        {Token(written, written.text.substr(
+                            1, written.text.size() - 2))});
   } else if (t == "notation") {
     std::string name = "NULL";
     if (ts.cur().text != ":") {
       name = ts.cur().text;
       ts.next();
     }
-    ts.expect({":"});
-    ASTNode over_block(Token("OVER"));
+    auto pos = ts.expect({":"});
+    ASTNode over_block(Token(pos, "OVER"));
     if (ts.cur().text == "over") {
       ts.next();
       while (!ts.done() && ts.cur().text != "given" &&
@@ -157,22 +159,22 @@ ASTNode Parser::parse_statement() {
         }
       }
     }
-    ts.expect({"given"});
-    const ASTNode given_block(Token("GIVEN"),
+    pos = ts.expect({"given"});
+    const ASTNode given_block(Token(pos, "GIVEN"),
                               parse_expr().children);
-    ts.expect({"deduce"});
-    const ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
+    pos = ts.expect({"deduce"});
+    const ASTNode deduce_block(Token(pos, "DEDUCE"),
+                               {parse_expr()});
 
-    ASTNode before("BEFORE");
-    if (ts.cur() == "before") {
+    ASTNode before(Token(pos, "BEFORE"));
+    if (ts.cur().text == "before") {
       ts.next();
       before.children.push_back(ts.cur_next());
     }
-    const auto out = ASTNode("NOTATION", {{name},
-                                          over_block,
-                                          given_block,
-                                          deduce_block,
-                                          before});
+    const auto out =
+        ASTNode(Token(pos, "NOTATION"),
+                {Token(pos, name), over_block, given_block,
+                 deduce_block, before});
     return out;
   } else if (t == "axiom") {
     std::string name = "NULL";
@@ -180,8 +182,8 @@ ASTNode Parser::parse_statement() {
       name = ts.cur().text;
       ts.next();
     }
-    ts.expect({":"});
-    ASTNode over_block(Token("OVER"));
+    auto pos = ts.expect({":"});
+    ASTNode over_block(Token(pos, "OVER"));
     if (ts.cur().text == "over") {
       ts.next();
       while (!ts.done() && ts.cur().text != "given" &&
@@ -192,7 +194,7 @@ ASTNode Parser::parse_statement() {
         }
       }
     }
-    ASTNode given_block(Token("GIVEN"));
+    ASTNode given_block(Token(pos, "GIVEN"));
     if (ts.cur().text == "given") {
       ts.next();
       while (!ts.done() && ts.cur().text != "deduce") {
@@ -202,19 +204,19 @@ ASTNode Parser::parse_statement() {
         }
       }
     }
-    ts.expect({"deduce"});
-    ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
-    return ASTNode(
-        Token(Token(tok, "AXIOM")),
-        {over_block, given_block, deduce_block, ASTNode(name)});
+    pos = ts.expect({"deduce"});
+    ASTNode deduce_block(Token(pos, "DEDUCE"), {parse_expr()});
+    return ASTNode(Token(Token(tok, "AXIOM")),
+                   {over_block, given_block, deduce_block,
+                    ASTNode(Token(pos, name))});
   } else if (t == "theorem") {
     std::string name = "NULL";
     if (ts.cur().text != ":") {
       name = ts.cur().text;
       ts.next();
     }
-    ts.expect({":"});
-    ASTNode over_block(Token("OVER"));
+    auto pos = ts.expect({":"});
+    ASTNode over_block(Token(pos, "OVER"));
     if (ts.cur().text == "over") {
       ts.next();
       while (!ts.done() && ts.cur().text != "given" &&
@@ -225,7 +227,7 @@ ASTNode Parser::parse_statement() {
         }
       }
     }
-    ASTNode given_block(Token("GIVEN"));
+    ASTNode given_block(Token(pos, "GIVEN"));
     if (ts.cur().text == "given") {
       ts.next();
       while (!ts.done() && ts.cur().text != "deduce") {
@@ -235,13 +237,14 @@ ASTNode Parser::parse_statement() {
         }
       }
     }
-    ts.expect({"deduce"});
-    const ASTNode deduce_block(Token("DEDUCE"), {parse_expr()});
-    ts.expect({"by"});
+    pos = ts.expect({"deduce"});
+    const ASTNode deduce_block(Token(pos, "DEDUCE"),
+                               {parse_expr()});
+    pos = ts.expect({"by"});
     const auto proof = parse_proof();
     return ASTNode(Token(Token(tok, "THEOREM")),
                    {over_block, given_block, deduce_block,
-                    proof, ASTNode(name)});
+                    proof, ASTNode(Token(pos, name))});
   }
 
   else {
@@ -262,10 +265,11 @@ ASTNode Parser::parse() {
     std::cout << '\n';
   }
 
-  ASTNode out(Token("GLOBAL"));
+  const auto pos = ts.cur();
+  ASTNode out(Token(pos, "GLOBAL"));
   while (!ts.done()) {
     const ASTNode cur = parse_statement();
-    if (cur.text != "NULL") {
+    if (cur.text.text != "NULL") {
       out.children.push_back(cur);
       if (debug) {
         std::cout << "Parsed: " << out.children.back()
@@ -329,6 +333,12 @@ ASTNode Parser::parse_expr() {
 
 ASTNode Parser::parse_expr_from_list(
     const std::list<ASTNode> &_input_items) {
+  if (_input_items.empty()) {
+    throw std::runtime_error(
+        "Cannot parse expression from empty list!");
+  }
+  const auto pos = _input_items.front().text;
+
   std::vector<ASTNode> items;
   items.assign(_input_items.begin(), _input_items.end());
 
@@ -348,7 +358,7 @@ ASTNode Parser::parse_expr_from_list(
     bool did_change = true;
     while (did_change) {
       did_change = false;
-      ASTNode tmp("_", {items});
+      ASTNode tmp(Token(pos, "_"), {items});
       const auto next = rule.apply_subexpr(tmp, did_change);
       if (did_change) {
         items.assign(next.children.begin(),
@@ -366,7 +376,7 @@ ASTNode Parser::parse_expr_from_list(
   }
 
   if (items.size() != 1) {
-    ASTNode out("_");
+    ASTNode out(Token(pos, "_"));
     out.children.assign(items.begin(), items.end());
     return out;
   }
@@ -377,27 +387,27 @@ ASTNode Parser::parse_proof() {
   const auto pos_tok = ts.cur();
   ASTNode pf(Token(pos_tok, "PROOF"));
   ts.expect({"{"});
-  while (!ts.done() && ts.cur() != "}") {
+  while (!ts.done() && ts.cur().text != "}") {
     const auto tok = ts.cur_next();
     const auto t = tok.text;
     if (t == "forward" || t == "fw") {
       const auto name = ts.cur_next();
-      ASTNode on("ON");
-      ASTNode as("AS");
-      if (ts.cur() == "on") {
+      ASTNode on(Token(name, "ON"));
+      ASTNode as(Token(name, "AS"));
+      if (ts.cur().text == "on") {
         ts.next();
         do {
-          while (!ts.done() && ts.cur() == ",") {
+          while (!ts.done() && ts.cur().text == ",") {
             ts.next();
           }
           on.children.push_back(ts.cur_next());
-        } while (!ts.done() && ts.cur() == ",");
+        } while (!ts.done() && ts.cur().text == ",");
       }
-      if (ts.cur() == "as") {
+      if (ts.cur().text == "as") {
         ts.expect({"as"});
         as.children.push_back(ts.cur_next());
       }
-      if (ts.cur() == "at") {
+      if (ts.cur().text == "at") {
         ts.expect({"at"});
         as.children.push_back(ts.cur_next());
         on.children.push_back(as.children.front());
@@ -409,12 +419,12 @@ ASTNode Parser::parse_proof() {
       pf.children.push_back(ASTNode(Token(tok, "SWEEP"), {n}));
     } else if (t == "rewrite" || t == "rw") {
       const auto name = ts.cur_next();
-      ASTNode on("ON");
-      ASTNode as("AS");
+      ASTNode on(Token(name, "ON"));
+      ASTNode as(Token(name, "AS"));
       const auto choice = ts.expect({"on", "at"});
       on.children.push_back(ts.cur_next());
-      if (choice == "on") {
-        if (ts.cur() == "as") {
+      if (choice.text == "on") {
+        if (ts.cur().text == "as") {
           ts.expect({"as"});
           as.children.push_back(ts.cur_next());
         }
@@ -438,8 +448,8 @@ ASTNode Parser::parse_proof() {
         name = ts.cur().text;
         ts.next();
       }
-      ts.expect({":"});
-      ASTNode over_block(Token("OVER"));
+      auto pos = ts.expect({":"});
+      ASTNode over_block(Token(pos, "OVER"));
       if (ts.cur().text == "over") {
         ts.next();
         while (!ts.done() && ts.cur().text != "given" &&
@@ -450,7 +460,7 @@ ASTNode Parser::parse_proof() {
           }
         }
       }
-      ASTNode given_block(Token("GIVEN"));
+      ASTNode given_block(Token(pos, "GIVEN"));
       if (ts.cur().text == "given") {
         ts.next();
         while (!ts.done() && ts.cur().text != "deduce") {
@@ -460,15 +470,15 @@ ASTNode Parser::parse_proof() {
           }
         }
       }
-      ts.expect({"deduce"});
-      const ASTNode deduce_block(Token("DEDUCE"),
+      pos = ts.expect({"deduce"});
+      const ASTNode deduce_block(Token(pos, "DEDUCE"),
                                  {parse_expr()});
-      ts.expect({"by"});
+      pos = ts.expect({"by"});
       const auto proof = parse_proof();
       pf.children.push_back(
           ASTNode(Token(Token(tok, "THEOREM")),
                   {over_block, given_block, deduce_block, proof,
-                   ASTNode(name)}));
+                   ASTNode(Token(pos, name))}));
     } else if (t == "have") {
       const auto thm = parse_expr();
       ts.expect({"as"});

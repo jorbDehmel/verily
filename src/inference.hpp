@@ -22,7 +22,7 @@ public:
     std::set<ASTNode> generics;
 
     /// Statements which are known to be true
-    std::map<std::string, Theorem> theorems;
+    std::map<Token, Theorem> theorems;
 
     /// Statements currently being proven
     std::list<ASTNode> goals;
@@ -32,7 +32,7 @@ public:
   };
 
   /// Apply, but backwards.
-  void backward_apply(const std::string &_rule_name,
+  void backward_apply(const Token &_rule_name,
                       const InferenceRule &_rule,
                       const ASTNode &_goal);
 
@@ -40,10 +40,10 @@ public:
   bool has(const ASTNode &_what) const noexcept;
 
   /// Get the name of the proof, throwing if it doesn't exist
-  std::string get_name(const ASTNode &_what) const;
+  Token get_name(const ASTNode &_what) const;
 
   /// Adds an axiomatic (EG not generic, no antecedents) AST
-  void add_assumption(const std::string &_name,
+  void add_assumption(const Token &_name,
                       const ASTNode &_what) noexcept;
 
   /// Gets a theorem by name
@@ -53,17 +53,17 @@ public:
   const Theorem get_theorem(const ASTNode &_thm) const;
 
   /// Get all facts from all existing frames
-  std::list<std::pair<std::string, Theorem>>
+  std::list<std::pair<Token, Theorem>>
   get_all_facts() const noexcept;
 
   /// Adds a theorem
-  const Theorem add_theorem(const std::string &_name,
+  const Theorem add_theorem(const Token &_name,
                             const Theorem &_thm);
 
   /// Turns a 'by' block into an actual theorem
-  std::optional<Theorem>
-  construct_proof(const ASTNode &_goal, const ASTNode &_proof,
-                  const std::string &_name);
+  std::optional<Theorem> construct_proof(const ASTNode &_goal,
+                                         const ASTNode &_proof,
+                                         const Token &_name);
 
   /// Throws an error if the given theorem is bunk
   void check_proof(const Theorem &_thm);
@@ -142,9 +142,10 @@ public:
       }
 
       for (const auto &goal : popped.closed_goals) {
-        add_theorem(fresh_with_prefix("t"),
-                    Theorem(popped.generics, frame_assumptions,
-                            goal.first, goal.second));
+        add_theorem(
+            Token(goal.first.text, fresh_with_prefix("t")),
+            Theorem(popped.generics, frame_assumptions,
+                    goal.first, goal.second));
       }
     } else {
       throw std::runtime_error(

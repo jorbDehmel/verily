@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <compare>
 #include <cstdint>
 #include <filesystem>
 #include <list>
@@ -35,9 +36,8 @@ struct Token {
   uintmax_t col = 0;
 
   /// Construct a token
-  Token(const std::string &_t = "",
-        const std::filesystem::path &_f = "",
-        const uintmax_t &_l = 0, const uintmax_t &_c = 0)
+  Token(const std::string &_t, const std::filesystem::path &_f,
+        const uintmax_t &_l, const uintmax_t &_c)
       : text(_t), file(_f), line(_l), col(_c) {
   }
 
@@ -47,15 +47,16 @@ struct Token {
         col(_tok.col) {
   }
 
-  /// Lower-level constructor, because for some reason this
-  /// isn't implicitly derived
-  Token(const char *_c_str) : Token(std::string(_c_str)) {
-  }
-
   /// True iff the texts are the same (does NOT need to be at
   /// the same location)
   inline bool operator==(const Token &_other) const noexcept {
     return text == _other.text;
+  }
+
+  /// For hashing
+  inline std::strong_ordering
+  operator<=>(const Token &_other) const noexcept {
+    return text <=> _other.text;
   }
 };
 
@@ -85,7 +86,7 @@ public:
   /// Get the current token
   inline Token cur() const noexcept {
     if (pos >= data.size()) {
-      return Token("EOF");
+      return Token("EOF", "NULL", 0, 0);
     }
     return data.at(pos);
   }
@@ -136,7 +137,7 @@ struct ASTNode {
   std::vector<ASTNode> children;
 
   /// Construct with some text and children
-  ASTNode(const Token &_text = Token(),
+  ASTNode(const Token &_text = Token("", "NULL", 0, 0),
           const std::vector<ASTNode> &_children = {})
       : text(_text), children(_children) {
     if (text.file == "N/A") {
@@ -303,21 +304,33 @@ struct InferenceRule {
 
   /// Create an ASTNode such that
   /// from_ASTNode(this->to_ASTNode()) == *this
-  inline ASTNode to_ASTNode() const noexcept {
-    ASTNode over_block("OVER");
+  inline ASTNode
+  to_ASTNode(const std::filesystem::path &_file,
+             const uintmax_t &_line,
+             const uintmax_t &_col) const noexcept {
+    ASTNode over_block(Token("OVER", _file, _line, _col));
     for (const auto &fv : free_variables) {
       over_block.children.push_back(fv);
     }
     return ASTNode(
-        "INFERENCE_RULE",
+        Token("INFERENCE_RULE", _file, _line, _col),
         {
             over_block,
-            ASTNode("GIVEN", requirements),
-            ASTNode("DEDUCE", {consequence}),
-            ASTNode("PROOF",
-                    {proof.has_value() ? proof.value()
-                                       : ASTNode("NULL")}),
+            ASTNode(Token("GIVEN", _file, _line, _col),
+                    requirements),
+            ASTNode(Token("DEDUCE", _file, _line, _col),
+                    {consequence}),
+            ASTNode(Token("PROOF", _file, _line, _col),
+                    {proof.has_value()
+                         ? proof.value()
+                         : ASTNode(Token("NULL", _file, _line,
+                                         _col))}),
         });
+  }
+
+  /// Helper
+  inline ASTNode to_ASTNode(const Token &_pos) const noexcept {
+    return to_ASTNode(_pos.file, _pos.line, _pos.col);
   }
 
   /// Decode an ASTNode such that
@@ -328,22 +341,23 @@ struct InferenceRule {
     const auto over_block = _from.at(0);
     const auto given_block = _from.at(1);
     const auto deduce_block = _from.at(2);
-    assert(_from.at(3).text == "PROOF");
+    assert(_from.at(3).text.text == "PROOF");
     assert(_from.at(3).size() == 1);
     const auto proof = _from.at(3).at(0);
     assert(deduce_block.size() == 1);
-    assert(over_block.text == "OVER");
-    assert(given_block.text == "GIVEN");
-    assert(deduce_block.text == "DEDUCE");
+    assert(over_block.text.text == "OVER");
+    assert(given_block.text.text == "GIVEN");
+    assert(deduce_block.text.text == "DEDUCE");
     std::set<ASTNode> fvs;
     for (const auto &fv : over_block.children) {
       fvs.insert(fv);
     }
-    return InferenceRule(fvs, given_block.children,
-                         deduce_block.children.front(),
-                         proof == ASTNode("NULL")
-                             ? std::optional<ASTNode>()
-                             : proof);
+    return InferenceRule(
+        fvs, given_block.children,
+        deduce_block.children.front(),
+        proof == ASTNode(Token(_from.text, "NULL"))
+            ? std::optional<ASTNode>()
+            : proof);
   }
 };
 
