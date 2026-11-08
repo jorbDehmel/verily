@@ -306,7 +306,8 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
       Theorem t;
       t.consequence = _goal;
       t.proof = ASTNode(Token(_goal.text, "SORRY"));
-      add_theorem(fresh_with_prefix("sorry"), t);
+      add_theorem(Token(_goal.text, fresh_with_prefix("sorry")),
+                  t);
     }
 
     if (p == "LS" || debug) {
