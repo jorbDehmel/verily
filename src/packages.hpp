@@ -91,18 +91,22 @@ public:
   void restrict_version_ge(const std::string &_name,
                            const PackageVersion &_version);
 
-  /// Install a version of verily from a url (unimplemented)
-  void
-  add_verily_version(const PackageVersion &_version,
-                     const std::string &_url) const noexcept;
+  /// Install a version of verily from a url
+  void add_verily_version(const PackageVersion &_version,
+                          const std::string &_url) const;
 
-  /// Remove a version of verily (unimplemented)
+  /// Install a version of verily from a local path
+  void add_local_verily_version(
+      const PackageVersion &_version,
+      const std::filesystem::path &_path) const;
+
+  /// Remove a version of verily, as well as all package data
+  /// associated with that version
   void remove_verily_version(
       const PackageVersion &_version) const noexcept;
 
-  /// Set the current version of verily / hark (unimplemented)
-  void set_verily_version(
-      const PackageVersion &_version) const noexcept;
+  /// Set the current version of verily / hark
+  void set_verily_version(const PackageVersion &_version) const;
 
   /// Get a list of all installed verily versions
   std::list<PackageVersion>
@@ -110,6 +114,9 @@ public:
 
   /// The root dir where we keep all the package info
   const std::filesystem::path packages_path = "/usr/lib/verily";
+
+  /// Where we put executables
+  const std::filesystem::path executables_path = "/usr/bin";
 
 protected:
   /// Maps a package name to a 2-tuple of (lowest_allowed,

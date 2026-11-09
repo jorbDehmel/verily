@@ -350,18 +350,82 @@ void PackageManager::restrict_version_ge(
 
 void PackageManager::add_verily_version(
     const PackageVersion &_version,
-    const std::string &_url) const noexcept {
-  assert(false);
+    const std::string &_url) const {
+  const auto cur_path = std::filesystem::current_path();
+
+  if (!std::filesystem::exists(packages_path)) {
+    std::filesystem::create_directory(packages_path);
+  }
+  std::filesystem::current_path(packages_path);
+
+  const auto res = std::system(
+      ("git clone " + _url + " " + std::string(_version))
+          .c_str());
+
+  std::filesystem::current_path(cur_path);
+
+  if (res != 0) {
+    throw std::runtime_error(
+        "Failed to `git clone` verily version " +
+        std::string(_version) + " w/ url " + _url);
+  }
 }
 
 void PackageManager::remove_verily_version(
     const PackageVersion &_version) const noexcept {
-  assert(false);
+  const auto path = packages_path / _version;
+  if (!std::filesystem::exists(path)) {
+    return;
+  }
+  std::filesystem::remove_all(path);
+  if (std::filesystem::is_empty(packages_path / _version)) {
+    std::filesystem::remove_all(packages_path / _version);
+    if (std::filesystem::is_empty(packages_path)) {
+      std::filesystem::remove(packages_path);
+    }
+  }
 }
 
 void PackageManager::set_verily_version(
-    const PackageVersion &_version) const noexcept {
-  assert(false);
+    const PackageVersion &_version) const {
+  // Assert we have that version
+  const auto all = all_verily_versions();
+  bool seen = false;
+  for (const PackageVersion &v : all) {
+    if (v <= _version && v >= _version) { // who knows
+      if (!std::filesystem::exists(packages_path / v /
+                                   "verily.out")) {
+        throw std::runtime_error(
+            "Version '" + std::string(v) +
+            "' does not have verily executable");
+      }
+      if (!std::filesystem::exists(packages_path / v /
+                                   "hark.out")) {
+        throw std::runtime_error(
+            "Version '" + std::string(v) +
+            "' does not have hark executable");
+      }
+      seen = true;
+      break;
+    }
+  }
+  if (!seen) {
+    throw std::runtime_error(
+        "Cannot set verily version to non-present " +
+        std::string(_version));
+  }
+
+  // Remove old symlinks
+  std::filesystem::remove(executables_path / "verily");
+  std::filesystem::remove(executables_path / "hark");
+
+  // Add new symlinks
+  std::filesystem::create_symlink(packages_path / _version /
+                                      "verily.out",
+                                  executables_path / "verily");
+  std::filesystem::create_symlink(packages_path / _version /
+                                      "hark.out",
+                                  executables_path / "hark");
 }
 
 std::list<PackageVersion>
@@ -378,4 +442,38 @@ PackageManager::all_verily_versions() const noexcept {
     }
   }
   return out;
+}
+
+void PackageManager::add_local_verily_version(
+    const PackageVersion &_version,
+    const std::filesystem::path &_path) const {
+  const auto actual_path = std::filesystem::canonical(
+      std::filesystem::current_path() / _path);
+  const auto cur_path = std::filesystem::current_path();
+
+  if (!std::filesystem::exists(packages_path)) {
+    std::filesystem::create_directory(packages_path);
+  }
+  std::filesystem::current_path(packages_path);
+  if (!std::filesystem::exists(version)) {
+    std::filesystem::create_directory(version);
+  }
+
+  if (!std::filesystem::exists(_path / "verily.out")) {
+    throw std::runtime_error(
+        "Cannot add local verily version where verily "
+        "executable is missing");
+  } else if (!std::filesystem::exists(_path / "hark.out")) {
+    throw std::runtime_error(
+        "Cannot add local verily version where hark "
+        "executable is missing");
+  }
+
+  std::filesystem::copy(_path / "verily.out", packages_path /
+                                                  _version /
+                                                  "verily.out");
+  std::filesystem::copy(_path / "hark.out",
+                        packages_path / _version / "hark.out");
+
+  std::filesystem::current_path(cur_path);
 }

@@ -293,13 +293,13 @@ Only `<=`, `>=`, and `==` are currently supported in `require`
 statements. Packages can be added using
 `hark --add name version git-repo-url` or
 `hark --add-local name version path/to/package` and removed via
-`hard --remove name version`. You will probably need `sudo`
+`hark --remove name version`. You will probably need `sudo`
 privileges.
 
-**Note:** As of right now, `hark` cannot actually manage
-versions of `verily`! It can do packages, but **not** the solver
-itself. This functionality is not a priority until at least
-version 1.0.0 (for stability reasons).
+You can manage verily versions via `hark --ls-versions`,
+`hark --add-version version url`,
+`hark --remove-version version`, and
+`hark --set-version version`.
 
 ## Vetoed Suggestions:
 
@@ -319,5 +319,5 @@ version 1.0.0 (for stability reasons).
   because I think TOML and YAML are dumb. I am hesitant to add
   a JSON parser dependency to this project, though, especially
   since I've been using old-school `make`.
-- At some point, `hark` needs to be able to manage `verily`
-  versions
+- A theorem database via EG `sqlite3` would be helpful for very
+  large projects
