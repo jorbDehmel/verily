@@ -4,6 +4,7 @@
 
 #include "src/core.hpp"
 #include "src/inference.hpp"
+#include "src/packages.hpp"
 #include "src/parse.hpp"
 #include <cassert>
 #include <chrono>
@@ -13,8 +14,6 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
-
-const std::string version = "0.1.1";
 
 void print_help() {
   // clang-format off
@@ -117,6 +116,44 @@ int main(int argc, char *argv[]) {
       quiet = true;
     } else if (_setting == "time=quiet") {
       quiet = false;
+    }
+
+    else if (_setting.starts_with("require:")) {
+      // Can be of form "require:std>=0.1" or "require:std"
+      const auto spec =
+          _setting.substr(std::string("require:").size());
+      const auto start_of_op = spec.find_first_of("=<>");
+      if (start_of_op == spec.npos) {
+        if (!verily.package_manager.has(spec)) {
+          throw std::runtime_error(
+              "Package '" + spec +
+              "' is required, but not present");
+        }
+      } else {
+        const auto start_of_version =
+            spec.find_first_of("0123456789.", start_of_op);
+        const auto name = spec.substr(0, start_of_op);
+        const auto op = spec.substr(
+            start_of_op, start_of_version - start_of_op);
+        const auto version = PackageVersion::from_str(
+            spec.substr(start_of_version));
+
+        if (op == "==") {
+          verily.package_manager.restrict_version_ge(name,
+                                                     version);
+          verily.package_manager.restrict_version_lt(
+              name, version.next());
+        } else if (op == "<=") {
+          verily.package_manager.restrict_version_lt(
+              name, version.next());
+        } else if (op == ">=") {
+          verily.package_manager.restrict_version_ge(name,
+                                                     version);
+        } else {
+          throw std::runtime_error("Invalid operation '" + op +
+                                   "' in package spec " + spec);
+        }
+      }
     }
 
     else if (!quiet) {

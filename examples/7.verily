@@ -1,6 +1,7 @@
 # Shenanigans
 
-include "../std/algebra/ring.verily";
+option "require:std>=0.1";
+include "std/algebra/ring.verily";
 
 # For any ring, -(-t) == t
 theorem ring_double_neg:

@@ -2,11 +2,11 @@
 
 CPP = g++ -pedantic -Wall -std=c++20 -O3 -g
 HEADERS = src/parse.hpp src/inference.hpp src/core.hpp \
-	src/ast.hpp
+	src/ast.hpp src/packages.hpp
 
 OBJECTS = $(HEADERS:.hpp=.o)
 
-all:	$(OBJECTS) verily.o verily.out
+all:	$(OBJECTS) verily.o verily.out hark.out
 
 %.out:	%.o $(OBJECTS)
 	$(CPP) -o $@ $^

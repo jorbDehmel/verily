@@ -166,9 +166,7 @@ void Core::process_statement(
   else if (_stmt.text.text == "INCLUDE") {
     // (INCLUDE path)
     const auto written = _stmt.children.front().text.text;
-    const auto path = std::filesystem::canonical(
-        _stmt.text.file.parent_path() / written);
-    do_file(path);
+    do_file(written);
   }
 
   else if (_stmt.text.text == "SETTING") {
@@ -222,11 +220,17 @@ void Core::process_statement(
 }
 
 void Core::do_file(const std::filesystem::path &_fp) {
-  if (visited_files.contains(_fp)) {
+  const auto actual_fp =
+      package_manager.find(_fp, parser.ts.cur().file);
+  if (debug) {
+    std::cout << "Requested filepath " << _fp << " resolved to "
+              << actual_fp << '\n';
+  }
+  if (visited_files.contains(actual_fp)) {
     return;
   }
-  visited_files.insert(_fp);
-  const auto ts = lex_file(_fp);
+  visited_files.insert(actual_fp);
+  const auto ts = lex_file(actual_fp);
   if (debug) {
     std::cout << "Prepending file ts:";
     for (const auto &tok : ts.data) {
@@ -236,7 +240,7 @@ void Core::do_file(const std::filesystem::path &_fp) {
   }
   parser.ts.prepend(ts.data);
   while (!parser.ts.done()) {
-    parse_and_process(_fp);
+    parse_and_process(actual_fp);
   }
 }
 

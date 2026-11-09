@@ -1,6 +1,7 @@
 #pragma once
 
 #include "inference.hpp"
+#include "packages.hpp"
 #include "parse.hpp"
 #include <filesystem>
 #include <functional>
@@ -65,6 +66,9 @@ public:
 
   /// Manages known information
   InferenceMaker im;
+
+  /// Package manager
+  PackageManager package_manager;
 
   /// True iff an error occurred
   bool saw_error = false;

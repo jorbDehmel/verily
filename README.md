@@ -258,6 +258,49 @@ statement. It takes the same syntax as usual, and inherits any
 assumptions that are currently active. Once proven, the theorem
 is added as a new rewrite rule.
 
+## Packages and `hark`
+
+`verily` is the actual theorem prover, but `hark` is the CLI
+tool for managing packages and versions. Use `hark --help` to
+see more information. Packages are stored in `/usr/lib/verily`.
+Package information is never duplicated (looking at you,
+`lean4`), and there are no virtual environments. If we are
+trying to find package `name` with version 1.2.3 for verily
+version 3.2.1, we would look in
+`/usr/lib/verily/3_2_1/name/1_2_3/` for files. We can impose
+package version constraints via:
+
+```verily
+# Requires version 1.2.3 of name OR HIGHER. No error will be
+# thrown here if no such packages exist.
+option "require:name>=1.2.3";
+
+# Note: We have to add the requirements before we access the
+# package, or else it will just use the latest version installed
+
+# Resolves to `/usr/lib/verily/3_2_1/name/1_2_3/foo.verily`.
+# If no version of package 'name' exists satisfying our demands,
+# an error would now be thrown.
+include "name/foo.verily";
+
+# Special case: Asserts bounds on the current version of verily.
+# An error will be thrown if these fail.
+option "require:verily<1";
+option "require:verily>0";
+```
+
+Only `<=`, `>=`, and `==` are currently supported in `require`
+statements. Packages can be added using
+`hark --add name version git-repo-url` or
+`hark --add-local name version path/to/package` and removed via
+`hard --remove name version`. You will probably need `sudo`
+privileges.
+
+**Note:** As of right now, `hark` cannot actually manage
+versions of `verily`! It can do packages, but **not** the solver
+itself. This functionality is not a priority until at least
+version 1.0.0 (for stability reasons).
+
 ## Vetoed Suggestions:
 
 - Alternative functional theorem / axiom syntax
@@ -268,8 +311,13 @@ is added as a new rewrite rule.
 
 - It might be useful to have a `hint` keyword that shows all
   possible backwards goal groups.
-- If there is every a `uv`-style version / package manager, it
-  should be called `hark`.
 - `sweep` calls should print the `fw`-only proofs they discover.
 - The secondary proof checking system (for EG json) is *very*
   broken, and needs a complete rewrite.
+- We should add a `verily-package.json` file for version info
+  so we don't have to add it on the fly. We will use JSON
+  because I think TOML and YAML are dumb. I am hesitant to add
+  a JSON parser dependency to this project, though, especially
+  since I've been using old-school `make`.
+- At some point, `hark` needs to be able to manage `verily`
+  versions

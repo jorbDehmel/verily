@@ -10,3 +10,4 @@
  0.0.11  | 9/17/2026  | Improved docs, bug fixes
  0.1.0   | 10/14/2026 | Rewrote most syntax
  0.1.1   | 11/6/2026  | Added 'sorry' keyword in proofs
+ 0.1.2   | 11/8/2026  | Added `hark` version / package manager
