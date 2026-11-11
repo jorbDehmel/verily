@@ -1,0 +1,23 @@
+-- Tests partial application
+
+include "std.verily";
+
+axiom mp: over a, b given a implies b, a deduce b;
+
+axiom produce_alpha: deduce alpha;
+
+theorem:
+  given alpha implies beta
+  deduce beta
+by {
+  fw produce_alpha as have_alpha
+  -- This leaves us with a rule 'foo' over generic b saying
+  -- that, should we have 'alpha implies b', we would have b.
+  fw mp on _, have_alpha as mp_alpha
+
+  -- Test partial instantiation while we're at it
+  use beta as b on mp_alpha as mp_alpha_beta
+
+  -- Since mp_alpha_beta has no free variables, we can use bw
+  bw mp_alpha_beta
+}

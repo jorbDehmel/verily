@@ -485,7 +485,26 @@ ASTNode Parser::parse_proof() {
       const auto name = ts.cur_next();
       pf.children.push_back(
           ASTNode(Token(tok, "HAVE"), {name, thm}));
-    } else if (t == "ls") {
+    } else if (t == "use") {
+      // use ... as ... on ... as ...
+      ASTNode vk_pairs(Token(tok, "_"));
+      while (!ts.done() && ts.cur().text != "on") {
+        if (ts.cur().text == ",") {
+          ts.next();
+        }
+        const auto value = parse_expr();
+        ts.expect({"as"});
+        const auto key = parse_expr();
+      }
+      ts.expect({"on"});
+      const auto rule_name = ts.cur_next();
+      ts.expect({"as"});
+      const auto new_name = ts.cur_next();
+      pf.children.push_back(ASTNode(
+          Token(tok, "USE"), {vk_pairs, rule_name, new_name}));
+    }
+
+    else if (t == "ls") {
       pf.children.push_back(ASTNode(Token(tok, "LS")));
     }
 

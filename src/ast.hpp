@@ -259,16 +259,9 @@ struct InferenceRule {
 
   inline bool
   operator==(const InferenceRule &_other) const noexcept {
-    if (consequence != _other.consequence) {
-      return false;
-    }
-    if (free_variables != _other.free_variables) {
-      return false;
-    }
-    if (requirements != _other.requirements) {
-      return false;
-    }
-    return true;
+    return consequence == _other.consequence &&
+           free_variables == _other.free_variables &&
+           requirements == _other.requirements;
   }
 
   /// The free variables over both the requirements and
@@ -298,9 +291,44 @@ struct InferenceRule {
   ASTNode apply_subexpr(const ASTNode &_upon,
                         bool &_did_something) const noexcept;
 
-  /// Apply backwards (obviously)
-  std::vector<ASTNode>
-  backward_apply(const ASTNode &_goal) const;
+  /// A more general version of apply which operates on one
+  /// argument at a time. Throws on match failure or if
+  /// _position is out of range.
+  std::optional<InferenceRule>
+  partial_apply(const size_t &_position,
+                const ASTNode &_value) const noexcept;
+
+  /// Partial apply, for for generics instead of arguments.
+  InferenceRule
+  partial_instantiate(const ASTNode &_generic_to_replace,
+                      const ASTNode &_value) const;
+
+  /// Repeated partial_apply
+  inline std::optional<InferenceRule> partial_apply(
+      const std::list<std::pair<size_t, ASTNode>> &_args)
+      const noexcept {
+    InferenceRule out = *this;
+    for (const auto &p : _args) {
+      const auto res = out.partial_apply(p.first, p.second);
+      if (res.has_value()) {
+        out = res.value();
+      } else {
+        return {};
+      }
+    }
+    return out;
+  }
+
+  /// Repeated partial instantiation
+  inline InferenceRule partial_instantiate(
+      const std::list<std::pair<ASTNode, ASTNode>> &_kv_pairs)
+      const {
+    InferenceRule out = *this;
+    for (const auto &p : _kv_pairs) {
+      out = out.partial_instantiate(p.first, p.second);
+    }
+    return out;
+  }
 
   /// Create an ASTNode such that
   /// from_ASTNode(this->to_ASTNode()) == *this

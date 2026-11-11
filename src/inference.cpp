@@ -13,7 +13,8 @@
 #include <vector>
 
 const InferenceMaker::Theorem
-InferenceMaker::get_theorem(const std::string &_name) const {
+InferenceMaker::get_theorem_by_name(
+    const std::string &_name) const {
   for (auto rit = frames.rbegin(); rit != frames.rend();
        ++rit) {
     for (const auto &p : rit->theorems) {
@@ -26,7 +27,8 @@ InferenceMaker::get_theorem(const std::string &_name) const {
 }
 
 const InferenceMaker::Theorem
-InferenceMaker::get_theorem(const ASTNode &_thm) const {
+InferenceMaker::get_theorem_by_value(
+    const ASTNode &_thm) const {
   if (_thm.text.text == "syntactically_equivalent") {
     if (_thm.size() == 2 &&
         _thm.children.front() == _thm.children.back()) {
@@ -43,7 +45,9 @@ InferenceMaker::get_theorem(const ASTNode &_thm) const {
     for (auto rit = frames.rbegin(); rit != frames.rend();
          ++rit) {
       for (const auto &p : rit->theorems) {
-        if (p.second.consequence == _thm) {
+        if (p.second.free_variables.empty() &&
+            p.second.requirements.empty() &&
+            p.second.consequence == _thm) {
           return p.second;
         }
       }
@@ -111,7 +115,9 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
 
   open_goal(_goal);
   if (_proof.text.text != "PROOF") {
-    throw std::runtime_error("Cannot check a non-proof!");
+    throw std::runtime_error(
+        "Cannot construct proof from block with label '" +
+        _proof.text.text + "'!");
   }
 
   // Check proof
@@ -127,27 +133,73 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
       const auto rule_name = pf.at(0).text;
       const auto on = pf.at(1);
       const auto as = pf.at(2);
-      const auto rule = get_theorem(rule_name);
-      std::vector<ASTNode> antecedent_thms;
-      std::vector<ASTNode> antecedent_pfs;
-      for (const auto &arg : on.children) {
-        const auto thm = get_theorem(arg.text.text);
-        antecedent_thms.push_back(thm.consequence);
-        antecedent_pfs.push_back(thm.proof.value_or(
-            ASTNode(Token(rule_name, "ASSUMPTION"))));
+      const auto rule = get_theorem_by_name(rule_name.text);
+
+      if (!on.contains(ASTNode(Token("_", "", 0, 0)))) {
+        // Normal (non-partial) application
+        std::vector<ASTNode> antecedent_thms;
+        std::vector<ASTNode> antecedent_pfs;
+        for (const auto &arg : on.children) {
+          const auto thm = get_theorem_by_name(arg.text.text);
+
+          if (!thm.free_variables.empty() ||
+              !thm.requirements.empty()) {
+            throw std::runtime_error(
+                "Cannot use rule (EG with generics and/or "
+                "antecedents) as antecedent in application!");
+          }
+
+          antecedent_thms.push_back(thm.consequence);
+          antecedent_pfs.push_back(thm.proof.value_or(
+              ASTNode(Token(rule_name, "ASSUMPTION"))));
+        }
+        const auto res = rule.apply(antecedent_thms);
+        const Theorem t(
+            {}, {}, res,
+            ASTNode(
+                Token(rule_name, "THEOREM"),
+                {res, ASTNode(Token(rule_name, "APPLICATION"),
+                              {rule.to_ASTNode(rule_name),
+                               ASTNode(Token(rule_name, "_"),
+                                       antecedent_pfs)})}));
+        add_theorem(
+            Token(rule_name, as.empty() ? fresh_with_prefix("l")
+                                        : as.at(0).text.text),
+            t);
+      } else {
+        // Partial application
+        std::list<std::pair<size_t, ASTNode>> args;
+        std::vector<ASTNode> antecedent_pfs;
+        size_t i = 0;
+        for (const auto &arg : on.children) {
+          if (arg != ASTNode(Token("_", "", 0, 0))) {
+            const auto thm = get_theorem_by_name(arg.text.text);
+
+            if (!thm.free_variables.empty() ||
+                !thm.requirements.empty()) {
+              throw std::runtime_error(
+                  "Cannot use rule (EG with generics and/or "
+                  "antecedents) as antecedent in application!");
+            }
+
+            antecedent_pfs.push_back(thm.proof.value_or(
+                ASTNode(Token(rule_name, "ASSUMPTION"))));
+            args.push_back({i, thm.consequence});
+          }
+          ++i;
+        }
+
+        const auto res_opt = rule.partial_apply(args);
+        if (!res_opt.has_value()) {
+          throw std::runtime_error(
+              "Invalid partial application!");
+        }
+        const auto res = res_opt.value();
+        add_theorem(
+            Token(rule_name, as.empty() ? fresh_with_prefix("l")
+                                        : as.at(0).text.text),
+            res);
       }
-      const auto res = rule.apply(antecedent_thms);
-      const Theorem t(
-          {}, {}, res,
-          ASTNode(Token(rule_name, "THEOREM"),
-                  {res, ASTNode(Token(rule_name, "APPLICATION"),
-                                {rule.to_ASTNode(rule_name),
-                                 ASTNode(Token(rule_name, "_"),
-                                         antecedent_pfs)})}));
-      add_theorem(Token(rule_name, as.empty()
-                                       ? fresh_with_prefix("l")
-                                       : as.at(0).text.text),
-                  t);
     } else if (p == "SWEEP") {
       // Apply everything to everything for some number of
       // rounds
@@ -245,9 +297,9 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
       const auto rule_name = pf.at(0).text;
       const auto on = pf.at(1).at(0).text.text;
       const auto as = pf.at(2);
-      const auto rule = get_theorem(rule_name);
+      const auto rule = get_theorem_by_name(rule_name.text);
       bool did_something = false;
-      const auto ante = get_theorem(on);
+      const auto ante = get_theorem_by_name(on);
       const auto res =
           rule.apply_subexpr(ante.consequence, did_something);
       if (!did_something) {
@@ -263,7 +315,7 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
                   t);
     } else if (p == "BACKWARD") {
       const auto rule_name = pf.at(0).text;
-      const auto rule = get_theorem(rule_name);
+      const auto rule = get_theorem_by_name(rule_name.text);
       const auto cur_goal = frames.back().goals.front();
       backward_apply(rule_name, rule, cur_goal);
     } else if (p == "WTS") {
@@ -297,7 +349,23 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
       const auto name = pf.at(0).text;
       const auto proving = pf.at(1);
       add_theorem(Token(name, fix_name(name.text, "have")),
-                  get_theorem(proving));
+                  get_theorem_by_value(proving));
+    } else if (p == "USE") {
+      // use ... as ... in ... as ...
+      const auto vk_pairs = pf.at(0).children;
+      const auto rule_name = pf.at(1).text;
+      const auto new_name = pf.at(2).text;
+
+      // Note that we switched order here
+      std::list<std::pair<ASTNode, ASTNode>> kv_pairs;
+      for (const auto &child : vk_pairs) {
+        kv_pairs.push_back({child.at(1), child.at(0)});
+      }
+      const auto rule = get_theorem_by_name(rule_name.text);
+      const auto res = rule.partial_instantiate(kv_pairs);
+      add_theorem(
+          Token(new_name, fix_name(new_name.text, "have")),
+          res);
     }
 
     else if (p == "SORRY") {
@@ -320,7 +388,7 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
   // We must have proven it by now
   std::optional<Theorem> thm;
   if (has(_goal)) {
-    thm = get_theorem(_goal);
+    thm = get_theorem_by_value(_goal);
   } else {
     const auto tok = _proof.text;
     std::cerr << "Unsolved goal: " << _goal
@@ -386,16 +454,19 @@ void InferenceMaker::backward_apply(const Token &_name,
     for (const auto &goal : replaced_requirements) {
       open_goal(goal);
     }
+    return;
   }
 
   // Error!
-  std::cerr << "Expected " << _goal << " to be of form "
+  std::cerr << "Failed backward pattern match:\n"
+            << "Expected: " << _goal << "\n"
+            << "Observed: "
             << _rule.consequence.replace(substitutions)
-            << " with free variables [";
+            << "\nwith remaining free variables [";
   for (const auto &fv : free_variables) {
     std::cerr << ' ' << fv;
   }
-  std::cerr << " ] (but failed pattern-match)\n";
+  std::cerr << " ]\n";
   throw std::runtime_error("Failed backward rewrite");
 }
 
@@ -405,8 +476,7 @@ void InferenceMaker::ls() const noexcept {
     std::cout << "Frame " << i << ":\n";
     ++i;
     for (const auto &p : frame.theorems) {
-      std::cout << "  " << p.first << ": "
-                << p.second.consequence << '\n';
+      std::cout << "  " << p.first << ": " << p.second << '\n';
     }
     if (!frame.goals.empty()) {
       std::cout << "  Goals: ";

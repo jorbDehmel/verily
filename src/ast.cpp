@@ -6,6 +6,7 @@
 #include "ast.hpp"
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
 Token TokenStream::expect(std::set<std::string> what) {
   const auto cur_tok = cur();
@@ -183,6 +184,12 @@ std::optional<ASTNode> InferenceRule::try_apply(
       return {};
     }
   }
+
+  // No FVS can remain
+  if (!fvs.empty()) {
+    return {};
+  }
+
   return cons.replace(substitutions);
 }
 
@@ -293,4 +300,81 @@ std::ostream &operator<<(std::ostream &_strm,
     _strm << " (axiom)";
   }
   return _strm;
+}
+
+std::optional<InferenceRule> InferenceRule::partial_apply(
+    const size_t &_position,
+    const ASTNode &_value) const noexcept {
+  InferenceRule out;
+  std::list<std::pair<ASTNode, ASTNode>> subs;
+  for (const auto &fv : free_variables) {
+    ASTNode to_add = fv;
+    while (_value.contains(to_add)) {
+      to_add = ASTNode(Token(to_add.text, "prime"), {to_add});
+    }
+    if (fv != to_add) {
+      subs.push_back({fv, to_add});
+    }
+    out.free_variables.insert(to_add);
+  }
+  if (_position >= requirements.size() ||
+      !_value.is_of_form(requirements.at(_position),
+                         out.free_variables, subs)) {
+    return {};
+  }
+  for (size_t i = 0; i < requirements.size(); ++i) {
+    if (i != _position) {
+      out.requirements.push_back(
+          requirements.at(i).replace(subs));
+    }
+  }
+  out.consequence = consequence.replace(subs);
+  out.proof =
+      ASTNode(Token(_value.text, "PARTIAL_APPLY"),
+              {
+                  to_ASTNode(_value.text),
+                  Token(_value.text, std::to_string(_position)),
+                  _value,
+              });
+  return out;
+}
+
+InferenceRule InferenceRule::partial_instantiate(
+    const ASTNode &_generic_to_replace,
+    const ASTNode &_value) const {
+  if (!free_variables.contains(_generic_to_replace)) {
+    throw std::runtime_error(
+        "Invalid generic for partial instantiation");
+  }
+
+  InferenceRule out;
+  std::list<std::pair<ASTNode, ASTNode>> subs = {
+      {_generic_to_replace, _value}};
+  for (const auto &fv : free_variables) {
+    ASTNode to_add = fv;
+    while (_value.contains(to_add)) {
+      to_add = ASTNode(Token(to_add.text, "prime"), {to_add});
+    }
+    if (fv != to_add) {
+      subs.push_back({fv, to_add});
+    }
+    if (fv != _generic_to_replace) {
+      out.free_variables.insert(to_add);
+    } else if (to_add != fv) {
+      throw std::runtime_error("Invalid partial instantiation: "
+                               "Free variable conflict");
+    }
+  }
+
+  for (const auto &requirement : requirements) {
+    out.requirements.push_back(requirement.replace(subs));
+  }
+  out.consequence = consequence.replace(subs);
+  out.proof = ASTNode(Token(_value.text, "PARTIAL_INSTANTIATE"),
+                      {
+                          to_ASTNode(_value.text),
+                          _generic_to_replace,
+                          _value,
+                      });
+  return out;
 }

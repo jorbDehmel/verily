@@ -11,7 +11,12 @@ Verily is a theorem prover based on term rewriting systems.
 It is *not* based on the Curry-Howard isomorphism (though it
 contains and is contained by it). Notably, `verily` has no type
 system. The goal is to be extremely quick and lightweight: The
-assembly language of theorem proving.
+assembly language of theorem proving. Verily is built around the
+idea of deductive calculi, rather than any specific deductive
+calculus. As such, there are very few tactics or even logical
+constructs built-in. If you want a fully-featured theorem
+prover, you must accept the numerous axioms and points of
+failure that come with it.
 
 **Everything is uninterpreted!** Though operators like `+`, `*`,
 and even `==` can be added via the `notation` keyword,
@@ -23,7 +28,15 @@ syntactically equivalent to `b` (and
 `not_syntactically_equivalent a b` likewise). I have made it
 purposefully verbose because you need to understand exactly what
 it is doing! It is not the same as `==` (which doesn't even
-exist by default).
+exist by default). For instance, even if we have declared
+`a == b` axiomatically, we will never prove
+`syntactically_equivalent a b`, because the symbols `a` and `b`,
+regardless of what they may model, are not syntactically
+equivalent.
+
+This code is written for linux, but the core theorem prover will
+probably work no matter the platform. The package manager will
+almost certainly not work on EG Windows.
 
 ## Rules for Contributing
 
@@ -199,6 +212,8 @@ has a few legal statements.
 5. `have thm_goes_here as name`
 6. `rw rule_name_here` / `rewrite rule_name_here`
 7. `theorem ...` (same as normal)
+8. `use ... for ... in ... as ...`
+9. `sorry`
 
 `forward` and `fw` are interchangeable, as are `backward` and
 `bw`, and `rewrite` and `rw`. `wts` stands for "Want To Show".
@@ -228,11 +243,15 @@ antecedents with the provided arguments, then adds the result
 as a theorem. It never changes the goal. `fw ... at ...` works
 as mentioned above. `rw` has the same syntax as `fw`, but it
 can rewrite subexpressions instead of the entire subexpression.
+If you leave one or more arguments as `_`, the result will be
+a new rule taking in those arguments. This is called a partial
+application.
 
 `bw rule_name` pattern-matches the current goal with the
 consequent of the given rule, then adds all the resulting
 antecedents as new goals (closing the old goal). It can change
-the goal.
+the goal. An error will be raised if not all free variables in
+the rule can be inferred.
 
 `wts a { b }` introduces a goal `a` (it can be new, one that
 already exists, or even the current goal), then checks that `b`
@@ -257,6 +276,19 @@ rule with antecedents and/or generics, you can use a
 statement. It takes the same syntax as usual, and inherits any
 assumptions that are currently active. Once proven, the theorem
 is added as a new rewrite rule.
+
+The statement `use exp_1 as exp_2 in name_1 as name_2` is a
+partial instantiation: `exp_2` is a generic in rule `name_1`
+which will be replaced by `exp_1`. The result will then be
+saved as the new rule `name_2`. You can chain `... for ...`
+clauses like `use foo as fizz, flim as flam in ... as ...`.
+This is useful because rules are not allowed to have remaining
+free variables (1) to count as theorems, and (2) after `bw`
+applications.
+
+`sorry` has the same functionality it does in lean: It closes
+the current goal, no questions asked. It is only to be used as
+a placeholder.
 
 ## Packages and `hark`
 

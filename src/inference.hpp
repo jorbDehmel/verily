@@ -47,10 +47,11 @@ public:
                       const ASTNode &_what) noexcept;
 
   /// Gets a theorem by name
-  const Theorem get_theorem(const std::string &_name) const;
+  const Theorem
+  get_theorem_by_name(const std::string &_name) const;
 
   /// Gets a theorem by theorem
-  const Theorem get_theorem(const ASTNode &_thm) const;
+  const Theorem get_theorem_by_value(const ASTNode &_thm) const;
 
   /// Get all facts from all existing frames
   std::list<std::pair<Token, Theorem>>
@@ -172,7 +173,8 @@ public:
         frames.back().goals, [&](const ASTNode &_item) -> bool {
           if (_item == _goal) {
             frames.back().closed_goals.push_back(
-                {_item, get_theorem(_item).proof.value()});
+                {_item,
+                 get_theorem_by_value(_item).proof.value()});
             return true;
           }
           return false;
