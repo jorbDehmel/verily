@@ -390,14 +390,14 @@ InferenceRule InferenceRule::partial_instantiate(
 InferenceRule
 InferenceRule::replace(const ASTNode &_key,
                        const ASTNode &_value) const noexcept {
-}
-
-InferenceRule InferenceRule::replace(
-    const std::list<std::pair<ASTNode, ASTNode>> &_subs)
-    const noexcept {
-  InferenceRule out = *this;
-  for (const auto &p : _subs) {
-    out = out.replace(p.first, p.second);
+  InferenceRule out;
+  out.free_variables = free_variables;
+  if (out.free_variables.contains(_key)) {
+    out.free_variables.erase(_key);
+  }
+  out.consequence = consequence.replace(_key, _value);
+  for (const auto &r : requirements) {
+    out.requirements.push_back(r.replace(_key, _value));
   }
   return out;
 }
