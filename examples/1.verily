@@ -18,9 +18,13 @@ axiom r5: deduce is_raining implies not is_sunny;
 theorem:
   deduce not is_sunny
 by {
+  ls
   fw r4 as a
+  ls
   fw r5 as b
+  ls
   fw mp on a, b
+  ls
 }
 
 theorem:

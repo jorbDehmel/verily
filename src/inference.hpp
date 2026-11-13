@@ -39,9 +39,6 @@ public:
   /// True iff we have already proven _what
   bool has(const ASTNode &_what) const noexcept;
 
-  /// Get the name of the proof, throwing if it doesn't exist
-  Token get_name(const ASTNode &_what) const;
-
   /// Adds an axiomatic (EG not generic, no antecedents) AST
   void add_assumption(const Token &_name,
                       const ASTNode &_what) noexcept;

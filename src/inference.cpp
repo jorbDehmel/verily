@@ -70,19 +70,6 @@ bool InferenceMaker::has(const ASTNode &_what) const noexcept {
   return false;
 }
 
-Token InferenceMaker::get_name(const ASTNode &_what) const {
-  for (auto rit = frames.rbegin(); rit != frames.rend();
-       ++rit) {
-    for (const auto &p : rit->theorems) {
-      if (p.second.consequence == _what) {
-        return p.first;
-      }
-    }
-  }
-  std::cerr << "Offender: " << _what << '\n';
-  throw std::runtime_error("Failed to find theorem name");
-}
-
 void InferenceMaker::add_assumption(
     const Token &_name, const ASTNode &_what) noexcept {
   const Token name = Token(_name, fix_name(_name.text, "h"));
@@ -134,12 +121,11 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
       const auto on = pf.at(1);
       const auto as = pf.at(2);
       const auto rule = get_theorem_by_name(rule_name.text);
-
-      if (!on.contains(ASTNode(Token("_", "", 0, 0)))) {
-        // Normal (non-partial) application
-        std::vector<ASTNode> antecedent_thms;
-        std::vector<ASTNode> antecedent_pfs;
-        for (const auto &arg : on.children) {
+      std::list<std::pair<size_t, ASTNode>> args;
+      std::vector<ASTNode> antecedent_pfs;
+      size_t i = 0;
+      for (const auto &arg : on.children) {
+        if (arg != ASTNode(Token("_", "", 0, 0))) {
           const auto thm = get_theorem_by_name(arg.text.text);
 
           if (!thm.free_variables.empty() ||
@@ -149,57 +135,22 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
                 "antecedents) as antecedent in application!");
           }
 
-          antecedent_thms.push_back(thm.consequence);
           antecedent_pfs.push_back(thm.proof.value_or(
               ASTNode(Token(rule_name, "ASSUMPTION"))));
+          args.push_back({i, thm.consequence});
         }
-        const auto res = rule.apply(antecedent_thms);
-        const Theorem t(
-            {}, {}, res,
-            ASTNode(
-                Token(rule_name, "THEOREM"),
-                {res, ASTNode(Token(rule_name, "APPLICATION"),
-                              {rule.to_ASTNode(rule_name),
-                               ASTNode(Token(rule_name, "_"),
-                                       antecedent_pfs)})}));
-        add_theorem(
-            Token(rule_name, as.empty() ? fresh_with_prefix("l")
-                                        : as.at(0).text.text),
-            t);
-      } else {
-        // Partial application
-        std::list<std::pair<size_t, ASTNode>> args;
-        std::vector<ASTNode> antecedent_pfs;
-        size_t i = 0;
-        for (const auto &arg : on.children) {
-          if (arg != ASTNode(Token("_", "", 0, 0))) {
-            const auto thm = get_theorem_by_name(arg.text.text);
-
-            if (!thm.free_variables.empty() ||
-                !thm.requirements.empty()) {
-              throw std::runtime_error(
-                  "Cannot use rule (EG with generics and/or "
-                  "antecedents) as antecedent in application!");
-            }
-
-            antecedent_pfs.push_back(thm.proof.value_or(
-                ASTNode(Token(rule_name, "ASSUMPTION"))));
-            args.push_back({i, thm.consequence});
-          }
-          ++i;
-        }
-
-        const auto res_opt = rule.partial_apply(args);
-        if (!res_opt.has_value()) {
-          throw std::runtime_error(
-              "Invalid partial application!");
-        }
-        const auto res = res_opt.value();
-        add_theorem(
-            Token(rule_name, as.empty() ? fresh_with_prefix("l")
-                                        : as.at(0).text.text),
-            res);
+        ++i;
       }
+
+      const auto res_opt = rule.partial_apply(args);
+      if (!res_opt.has_value()) {
+        throw std::runtime_error("Invalid application!");
+      }
+      const auto res = res_opt.value();
+      add_theorem(Token(rule_name, as.empty()
+                                       ? fresh_with_prefix("l")
+                                       : as.at(0).text.text),
+                  res);
     } else if (p == "SWEEP") {
       // Apply everything to everything for some number of
       // rounds

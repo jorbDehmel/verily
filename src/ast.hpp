@@ -291,6 +291,18 @@ struct InferenceRule {
   ASTNode apply_subexpr(const ASTNode &_upon,
                         bool &_did_something) const noexcept;
 
+  InferenceRule replace(const ASTNode &_key,
+                        const ASTNode &_value) const noexcept;
+
+  inline InferenceRule
+  replace(const std::list<std::pair<ASTNode, ASTNode>> &_subs)
+      const noexcept {
+    InferenceRule out = *this;
+    for (const auto &p : _subs) {
+      out = out.replace(p.first, p.second);
+    }
+    return out;
+  }
   /// A more general version of apply which operates on one
   /// argument at a time. Throws on match failure or if
   /// _position is out of range.
@@ -307,9 +319,20 @@ struct InferenceRule {
   inline std::optional<InferenceRule> partial_apply(
       const std::list<std::pair<size_t, ASTNode>> &_args)
       const noexcept {
+    std::list<size_t> removed_positions;
     InferenceRule out = *this;
     for (const auto &p : _args) {
-      const auto res = out.partial_apply(p.first, p.second);
+      size_t pos = p.first;
+      for (const auto &removed_pos : removed_positions) {
+        if (pos == removed_pos) {
+          return {};
+        } else if (pos > removed_pos) {
+          --pos;
+        }
+      }
+      removed_positions.push_back(p.first);
+
+      const auto res = out.partial_apply(pos, p.second);
       if (res.has_value()) {
         out = res.value();
       } else {

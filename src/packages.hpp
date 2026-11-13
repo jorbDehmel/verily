@@ -92,12 +92,10 @@ public:
                            const PackageVersion &_version);
 
   /// Install a version of verily from a url
-  void add_verily_version(const PackageVersion &_version,
-                          const std::string &_url) const;
+  void add_verily_version(const std::string &_url) const;
 
   /// Install a version of verily from a local path
   void add_local_verily_version(
-      const PackageVersion &_version,
       const std::filesystem::path &_path) const;
 
   /// Remove a version of verily, as well as all package data

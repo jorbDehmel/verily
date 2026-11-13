@@ -53,7 +53,7 @@ int main(int c, char *v[]) {
     }
 
     else if (arg == "--ls") {
-      assert(i + 1 <= c);
+      assert(i + 1 < c);
       const std::string name = v[++i];
       const auto versions = pm.all_versions(name);
       std::cout << "Package '" << name << "' has version(s):\n";
@@ -61,7 +61,7 @@ int main(int c, char *v[]) {
         std::cout << "- " << v << '\n';
       }
     } else if (arg == "--add") {
-      assert(i + 3 <= c);
+      assert(i + 3 < c);
       const std::string name = v[++i];
       const auto version = PackageVersion::from_str(v[++i]);
       const std::string url = v[++i];
@@ -69,7 +69,7 @@ int main(int c, char *v[]) {
                 << "' from git repo w/ URL " << url << '\n';
       pm.add_package(name, version, url);
     } else if (arg == "--add-local") {
-      assert(i + 3 <= c);
+      assert(i + 3 < c);
       const std::string name = v[++i];
       const auto version = PackageVersion::from_str(v[++i]);
       const std::string path = v[++i];
@@ -77,7 +77,7 @@ int main(int c, char *v[]) {
                 << "' from local directory " << path << '\n';
       pm.add_local_package(name, version, path);
     } else if (arg == "--remove") {
-      assert(i + 2 <= c);
+      assert(i + 2 < c);
       const std::string name = v[++i];
       const auto version = PackageVersion::from_str(v[++i]);
       std::cout << "Removing package '" << name << "'\n";
@@ -88,27 +88,23 @@ int main(int c, char *v[]) {
         std::cout << "- " << v << '\n';
       }
     } else if (arg == "--add-version") {
-      assert(i + 2 <= c);
-      const auto version = PackageVersion::from_str(v[++i]);
+      assert(i + 1 < c);
       const std::string url = v[++i];
-      std::cout << "Adding verily version '" << version
-                << "'\n";
-      pm.add_verily_version(version, url);
+      std::cout << "Adding verily version '" << url << "'\n";
+      pm.add_verily_version(url);
     } else if (arg == "--add-local-version") {
-      assert(i + 2 <= c);
-      const auto version = PackageVersion::from_str(v[++i]);
+      assert(i + 1 < c);
       const std::filesystem::path path = v[++i];
-      std::cout << "Adding verily version '" << version
-                << "'\n";
-      pm.add_local_verily_version(version, path);
+      std::cout << "Adding verily version '" << path << "'\n";
+      pm.add_local_verily_version(path);
     } else if (arg == "--remove-version") {
-      assert(i + 1 <= c);
+      assert(i + 1 < c);
       const auto version = PackageVersion::from_str(v[++i]);
       std::cout << "Removing verily version '" << version
                 << "'\n";
       pm.remove_verily_version(version);
     } else if (arg == "--set-version") {
-      assert(i + 1 <= c);
+      assert(i + 1 < c);
       const auto version = PackageVersion::from_str(v[++i]);
       std::cout << "Setting verily version to '" << version
                 << "'\n";

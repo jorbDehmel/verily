@@ -320,6 +320,14 @@ std::optional<InferenceRule> InferenceRule::partial_apply(
   if (_position >= requirements.size() ||
       !_value.is_of_form(requirements.at(_position),
                          out.free_variables, subs)) {
+    std::cerr << "Argument " << _value
+              << " failed to be of proper form for position "
+              << _position << " of rule " << *this << '\n';
+    std::cerr << "With existing substitutions:\n";
+    for (const auto &sub : subs) {
+      std::cerr << " - " << sub.first << " |-> " << sub.second
+                << '\n';
+    }
     return {};
   }
   for (size_t i = 0; i < requirements.size(); ++i) {
@@ -376,5 +384,20 @@ InferenceRule InferenceRule::partial_instantiate(
                           _generic_to_replace,
                           _value,
                       });
+  return out;
+}
+
+InferenceRule
+InferenceRule::replace(const ASTNode &_key,
+                       const ASTNode &_value) const noexcept {
+}
+
+InferenceRule InferenceRule::replace(
+    const std::list<std::pair<ASTNode, ASTNode>> &_subs)
+    const noexcept {
+  InferenceRule out = *this;
+  for (const auto &p : _subs) {
+    out = out.replace(p.first, p.second);
+  }
   return out;
 }

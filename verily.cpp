@@ -69,6 +69,9 @@ int main(int argc, char *argv[]) {
     } else if (arg == "--help") {
       print_help();
       return 1;
+    } else if (arg == "--version") {
+      std::cout << version << '\n';
+      return 0;
     }
 
     else if (arg.starts_with("--")) {
