@@ -1,6 +1,6 @@
 # Shenanigans
 
-option "require:std>=0.1";
+option "require:std==0";
 include "std/algebra/ring.verily";
 
 # For any ring, -(-t) == t
@@ -21,22 +21,24 @@ theorem ring_negative_1_squared_eq_1:
   deduce (neg 1) * (neg 1) == 1
 by {
   have ring S add mul neg 0 1 as s_is_ring
+
   fw ring_is_rng on s_is_ring as s_is_rng
-  fw ring_1_is_commutative_mul_identity
-    on s_is_ring
-    as s_1_mul_comm
-  fw commutative_operator_identity_has
-    on s_1_mul_comm
-    as 1_in_s
-  fw rng_add_is_abelian_group
-    on s_is_rng
-    as s_add_is_abelian_group
-  fw abelian_group_is_group
-    on s_add_is_abelian_group
-    as s_add_is_group
-  fw group_contains_inv
-    on s_add_is_group, 1_in_s
-    as inv_1_in_s
+
+  # fw ring_1_is_commutative_mul_identity
+  #   on s_is_ring
+  #   as s_1_mul_comm
+  # fw commutative_operator_identity_has
+  #   on s_1_mul_comm
+  #   as 1_in_s
+  # fw rng_add_is_abelian_group
+  #   on s_is_rng
+  #   as s_add_is_abelian_group
+  # fw abelian_group_is_group
+  #   on s_add_is_abelian_group
+  #   as s_add_is_group
+  # fw group_contains_inv
+  #   on s_add_is_group, 1_in_s
+  #   as inv_1_in_s
 
   sorry
 }

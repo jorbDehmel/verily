@@ -113,6 +113,12 @@ notation implies:
   deduce (implies A B)
 ;
 
+notation iff:
+  over A, B
+  given A iff B
+  deduce (iff A B)
+;
+
 notation derives:
   over A, B
   given A derives B
@@ -124,5 +130,8 @@ notation deduces:
   deduce (derives A B)
 ;
 
-axiom intro_false: over A given A, not A, deduce false;
-axiom elim_false: over A given false deduce A;
+notation ite:
+  over I, T, E
+  given if I then T else E endif
+  deduce (ite I T E)
+;

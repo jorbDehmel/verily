@@ -14,6 +14,7 @@
 /// theorems
 class InferenceMaker {
 public:
+  /// A theorem is a rule without antecedents or generics
   using Theorem = InferenceRule;
 
   /// Keeps all the info
@@ -36,12 +37,19 @@ public:
                       const InferenceRule &_rule,
                       const ASTNode &_goal);
 
-  /// True iff we have already proven _what
+  /// True iff we have already proven _what (EG if it is present
+  /// in this or any parent frame as the consequence of a rule
+  /// without antecedents or generics)
   bool has(const ASTNode &_what) const noexcept;
 
   /// Adds an axiomatic (EG not generic, no antecedents) AST
+  /// without proof
   void add_assumption(const Token &_name,
                       const ASTNode &_what) noexcept;
+
+  /// Adds a theorem
+  const Theorem add_theorem(const Token &_name,
+                            const Theorem &_thm);
 
   /// Gets a theorem by name
   const Theorem
@@ -50,13 +58,10 @@ public:
   /// Gets a theorem by theorem
   const Theorem get_theorem_by_value(const ASTNode &_thm) const;
 
-  /// Get all facts from all existing frames
+  /// Get all facts from all existing frames. Returns a list of
+  /// 2-tuples (name, theorem)
   std::list<std::pair<Token, Theorem>>
   get_all_facts() const noexcept;
-
-  /// Adds a theorem
-  const Theorem add_theorem(const Token &_name,
-                            const Theorem &_thm);
 
   /// Turns a 'by' block into an actual theorem
   std::optional<Theorem> construct_proof(const ASTNode &_goal,
@@ -88,22 +93,6 @@ public:
   inline void
   push(const std::set<ASTNode> &_generics = {}) noexcept {
     frames.push_back(Frame{.generics = _generics});
-  }
-
-  /// Gets all the assumptions in the BACK frame ONLY!
-  inline std::vector<ASTNode> assumptions() const {
-    std::vector<ASTNode> out;
-    for (const auto &thm : frames.back().theorems) {
-      if (!thm.second.proof.has_value()) {
-        if (!thm.second.requirements.empty()) {
-          throw std::runtime_error(
-              "Assumption has non-empty antecedent: How did "
-              "you even do that?");
-        }
-        out.push_back(thm.second.consequence);
-      }
-    }
-    return out;
   }
 
   /// Pop the most recent frame (if there is one)

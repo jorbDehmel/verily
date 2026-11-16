@@ -2,6 +2,7 @@
 #include "inference.hpp"
 #include "parse.hpp"
 #include <cassert>
+#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <string>
@@ -220,6 +221,9 @@ void Core::process_statement(
 }
 
 void Core::do_file(const std::filesystem::path &_fp) {
+  const auto start_time =
+      std::chrono::high_resolution_clock::now();
+
   const auto actual_fp =
       package_manager.find(_fp, parser.ts.cur().file);
   if (debug) {
@@ -238,9 +242,27 @@ void Core::do_file(const std::filesystem::path &_fp) {
     }
     std::cout << '\n';
   }
+
+  const auto n_toks_remaining =
+      parser.ts.data.size() - parser.ts.pos;
+
   parser.ts.prepend(ts.data);
-  while (!parser.ts.done()) {
+  while (!parser.ts.done() &&
+         (parser.ts.data.size() - parser.ts.pos) >
+             n_toks_remaining) {
     parse_and_process(actual_fp);
+  }
+
+  const auto stop_time =
+      std::chrono::high_resolution_clock::now();
+  if (debug || time) {
+    std::cout << "Finished file " << actual_fp << " in "
+              << std::chrono::duration_cast<
+                     std::chrono::microseconds>(stop_time -
+                                                start_time)
+                         .count() /
+                     1000.0
+              << " ms\n";
   }
 }
 

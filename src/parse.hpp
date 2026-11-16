@@ -4,12 +4,15 @@
 
 #include "ast.hpp"
 
+/// Load the contents of a file to a string
+std::string load_file(const std::filesystem::path &_fp);
+
 /// Given some text from some file, lex it
-TokenStream lex_text(const std::string &text,
-                     const std::filesystem::path &fp);
+TokenStream lex_text(const std::string &_text,
+                     const std::filesystem::path &_fp);
 
 /// Load and lex a file's contents
-TokenStream lex_file(const std::filesystem::path &fp);
+TokenStream lex_file(const std::filesystem::path &_fp);
 
 /// An object which takes a token stream and produces an AST
 class Parser {

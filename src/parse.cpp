@@ -19,8 +19,8 @@ const static std::set<char> operator_chars({
     '+', '=', '\\', '|', '<', '>', '?', '/',
 });
 
-TokenStream lex_text(const std::string &text,
-                     const std::filesystem::path &fp) {
+TokenStream lex_text(const std::string &_text,
+                     const std::filesystem::path &_fp) {
   std::vector<Token> out;
   int line = 1;
   int col = 0;
@@ -31,12 +31,12 @@ TokenStream lex_text(const std::string &text,
   const auto add_tok = [&]() {
     if (!cur.empty()) {
       if (!in_comment) {
-        out.push_back(Token(cur, fp, line, col - cur.size()));
+        out.push_back(Token(cur, _fp, line, col - cur.size()));
       }
       cur.clear();
     }
   };
-  for (const auto &c : text) {
+  for (const auto &c : _text) {
     if (c == '"') {
       cur.push_back(c);
       if (in_string) {
@@ -94,17 +94,21 @@ TokenStream lex_text(const std::string &text,
   return TokenStream(out);
 }
 
-TokenStream lex_file(const std::filesystem::path &fp) {
-  std::ifstream f(fp);
+std::string load_file(const std::filesystem::path &_fp) {
+  std::ifstream f(_fp);
   if (!f.is_open()) {
-    throw std::runtime_error("Failed to open " + fp.string());
+    throw std::runtime_error("Failed to open " + _fp.string());
   }
   std::string line, text;
   while (!f.eof()) {
     std::getline(f, line);
     text += line + "\n";
   }
-  return lex_text(text, fp);
+  return text;
+}
+
+TokenStream lex_file(const std::filesystem::path &_fp) {
+  return lex_text(load_file(_fp), _fp);
 }
 
 // Parses a single statement

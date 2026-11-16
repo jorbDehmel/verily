@@ -237,7 +237,7 @@ InferenceMaker::construct_proof(const ASTNode &_goal,
               apply_all(rule.second, facts, rule.first, {});
         }
 
-        // Note: Sweep never changes to goal
+        // Note: Sweep never changes the goal
         if (has(_goal)) {
           std::cout << "WARNING: Halting sweep after "
                     << cur_round << '\n';

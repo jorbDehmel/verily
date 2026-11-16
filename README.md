@@ -323,15 +323,17 @@ option "require:verily>0";
 
 Only `<=`, `>=`, and `==` are currently supported in `require`
 statements. Packages can be added using
-`hark --add name version git-repo-url` or
-`hark --add-local name version path/to/package` and removed via
-`hark --remove name version`. You will probably need `sudo`
-privileges.
+`hark --add git-repo-url` or `hark --add-local path/to/package`
+and removed via `hark --remove name version`. You will probably
+need `sudo` privileges.
 
 You can manage verily versions via `hark --ls-versions`,
-`hark --add-version version url`,
-`hark --remove-version version`, and
+`hark --add-version url`, `hark --remove-version version`, and
 `hark --set-version version`.
+
+To create a package, just make a folder with a file called
+`verily_package.txt` in it of form `name-version`. For example,
+see `./std`, which is a valid package.
 
 ## Vetoed Suggestions:
 
@@ -346,10 +348,5 @@ You can manage verily versions via `hark --ls-versions`,
 - `sweep` calls should print the `fw`-only proofs they discover.
 - The secondary proof checking system (for EG json) is *very*
   broken, and needs a complete rewrite.
-- We should add a `verily-package.json` file for version info
-  so we don't have to add it on the fly. We will use JSON
-  because I think TOML and YAML are dumb. I am hesitant to add
-  a JSON parser dependency to this project, though, especially
-  since I've been using old-school `make`.
 - A theorem database via EG `sqlite3` would be helpful for very
   large projects

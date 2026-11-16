@@ -22,34 +22,40 @@
 
 #include "src/packages.hpp"
 #include <cassert>
+#include <filesystem>
 #include <iostream>
 
 int main(int c, char *v[]) {
   PackageManager pm;
-  std::cout << "Hark: A version / package manager for the "
-               "verily theorem prover (version "
-            << version << ")\n";
+  if (c < 2) {
+    std::cout
+        << "Arguments are required: See --help for more.\n";
+  }
 
   for (int i = 1; i < c; ++i) {
     const std::string arg = v[i];
     if (arg == "--help") {
       // clang-format off
       std::cout <<
-        " CLI flag            | Number of arguments  | Function                \n"
-        "---------------------|----------------------|-------------------------\n"
-        " --help              | 0                    | Print this              \n"
-        " --ls                | 1: name              | List package versions   \n"
-        " --add               | 3: name version url  | Add package from URL    \n"
-        " --add-local         | 3: name version path | Add package from path   \n"
-        " --remove            | 2: name version      | Remove package          \n"
-        " --ls-versions       | 0                    | List verily versions    \n"
-        " --add-version       | 2: version url       | Add verily version      \n"
-        " --add-local-version | 2: version url       | Add local verily version\n"
-        " --remove-version    | 1: version           | Remove verily version   \n"
-        " --set-version       | 1: version           | Set verily version      \n"
-        "MIT License, 2025-2026.                                               \n"
+        "Hark: A version / package manager for the verily theorem prover  \n"
+        " CLI flag            | Arguments       | Function                \n"
+        "---------------------|-----------------|-------------------------\n"
+        " --help              | 0               | Print this              \n"
+        " --ls                | 1: name         | List package versions   \n"
+        " --add               | 1: url          | Add package from URL    \n"
+        " --add-local         | 1: path         | Add package from path   \n"
+        " --remove            | 2: name version | Remove package          \n"
+        " --ls-versions       | 0               | List verily versions    \n"
+        " --add-version       | 1: url          | Add verily version      \n"
+        " --add-local-version | 1: url          | Add local verily version\n"
+        " --remove-version    | 1: version      | Remove verily version   \n"
+        " --set-version       | 1: version      | Set verily version      \n"
+        " --purge             | 0               | Uninstall verily        \n"
+        "MIT License, 2025-2026. Version " << version << "\n"
       ;
       // clang-format on
+    } else if (arg == "--version") {
+      std::cout << version << '\n';
     }
 
     else if (arg == "--ls") {
@@ -61,21 +67,16 @@ int main(int c, char *v[]) {
         std::cout << "- " << v << '\n';
       }
     } else if (arg == "--add") {
-      assert(i + 3 < c);
-      const std::string name = v[++i];
-      const auto version = PackageVersion::from_str(v[++i]);
+      assert(i + 1 < c);
       const std::string url = v[++i];
-      std::cout << "Adding package '" << name
-                << "' from git repo w/ URL " << url << '\n';
-      pm.add_package(name, version, url);
+      std::cout << "Adding package w/ URL " << url << '\n';
+      pm.add_package(url);
     } else if (arg == "--add-local") {
-      assert(i + 3 < c);
-      const std::string name = v[++i];
-      const auto version = PackageVersion::from_str(v[++i]);
+      assert(i + 1 < c);
       const std::string path = v[++i];
-      std::cout << "Adding package '" << name
-                << "' from local directory " << path << '\n';
-      pm.add_local_package(name, version, path);
+      std::cout << "Adding package from local directory "
+                << path << '\n';
+      pm.add_local_package(path);
     } else if (arg == "--remove") {
       assert(i + 2 < c);
       const std::string name = v[++i];
@@ -109,6 +110,16 @@ int main(int c, char *v[]) {
       std::cout << "Setting verily version to '" << version
                 << "'\n";
       pm.set_verily_version(version);
+    } else if (arg == "--purge") {
+      std::cout << "Are you sure you want to erase all verily "
+                   "versions and packages? [y/N] ";
+      char answer;
+      std::cin >> answer;
+      if (answer == 'y') {
+        std::filesystem::remove_all(pm.packages_path);
+      } else {
+        std::cerr << "Aborted.\n";
+      }
     }
 
     else {

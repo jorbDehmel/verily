@@ -21,14 +21,6 @@ public:
   /// Invoked when parse_and_process is called
   Parser parser;
 
-  /// We will parse the given string next.
-  inline void
-  prepend_parse(const std::string &_str,
-                const std::filesystem::path &_cur_path) {
-    const auto tokens = lex_text(_str, _cur_path).data;
-    parser.ts.prepend(tokens);
-  }
-
   /// We will parse the given string after exhausting all
   /// existing data.
   inline void
@@ -75,6 +67,9 @@ public:
 
   /// If true, prints some extra info
   bool debug = false;
+
+  /// If true, print time
+  bool time = false;
 
   /// The set of files to blacklist from visiting again
   std::set<std::filesystem::path> visited_files;

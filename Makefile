@@ -6,7 +6,12 @@ HEADERS = src/parse.hpp src/inference.hpp src/core.hpp \
 
 OBJECTS = $(HEADERS:.hpp=.o)
 
-all:	$(OBJECTS) verily.o verily.out hark.out
+all:	$(OBJECTS) verily.out hark.out
+
+install:	verily.out hark.out
+	echo 'y' | ./hark.out --purge
+	./hark.out --add-local-version .
+	./hark.out --add-local std
 
 %.out:	%.o $(OBJECTS)
 	$(CPP) -o $@ $^

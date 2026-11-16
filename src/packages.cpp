@@ -1,9 +1,58 @@
 #include "packages.hpp"
+#include "parse.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
 #include <stdexcept>
+
+const static std::string info_file_name = "verily_package.txt";
+
+/// Ensures that a package has a well-formatted info file, then
+/// returns a 2-tuple containing (name, version). The argument
+/// should be the root of the package. The info file should be
+/// a 1 (or 2 if you pad with a newline) line text file that
+/// contains a string of form 'name-version'. For example,
+/// `std-0.1.0` would be valid.
+std::pair<std::string, PackageVersion>
+get_package_info(const std::filesystem::path &_path) {
+  if (!std::filesystem::exists(_path)) {
+  } else if (!std::filesystem::exists(_path / info_file_name)) {
+  }
+  const auto contents = load_file(_path / info_file_name);
+  const auto pos_of_first_dash = contents.find('-');
+  if (pos_of_first_dash == contents.npos) {
+    return {contents, PackageVersion()};
+  }
+  const auto name = contents.substr(0, pos_of_first_dash);
+  std::string package_str =
+      contents.substr(pos_of_first_dash + 1);
+  while (!package_str.empty() && package_str.ends_with('\n')) {
+    package_str.pop_back();
+  }
+  return {name, PackageVersion::from_str(package_str)};
+}
+
+/// Clone to the OS's temp folder and return the root of the
+/// cloned thing.
+std::filesystem::path git_clone(const std::string &_url) {
+  const auto cur_path = std::filesystem::current_path();
+  std::filesystem::current_path(
+      std::filesystem::temp_directory_path());
+
+  const auto res = std::system(
+      ("git clone " + _url + " verily_package_tmp").c_str());
+  const auto out_path = std::filesystem::temp_directory_path() /
+                        "verily_package_tmp";
+
+  std::filesystem::current_path(cur_path);
+  if (res != 0) {
+    throw std::runtime_error("Failed git clone of url '" +
+                             _url + "'");
+  }
+  return out_path;
+}
 
 std::strong_ordering PackageVersion::operator<=>(
     const PackageVersion &_other) const noexcept {
@@ -96,16 +145,7 @@ PackageVersion PackageVersion::next() const noexcept {
 
 std::ostream &operator<<(std::ostream &_strm,
                          const PackageVersion &_version) {
-  bool first = true;
-  for (const auto &t : _version.version) {
-    if (first) {
-      first = false;
-    } else {
-      _strm << '.';
-    }
-    _strm << t;
-  }
-  return _strm;
+  return _strm << std::string(_version);
 }
 
 std::filesystem::path
@@ -129,9 +169,10 @@ PackageManager::find(const std::filesystem::path &_path,
       find_cache[{_path, _cur_path}] =
           std::filesystem::canonical(packages_path / version /
                                      _path);
-    } else {
+    }
 
-      // General package search
+    // General package search
+    else {
       const auto pos_of_first_slash = _path.string().find('/');
       const std::string package_name =
           _path.string().substr(0, pos_of_first_slash);
@@ -153,16 +194,36 @@ PackageManager::find(const std::filesystem::path &_path,
 
       // Find highest compliant version
       PackageVersion v;
-      for (const auto &version : all_versions(package_name)) {
-        if (version > v) {
+      bool found = false;
+      for (const auto &package_version :
+           all_versions(package_name)) {
+        if (package_version >= v) {
           if (!lowest_allowed.has_value() ||
-              lowest_allowed.value() <= version) {
+              lowest_allowed.value() <= package_version) {
             if (!lowest_too_high.has_value() ||
-                lowest_too_high.value() > version) {
-              v = version;
+                lowest_too_high.value() > package_version) {
+              found = true;
+              v = package_version;
             }
           }
         }
+      }
+
+      if (!found) {
+        std::string bounds;
+        if (lowest_allowed.has_value()) {
+          bounds +=
+              std::string(lowest_allowed.value()) + " <= ";
+        }
+        bounds += package_name;
+        if (lowest_too_high.has_value()) {
+          bounds +=
+              " < " + std::string(lowest_too_high.value());
+        }
+
+        throw std::runtime_error(
+            "Failed to find package satisfying constraint: " +
+            bounds);
       }
 
       // Actually localize
@@ -175,60 +236,22 @@ PackageManager::find(const std::filesystem::path &_path,
   return find_cache.at({_path, _cur_path});
 }
 
-bool PackageManager::add_package(
-    const std::string &_name, const PackageVersion &_version,
+void PackageManager::add_package(
     const std::string &_git_repo_url) {
-  if (_name == "verily") {
-    throw std::runtime_error(
-        "Cannot add package with reserved name 'verily'");
-  }
-  if (has(_name, _version)) {
-    return false;
-  }
   const auto cur_path = std::filesystem::current_path();
-
-  if (!std::filesystem::exists(packages_path)) {
-    std::filesystem::create_directory(packages_path);
-  }
-  std::filesystem::current_path(packages_path);
-  if (!std::filesystem::exists(version)) {
-    std::filesystem::create_directory(version);
-  }
-  std::filesystem::current_path(version);
-  if (!std::filesystem::exists(_name)) {
-    std::filesystem::create_directory(_name);
-  }
-  std::filesystem::current_path(_name);
-  const auto res = std::system(("git clone " + _git_repo_url +
-                                " " + std::string(_version))
-                                   .c_str());
-  std::filesystem::current_path(cur_path);
-
-  if (res != 0) {
-    throw std::runtime_error("Failed to `git clone` package " +
-                             _name + ", version " +
-                             std::string(_version) +
-                             " w/ url " + _git_repo_url);
-  }
-
-  return true;
+  const auto local_path = git_clone(_git_repo_url);
+  return add_local_package(local_path);
 }
 
-bool PackageManager::add_local_package(
-    const std::string &_name, const PackageVersion &_version,
+void PackageManager::add_local_package(
     const std::filesystem::path &_path) {
-  if (_name == "verily") {
-    throw std::runtime_error(
-        "Cannot add package with reserved name 'verily'");
-  }
-  if (has(_name, _version)) {
-    return false;
-  }
-
+  const auto cur_path = std::filesystem::current_path();
   const auto actual_path = std::filesystem::canonical(
       std::filesystem::current_path() / _path);
 
-  const auto cur_path = std::filesystem::current_path();
+  const auto info = get_package_info(actual_path);
+  const auto name = info.first;
+  const auto package_version = info.second;
 
   if (!std::filesystem::exists(packages_path)) {
     std::filesystem::create_directory(packages_path);
@@ -238,24 +261,25 @@ bool PackageManager::add_local_package(
     std::filesystem::create_directory(version);
   }
   std::filesystem::current_path(version);
-  if (!std::filesystem::exists(_name)) {
-    std::filesystem::create_directory(_name);
+
+  if (!std::filesystem::exists(name)) {
+    std::filesystem::create_directory(name);
   }
-  std::filesystem::current_path(_name);
+  std::filesystem::current_path(name);
 
   std::filesystem::copy(
-      actual_path, _version,
+      actual_path, package_version,
       std::filesystem::copy_options::recursive);
 
   std::filesystem::current_path(cur_path);
-  return true;
 }
 
-bool PackageManager::remove_package(
+void PackageManager::remove_package(
     const std::string &_name, const PackageVersion &_version) {
   const auto path = packages_path / version / _name / _version;
   if (!std::filesystem::exists(path)) {
-    return false;
+    throw std::runtime_error(
+        "Cannot remove package which isn't present!");
   }
   std::filesystem::remove_all(path);
   if (std::filesystem::is_empty(packages_path / version /
@@ -269,7 +293,6 @@ bool PackageManager::remove_package(
       }
     }
   }
-  return true;
 }
 
 bool PackageManager::has(
@@ -425,23 +448,7 @@ PackageManager::all_verily_versions() const noexcept {
 
 void PackageManager::add_verily_version(
     const std::string &_url) const {
-  const auto cur_path = std::filesystem::current_path();
-
-  std::filesystem::current_path(
-      std::filesystem::temp_directory_path());
-
-  const auto res =
-      std::system(("git clone " + _url + " verily").c_str());
-  const auto verily_path =
-      std::filesystem::current_path() / "verily";
-
-  std::filesystem::current_path(cur_path);
-
-  if (res != 0) {
-    throw std::runtime_error(
-        "Failed to `git clone` verily w/ url " + _url);
-  }
-
+  const auto verily_path = git_clone(_url);
   add_local_verily_version(verily_path);
 }
 

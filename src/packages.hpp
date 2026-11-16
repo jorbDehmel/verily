@@ -53,21 +53,14 @@ public:
   find(const std::filesystem::path &_path,
        const std::filesystem::path &_current_path);
 
-  /// Install a package if it is not present. Returns true if
-  /// it did anything.
-  bool add_package(const std::string &_name,
-                   const PackageVersion &_version,
-                   const std::string &_git_repo_url);
+  /// Install a package if it is not present.
+  void add_package(const std::string &_git_repo_url);
 
-  /// Install a package if it is not present. Returns true if
-  /// it did anything. This copies from a local path.
-  bool add_local_package(const std::string &_name,
-                         const PackageVersion &_version,
-                         const std::filesystem::path &_path);
+  /// Install a package if it is not present.
+  void add_local_package(const std::filesystem::path &_path);
 
-  /// Remove a package if it is present. Returns true if it did
-  /// anything.
-  bool remove_package(const std::string &_name,
+  /// Remove a package if it is present.
+  void remove_package(const std::string &_name,
                       const PackageVersion &_version);
 
   /// True iff it exists at all

@@ -1,0 +1,86 @@
+# Where std.verily just introduces notation for logical
+# operators, this adds interpretation.
+
+# and
+axiom and_intro:
+  over A, B
+  given A, B
+  deduce A and B
+;
+axiom and_elim_l:
+  over A, B
+  given A and B
+  deduce A
+;
+axiom and_elim_r:
+  over A, B
+  given A and B
+  deduce B
+;
+
+# or
+axiom or_intro_l:
+  over A, B
+  given A
+  deduce A or B
+;
+axiom or_intro_r:
+  over A, B
+  given B
+  deduce A or B
+;
+
+# implies
+axiom implies_elim:
+  over A, B
+  given A implies B, A
+  deduce B
+;
+axiom or_elim:
+  over A, B, C
+  given A implies C, B implies C, A or B
+  deduce C
+;
+
+# iff
+axiom iff_intro:
+  over A, B
+  given A implies B, B implies A
+  deduce A iff B
+;
+axiom iff_elim:
+  over A, B
+  given A iff B
+  deduce (A implies B) and (B implies A)
+;
+
+# Absurdity
+axiom elim_contradiction:
+  over A
+  given contradiction
+  deduce A
+;
+
+# not
+axiom not_intro:
+  over A
+  given A implies contradiction
+  deduce not A
+;
+axiom not_elim:
+  over A
+  given not A
+  deduce A implies contradiction
+;
+
+# ite
+axiom ite_redundant:
+  over A, B
+  given if A then B else B endif
+  deduce B
+;
+axiom ite_to_implies:
+  over A, B, C
+  given if A then B else C endif
+  deduce (A implies B) and (not A implies C)
+;

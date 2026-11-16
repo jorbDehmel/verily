@@ -44,7 +44,6 @@ void print_help() {
 }
 
 int main(int argc, char *argv[]) {
-  bool time = false;
   bool print_json = false;
   bool quiet = false;
 
@@ -61,7 +60,7 @@ int main(int argc, char *argv[]) {
     } else if (arg == "--check") {
       verily.im.check = !verily.im.check;
     } else if (arg == "--time") {
-      time = !time;
+      verily.time = !verily.time;
     } else if (arg == "--json") {
       print_json = !print_json;
     } else if (arg == "--quiet") {
@@ -94,7 +93,7 @@ int main(int argc, char *argv[]) {
     } else if (_setting == "json") {
       print_json = !print_json;
     } else if (_setting == "time") {
-      time = !time;
+      verily.time = !verily.time;
     } else if (_setting == "quiet") {
       quiet = !quiet;
     }
@@ -112,9 +111,9 @@ int main(int argc, char *argv[]) {
     } else if (_setting == "json=false") {
       print_json = false;
     } else if (_setting == "time=true") {
-      time = true;
+      verily.time = true;
     } else if (_setting == "time=false") {
-      time = false;
+      verily.time = false;
     } else if (_setting == "time=quiet") {
       quiet = true;
     } else if (_setting == "time=quiet") {
@@ -169,20 +168,20 @@ int main(int argc, char *argv[]) {
   try {
     if (fp != null_fp) {
       // File mode
-      if (time) {
+      if (verily.time) {
         start = std::chrono::high_resolution_clock::now();
       }
       verily.do_file(fp);
-      if (time) {
+      if (verily.time) {
         stop = std::chrono::high_resolution_clock::now();
       }
     }
 
     else {
       // CLI mode
-      if (time) {
+      if (verily.time) {
         std::cout << "WARNING: Cannot time in CLI mode\n";
-        time = false;
+        verily.time = false;
       } else if (quiet) {
         std::cout
             << "WARNING: Cannot use '--quiet' in CLI mode\n";
@@ -247,7 +246,7 @@ int main(int argc, char *argv[]) {
 
   verily.ls();
 
-  if (time) {
+  if (verily.time) {
     const auto elapsed_us =
         std::chrono::duration_cast<std::chrono::microseconds>(
             stop - start)
