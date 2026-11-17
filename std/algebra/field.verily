@@ -1,0 +1,28 @@
+include "std/std.verily";
+include "ring.verily";
+
+axiom field_is_commutative_ring:
+  over R, add, mul, neg, inv, 0, 1
+  given (field R add mul neg inv 0 1)
+  deduce (commutative_ring R add mul neg 0 1)
+;
+axiom field_mul_is_distributive:
+  over R, add, mul, neg, inv, 0, 1
+  given (field R add mul neg inv 0 1)
+  deduce (distributive mul add R)
+;
+axiom field_mul_is_monoid:
+  over R, add, mul, neg, inv, 0, 1
+  given (field R add mul neg inv 0 1)
+  deduce (monoid R mul 1)
+;
+axiom field_nonzero_has_mul_inv:
+  over R, add, mul, neg, inv, 0, 1, A
+  given (field R add mul neg inv 0 1), A in R, A != 0
+  deduce (inv A) in R
+;
+axiom field_nonzero_self_mul_inv_eq_1:
+  over R, add, mul, neg, inv, 0, 1, A
+  given (field R add mul neg inv 0 1), A in R, A != 0
+  deduce (mul A (inv A)) == 1
+;

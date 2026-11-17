@@ -5,7 +5,7 @@
 # union, and (set_of_algebra (...)) for getting the set of an
 # algebra.
 
-include "ring.verily";
+include "std/algebra/ring.verily";
 
 axiom polynomial_def:
   over R, X, add, mul, neg, 0

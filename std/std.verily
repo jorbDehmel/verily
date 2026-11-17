@@ -86,7 +86,7 @@ notation eq:
 notation neq:
   over A, B
   given A != B
-  deduce (neq A B)
+  deduce (not (eq A B))
 ;
 
 notation not:

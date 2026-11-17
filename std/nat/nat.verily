@@ -1,1 +1,13 @@
 # Main file for axioms about the natural numbers (Nat)
+include "std/std.verily";
+include "std/algebra/orderings.verily";
+
+axiom zero_is_nat: deduce 0 in Nat;
+axiom succ_nat_is_nat:
+  over n
+  given n in Nat
+  deduce (S n) in Nat
+;
+
+# The natural numbers are totally ordered under "<=" (le)
+axiom nats_are_toset: deduce toset Nat le;
